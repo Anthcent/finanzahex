@@ -2,6 +2,11 @@
 
 Sistema de Finanzas Personales, Inventario, Punto de Venta y Facturación (Fi-Hex Wallet).
 
+## Despliegue en Dokploy / Hexper Ops
+
+Consulta [la guía de despliegue](docs/dokploy.md). La imagen utiliza PostgreSQL por
+defecto, ejecuta las migraciones antes de Apache y escucha en `0.0.0.0:8080`.
+
 ## CodeIgniter 4 Application Starter
 
 CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.

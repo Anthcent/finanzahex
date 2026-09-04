@@ -21,7 +21,8 @@ class TransactionModel extends Model
         $accountBalance = $db->table('accounts')->selectSum('balance')->get()->getRow()->balance ?? 0;
 
         $todayExpense = $this->where('type', 'expense')
-                             ->like('created_at', $today)
+                             ->where('created_at >=', $today . ' 00:00:00')
+                             ->where('created_at <', date('Y-m-d', strtotime($today . ' +1 day')) . ' 00:00:00')
                              ->selectSum('amount')->first()['amount'] ?? 0;
 
         $recent = $this->builder()
@@ -78,7 +79,7 @@ class TransactionModel extends Model
         
         // Totals
         $totals = $this->builder()
-            ->select("SUM(IF(type='income', amount, 0)) as income, SUM(IF(type='expense', amount, 0)) as expense, SUM(IF(type='savings', amount, 0)) as savings")
+            ->select("SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as income, SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense, SUM(CASE WHEN type='savings' THEN amount ELSE 0 END) as savings")
             ->where('created_at >=', $startDate . ' 00:00:00')
             ->where('created_at <=', $endDate . ' 23:59:59')
             ->get()->getRowArray();
@@ -90,7 +91,7 @@ class TransactionModel extends Model
             ->where('transactions.type', 'expense')
             ->where('transactions.created_at >=', $startDate . ' 00:00:00')
             ->where('transactions.created_at <=', $endDate . ' 23:59:59')
-            ->groupBy('transactions.category_id')
+            ->groupBy(['transactions.category_id', 'categories.name'])
             ->orderBy('total', 'DESC')
             ->get()->getResultArray();
 
@@ -105,7 +106,7 @@ class TransactionModel extends Model
 
         // Trends (Daily)
         $dailyTrend = $this->builder()
-            ->select("DATE(created_at) as date, SUM(IF(type='income', amount, 0)) as income, SUM(IF(type='expense', amount, 0)) as expense")
+            ->select("DATE(created_at) as date, SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as income, SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense")
             ->where('created_at >=', $startDate . ' 00:00:00')
             ->where('created_at <=', $endDate . ' 23:59:59')
             ->groupBy('DATE(created_at)')

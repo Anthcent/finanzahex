@@ -44,8 +44,8 @@ class CreateSalesTables extends Migration
                 'constraint' => '255',
             ],
             'status' => [
-                'type'       => 'ENUM',
-                'constraint' => ['paid', 'partial'],
+                'type'       => $this->db->DBDriver === 'Postgre' ? 'VARCHAR' : 'ENUM',
+                'constraint' => $this->db->DBDriver === 'Postgre' ? 32 : ['paid', 'partial'],
                 'default'    => 'paid',
             ],
             'reference' => [

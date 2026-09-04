@@ -9,6 +9,7 @@ $routes->get('/', 'TransactionController::index');
 $routes->match(['get', 'head'], 'health', static function() {
     return 'OK';
 });
+if (ENVIRONMENT === 'development') {
 $routes->get('debug-check', static function() {
     $out = [
         'php_version'        => PHP_VERSION,
@@ -41,6 +42,7 @@ $routes->get('debug-check', static function() {
 
     return \Config\Services::response()->setJSON($out);
 });
+}
 $routes->post('transaction/save', 'TransactionController::save');
 $routes->post('transaction/update/(:num)', 'TransactionController::update/$1');
 $routes->get('transaction/stats', 'TransactionController::stats');
@@ -100,7 +102,9 @@ $routes->get('/accounts/close-temp/(:num)', 'AccountController::closeTemporary/$
 
 // Admin repair route
 $routes->get('/admin/fix-compras', 'AdminRepair::fixCompras');
-$routes->get('migrate', 'Migrate::index');
+if (ENVIRONMENT === 'development') {
+    $routes->get('migrate', 'Migrate::index');
+}
 
 // AI Assistant
 $routes->get('ai', 'AIController::index');

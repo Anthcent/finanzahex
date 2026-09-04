@@ -1,47 +1,26 @@
-# Git & IDE
-.git
-.gitignore
-.dockerignore
-.vscode
-.idea
-
-# Environment & Secrets
-.env
-.env*
-readmecreden.md
-*.key
-*.pem
-
-# Dependencies (installed cleanly inside container via composer)
-vendor/
-
-# Tests & Documentation
-tests/
-phpunit.xml*
-
-# Development & Scratch Scripts
-*.bat
-*.sql
-*.txt
-test_*.php
-debug_*.php
-repair_*.php
-fix_*.php
-check_*.php
-create_*.php
-add_*.php
-migrate_*.php
-manual_*.php
-final_test.php
-update_*.php
-
-# Runtime Storage Data (keep directories, ignore runtime contents)
-writable/cache/*
-!writable/cache/index.html
-writable/logs/*
-!writable/logs/index.html
-writable/session/*
-!writable/session/index.html
-writable/debugbar/*
-!writable/debugbar/.gitkeep
-writable/installed.lock
+# Only runtime sources and locked dependencies enter the build context.
+**
+!app/
+!app/**
+!public/
+!public/**
+!docker/
+!docker/**
+!composer.json
+!composer.lock
+!spark
+!docker-entrypoint.sh
+!Dockerfile
+!.dockerignore
+**/.env
+**/.env.*
+**/*.key
+**/*.pem
+**/*.log
+**/*debug*.txt
+public/test_*
+public/debug_*
+public/check_*
+public/fix_*
+public/repair_*
+public/*.sql

@@ -24,8 +24,11 @@ class AddCurrencyFieldsToTransactions extends Migration
         ];
 
         // Idempotency check
-        if (!$this->db->fieldExists('amount_usd', 'transactions')) {
-            $this->forge->addColumn('transactions', $fields);
+        $this->db->resetDataCache();
+        foreach ($fields as $name => $definition) {
+            if (!$this->db->fieldExists($name, 'transactions')) {
+                $this->forge->addColumn('transactions', [$name => $definition]);
+            }
         }
     }
 

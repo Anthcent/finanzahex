@@ -28,11 +28,11 @@ class Database extends Config
      */
     public array $default = [
         'DSN'          => '',
-        'hostname'     => 'localhost',
+        'hostname'     => '127.0.0.1',
         'username'     => '',
         'password'     => '',
         'database'     => 'finazapersonal',
-        'DBDriver'     => 'MySQLi',
+        'DBDriver'     => 'Postgre',
         'DBPrefix'     => '',
         'pConnect'     => false,
         'DBDebug'      => true,
@@ -43,7 +43,7 @@ class Database extends Config
         'compress'     => false,
         'strictOn'     => false,
         'failover'     => [],
-        'port'         => 3306,
+        'port'         => 5432,
         'numberNative' => false,
     ];
 
@@ -79,55 +79,66 @@ class Database extends Config
     {
         parent::__construct();
 
-        // Support for DATABASE_URL (injected by Dokploy / Hexper Ops / Cloud providers)
-        $databaseUrl = getenv('DATABASE_URL') ?: (getenv('database.default.url') ?: null);
-        if (!empty($databaseUrl)) {
+        $databaseUrl = getenv('DATABASE_URL') ?: getenv('database.default.url');
+        if ($databaseUrl) {
             $parsed = parse_url($databaseUrl);
-            if ($parsed !== false) {
-                $scheme = strtolower($parsed['scheme'] ?? '');
-                if ($scheme === 'postgres' || $scheme === 'postgresql') {
-                    $this->default['DBDriver'] = 'Postgre';
-                    $this->default['port']     = isset($parsed['port']) ? (int) $parsed['port'] : 5432;
-                    $this->default['charset']  = 'utf8';
-                    $this->default['DBCollat'] = 'utf8_general_ci';
-                } elseif ($scheme === 'mysql' || $scheme === 'mysqli') {
-                    $this->default['DBDriver'] = 'MySQLi';
-                    $this->default['port']     = isset($parsed['port']) ? (int) $parsed['port'] : 3306;
-                }
-
-                if (!empty($parsed['host'])) {
-                    $this->default['hostname'] = $parsed['host'];
-                }
-                if (isset($parsed['user'])) {
-                    $this->default['username'] = urldecode($parsed['user']);
-                }
-                if (isset($parsed['pass'])) {
-                    $this->default['password'] = urldecode($parsed['pass']);
-                }
-                if (isset($parsed['path'])) {
-                    $this->default['database'] = urldecode(ltrim($parsed['path'], '/'));
-                }
+            $scheme = strtolower($parsed['scheme'] ?? '');
+            if (!$parsed || !in_array($scheme, ['postgres', 'postgresql', 'mysql', 'mysqli'], true)
+                || empty($parsed['host']) || empty(trim($parsed['path'] ?? '', '/'))) {
+                throw new \InvalidArgumentException('DATABASE_URL must specify a supported database scheme, host and database.');
             }
+            $postgres = in_array($scheme, ['postgres', 'postgresql'], true);
+            $this->default['DBDriver'] = $postgres ? 'Postgre' : 'MySQLi';
+            $this->default['hostname'] = trim($parsed['host'], '[]');
+            $this->default['port'] = $parsed['port'] ?? ($postgres ? 5432 : 3306);
+            $this->default['username'] = rawurldecode($parsed['user'] ?? '');
+            $this->default['password'] = rawurldecode($parsed['pass'] ?? '');
+            $this->default['database'] = rawurldecode(ltrim($parsed['path'], '/'));
+            $this->default['DSN'] = '';
+            $urlOptions = [];
+            parse_str($parsed['query'] ?? '', $urlOptions);
         } else {
-            // Support for individual environment variables
-            if ($dbDriver = getenv('DB_DRIVER')) {
-                $this->default['DBDriver'] = $dbDriver;
+            $driver = getenv('DB_DRIVER');
+            if ($driver !== false && $driver !== '') {
+                $drivers = ['postgres' => 'Postgre', 'postgresql' => 'Postgre', 'postgre' => 'Postgre', 'mysql' => 'MySQLi', 'mysqli' => 'MySQLi'];
+                if (!isset($drivers[strtolower($driver)])) {
+                    throw new \InvalidArgumentException('Unsupported DB_DRIVER.');
+                }
+                $this->default['DBDriver'] = $drivers[strtolower($driver)];
             }
-            if ($dbHost = getenv('DB_HOST')) {
-                $this->default['hostname'] = $dbHost;
+            if (getenv('DB_PORT') === false && getenv('database.default.port') === false) {
+                $this->default['port'] = $this->default['DBDriver'] === 'Postgre' ? 5432 : 3306;
             }
-            if ($dbPort = getenv('DB_PORT')) {
-                $this->default['port'] = (int) $dbPort;
+            foreach (['DB_HOST' => 'hostname', 'DB_PORT' => 'port', 'DB_USER' => 'username', 'DB_PASSWORD' => 'password', 'DB_NAME' => 'database'] as $env => $field) {
+                $value = getenv($env);
+                if ($value !== false) {
+                    $this->default[$field] = $field === 'port' ? (int) $value : $value;
+                }
             }
-            if ($dbUser = getenv('DB_USER')) {
-                $this->default['username'] = $dbUser;
+            $this->default['connect_timeout'] = 3;
+        }
+
+        if ($this->default['DBDriver'] === 'Postgre') {
+            $parameters = [
+                'host' => $this->default['hostname'],
+                'port' => $this->default['port'],
+                'user' => $this->default['username'],
+                'password' => $this->default['password'],
+                'dbname' => $this->default['database'],
+                'connect_timeout' => 3,
+            ];
+            foreach (['sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'options', 'application_name'] as $option) {
+                if (isset($urlOptions[$option]) && is_string($urlOptions[$option])) {
+                    $parameters[$option] = $urlOptions[$option];
+                }
             }
-            if ($dbPass = getenv('DB_PASSWORD')) {
-                $this->default['password'] = $dbPass;
+            $parts = [];
+            foreach ($parameters as $key => $value) {
+                // libpq quoted values; escaping '/' also prevents CI4's URI autodetection
+                // when a credential happens to contain ://.
+                $parts[] = $key . "='" . addcslashes((string) $value, "\\'/") . "'";
             }
-            if ($dbName = getenv('DB_NAME')) {
-                $this->default['database'] = $dbName;
-            }
+            $this->default['DSN'] = implode(' ', $parts);
         }
 
         // Ensure that we always set the database group to 'tests' if

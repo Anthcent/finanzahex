@@ -23,34 +23,23 @@ class ConfigController extends BaseController
     public function saveSetting() {
         $json = $this->request->getJSON();
         
-        // DEBUG: Write to FCPATH (public folder) to be sure
-        file_put_contents(FCPATH . 'debug_settings.txt', date('Y-m-d H:i:s') . " - Request: " . print_r($json, true) . "\n", FILE_APPEND);
 
         if (!$json || !isset($json->key) || !isset($json->value)) {
-             file_put_contents(FCPATH . 'debug_settings.txt', "ERROR: Missing key/value\n", FILE_APPEND);
              return $this->response->setJSON(['status' => 'error', 'message' => 'Missing data']);
         }
 
         $db = \Config\Database::connect();
         
         try {
-            // Use query binding to avoid reserved word issues completely
-            $sql = "SELECT count(*) as count FROM settings WHERE `key` = ?";
-            $query = $db->query($sql, [$json->key]);
-            $row = $query->getRow();
-            $exists = $row->count > 0;
-            
-            if ($exists) {
-                $sql = "UPDATE settings SET `value` = ? WHERE `key` = ?";
-                $db->query($sql, [$json->value, $json->key]);
+            $builder = $db->table('settings');
+            if ($builder->where('key', $json->key)->countAllResults() > 0) {
+                $builder->where('key', $json->key)->update(['value' => $json->value]);
             } else {
-                $sql = "INSERT INTO settings (`key`, `value`) VALUES (?, ?)";
-                $db->query($sql, [$json->key, $json->value]);
+                $builder->insert(['key' => $json->key, 'value' => $json->value]);
             }
-            
+
             return $this->response->setJSON(['status' => 'success']);
         } catch (\Exception $e) {
-             file_put_contents(FCPATH . 'debug_settings.txt', "ERROR SQL: " . $e->getMessage() . "\n", FILE_APPEND);
              return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
         }
     }
