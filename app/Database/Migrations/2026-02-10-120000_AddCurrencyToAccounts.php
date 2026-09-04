@@ -24,9 +24,11 @@ class AddCurrencyToAccounts extends Migration
         ];
 
         // Check if columns exist before adding to avoid errors if partially run
-        $db = \Config\Database::connect();
-        if (!$db->fieldExists('currency', 'accounts')) {
-            $this->forge->addColumn('accounts', $fields);
+        $this->db->resetDataCache();
+        foreach ($fields as $name => $definition) {
+            if (!$this->db->fieldExists($name, 'accounts')) {
+                $this->forge->addColumn('accounts', [$name => $definition]);
+            }
         }
     }
 

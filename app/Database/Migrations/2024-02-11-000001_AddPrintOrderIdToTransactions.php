@@ -22,7 +22,8 @@ class AddPrintOrderIdToTransactions extends Migration
             $this->forge->addColumn('transactions', $fields);
             
             // Add index for performance
-            $this->db->query('ALTER TABLE transactions ADD INDEX(print_order_id)');
+            $this->forge->addKey('print_order_id');
+            $this->forge->processIndexes('transactions');
         }
     }
 

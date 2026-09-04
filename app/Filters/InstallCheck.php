@@ -19,23 +19,12 @@ class InstallCheck implements FilterInterface
         // Verify database connectivity
         try {
             $db = \Config\Database::connect();
-            $db->connect();
+            $db->initialize();
         } catch (\Throwable $e) {
             // Friendly setup page if DB is not configured or offline
-            return Services::response()->setStatusCode(503)->setBody($this->renderDbSetupNotice($e->getMessage()));
+            return Services::response()->setStatusCode(503)->setBody($this->renderDbSetupNotice('Base de datos no disponible. Revisa la configuración del entorno privado.'));
         }
 
-        // Run migrations if not yet recorded
-        $lockFile = WRITEPATH . 'installed.lock';
-        if (!file_exists($lockFile)) {
-            try {
-                $migrate = Services::migrations();
-                $migrate->latest();
-                @file_put_contents($lockFile, 'Installed on ' . date('Y-m-d H:i:s'));
-            } catch (\Throwable $e) {
-                return Services::response()->setStatusCode(500)->setBody("Error en migraciones: " . $e->getMessage());
-            }
-        }
     }
 
     private function renderDbSetupNotice(string $errorMessage): string
@@ -66,7 +55,7 @@ class InstallCheck implements FilterInterface
             </div>
         </div>
         <p class="text-slate-300 text-sm mb-4 leading-relaxed">
-            El contenedor y el servidor web están <strong class="text-emerald-400">100% operativos</strong>. Para completar el inicio, vincula una base de datos en <strong>Dokploy</strong> o <strong>Hexper Ops</strong>.
+            La aplicación no puede conectarse a su base de datos. Para completar el inicio, vincula una base de datos en <strong>Dokploy</strong> o <strong>Hexper Ops</strong>.
         </p>
         <div class="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 mb-5">
             <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Paso a paso en Dokploy:</p>

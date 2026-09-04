@@ -31,14 +31,14 @@ class SalesController extends BaseController
         
         // Current Month
         $currentMonthStats = $db->table('sales')
-            ->select('IFNULL(SUM(amount_usd), 0) as total, COUNT(id) as count')
+            ->select('COALESCE(SUM(amount_usd), 0) as total, COUNT(id) as count')
             ->where('date >=', $currentMonthStart)
             ->where('order_status_id !=', 5) // Exclude Cancelled (ID 5 usually)
             ->get()->getRowArray();
             
         // Last Month
         $lastMonthStats = $db->table('sales')
-            ->select('IFNULL(SUM(amount_usd), 0) as total')
+            ->select('COALESCE(SUM(amount_usd), 0) as total')
             ->where('date >=', $lastMonthStart)
             ->where('date <=', $lastMonthEnd)
              ->where('order_status_id !=', 5)
@@ -224,7 +224,9 @@ class SalesController extends BaseController
             // 2. Inventory Deduction (Only if it's a registered item)
             if (isset($item->id) && $item->id) {
                 // Deduct Stock
-                $inventoryItemModel->where('id', $item->id)->decrement('stock', $item->quantity);
+                // CI4 4.4's Postgre decrement() casts numeric stock through to_number().
+                // A bound arithmetic update preserves the atomic stock deduction on both engines.
+                $db->query('UPDATE inventory_items SET stock = stock - ? WHERE id = ?', [$item->quantity, $item->id]);
                 
                 // Record Movement
                 $inventoryMovementModel->insert([

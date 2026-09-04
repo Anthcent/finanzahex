@@ -21,8 +21,8 @@ class CreateInventoryTables extends Migration
                 'constraint' => '100',
             ],
             'type' => [
-                'type'       => 'ENUM',
-                'constraint' => ['product', 'material'],
+                'type'       => $this->db->DBDriver === 'Postgre' ? 'VARCHAR' : 'ENUM',
+                'constraint' => $this->db->DBDriver === 'Postgre' ? 32 : ['product', 'material'],
                 'default'    => 'product',
             ],
             'created_at' => [
@@ -102,8 +102,8 @@ class CreateInventoryTables extends Migration
                 'unsigned'   => true,
             ],
             'type' => [
-                'type'       => 'ENUM',
-                'constraint' => ['in', 'out', 'sale', 'adjustment'],
+                'type'       => $this->db->DBDriver === 'Postgre' ? 'VARCHAR' : 'ENUM',
+                'constraint' => $this->db->DBDriver === 'Postgre' ? 32 : ['in', 'out', 'sale', 'adjustment'],
             ],
             'quantity' => [
                 'type'       => 'DECIMAL',

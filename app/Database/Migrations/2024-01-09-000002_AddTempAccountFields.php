@@ -8,6 +8,10 @@ class AddTempAccountFields extends Migration
 {
     public function up()
     {
+        $fields = [
+            'status' => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'active'],
+            'parent_account_id' => ['type' => 'INT', 'null' => true],
+        ];
         $addFields = [];
         if (!$this->db->fieldExists('status', 'accounts')) {
             $addFields['status'] = $fields['status'];

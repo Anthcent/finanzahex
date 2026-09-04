@@ -26,8 +26,8 @@ class InitialSchema extends Migration
                 'constraint' => '100',
             ],
             'type' => [
-                'type'       => 'ENUM',
-                'constraint' => ['cash', 'bank', 'wallet', 'investment'],
+                'type'       => $this->db->DBDriver === 'Postgre' ? 'VARCHAR' : 'ENUM',
+                'constraint' => $this->db->DBDriver === 'Postgre' ? 32 : ['cash', 'bank', 'wallet', 'investment'],
             ],
             'balance' => [
                 'type'       => 'DECIMAL',
@@ -51,8 +51,8 @@ class InitialSchema extends Migration
                 'constraint' => '100',
             ],
             'type' => [
-                'type'       => 'ENUM',
-                'constraint' => ['income', 'expense', 'investment', 'transfer'],
+                'type'       => $this->db->DBDriver === 'Postgre' ? 'VARCHAR' : 'ENUM',
+                'constraint' => $this->db->DBDriver === 'Postgre' ? 32 : ['income', 'expense', 'investment', 'transfer'],
             ],
             'icon' => [
                 'type'       => 'VARCHAR',
@@ -81,8 +81,8 @@ class InitialSchema extends Migration
                 'constraint' => '15,2',
             ],
             'type' => [
-                'type'       => 'ENUM',
-                'constraint' => ['income', 'expense', 'investment', 'transfer'],
+                'type'       => $this->db->DBDriver === 'Postgre' ? 'VARCHAR' : 'ENUM',
+                'constraint' => $this->db->DBDriver === 'Postgre' ? 32 : ['income', 'expense', 'investment', 'transfer'],
             ],
             'description' => [
                 'type' => 'TEXT',
