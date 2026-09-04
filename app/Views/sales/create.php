@@ -2,73 +2,84 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrar Venta</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nueva Venta | Fi-Hex</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Outfit', sans-serif; }
-        .input-group:focus-within label { color: #4f46e5; }
-        .input-group:focus-within input { border-color: #4f46e5; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        [x-cloak] { display: none !important; }
+        .customize-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .customize-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .customize-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .safe-bottom { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+        .safe-top { padding-top: max(0.75rem, env(safe-area-inset-top)); }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen" x-data="saleForm()">
+<body class="bg-slate-50 min-h-screen text-slate-800 antialiased" x-data="saleForm()">
 
-    <!-- Header -->
-    <div class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100">
-        <div class="max-w-md mx-auto flex items-center justify-between p-4">
-            <a href="<?= base_url('sales') ?>" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors">
-                <span class="material-icons">arrow_back</span>
-            </a>
-            <h1 class="text-lg font-bold text-slate-800">Nueva Venta</h1>
-            <button @click="resetForm()" class="text-xs font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-wide">Limpiar</button>
+    <!-- Executive Top Nav Header -->
+    <header class="sticky top-0 z-40 bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 text-white shadow-xl border-b border-emerald-800/30 safe-top">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="<?= base_url('sales') ?>" class="w-10 h-10 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white transition-all border border-white/10" title="Volver">
+                    <span class="material-icons text-xl">arrow_back</span>
+                </a>
+                <div>
+                    <h1 class="text-sm sm:text-base font-black tracking-tight text-white leading-tight">Nueva Venta</h1>
+                    <p class="text-[10px] text-emerald-200/70 font-semibold">Salida de mercancía y cobranza</p>
+                </div>
+            </div>
+            <button @click="resetForm()" class="text-xs font-black text-emerald-300 hover:text-white uppercase tracking-wider bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl border border-white/10 transition-all active:scale-95">
+                Limpiar
+            </button>
         </div>
-    </div>
+    </header>
 
-    <div class="max-w-md mx-auto p-5 pb-32 space-y-6">
+    <main class="max-w-md mx-auto p-4 pb-36 space-y-4 safe-bottom">
         
-        <!-- Customer & Date -->
-        <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 p-6 space-y-5 border border-slate-50 relative overflow-hidden">
-            <!-- Customer -->
-            <div class="input-group transition-colors">
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Cliente</label>
-                <input type="text" x-model="form.customer" class="w-full text-lg font-bold text-slate-800 placeholder-slate-300 border-b-2 border-slate-100 py-2 outline-none bg-transparent transition-all" placeholder="Nombre completo">
+        <!-- Customer & Date Card -->
+        <div class="bg-white rounded-3xl shadow-xs p-5 space-y-4 border border-slate-100">
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Cliente</label>
+                <input type="text" x-model="form.customer" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm sm:text-base font-black text-slate-900 outline-none focus:border-emerald-500 focus:bg-white transition-all" placeholder="Nombre completo o empresa">
             </div>
 
-            <!-- Date -->
-            <div class="input-group transition-colors">
-                 <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Fecha de Venta</label>
-                 <input type="date" x-model="form.date" class="w-full font-bold text-slate-600 border-b-2 border-slate-100 py-2 outline-none bg-transparent transition-all">
+            <div>
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Fecha de la Venta</label>
+                <input type="date" x-model="form.date" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all">
             </div>
         </div>
 
         <!-- ITEMS SECTION -->
-        <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 p-6 border border-slate-50 relative">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Productos</h2>
+        <div class="bg-white rounded-3xl shadow-xs p-5 border border-slate-100 space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xs font-black text-slate-400 uppercase tracking-wider">Productos de la Orden</h2>
+                <span class="text-[11px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-100" x-text="form.items.length + ' ítems'"></span>
+            </div>
             
-            <div class="space-y-4">
+            <div class="space-y-3">
                 <template x-for="(item, index) in form.items" :key="index">
-                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 relative group">
-                        <button @click="removeItem(index)" class="absolute -top-2 -right-2 w-6 h-6 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span class="material-icons text-xs">close</span>
+                    <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80 relative">
+                        <button @click="removeItem(index)" class="absolute top-2.5 right-2.5 w-7 h-7 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-xl flex items-center justify-center transition-all" title="Eliminar ítem">
+                            <span class="material-icons text-sm">close</span>
                         </button>
                         
-                        <div class="flex justify-between items-start mb-2">
-                             <!-- Item Name (Editable/Searchable handled by main input below, here just display) -->
-                             <p class="font-bold text-slate-800" x-text="item.name"></p>
-                             <p class="font-black text-slate-800" x-text="'$ ' + (item.price_usd * item.quantity).toFixed(2)"></p>
+                        <div class="pr-8 mb-2">
+                             <p class="font-black text-slate-900 text-sm truncate" x-text="item.name"></p>
+                             <p class="font-black text-emerald-700 text-xs mt-0.5" x-text="'$ ' + (item.price_usd * item.quantity).toFixed(2)"></p>
                         </div>
                         
-                        <div class="flex gap-3 text-xs">
-                             <div class="flex items-center bg-white rounded-lg border border-slate-200 px-2 py-1">
-                                 <span class="text-slate-400 mr-2">Cant:</span>
-                                 <input type="number" x-model="item.quantity" @input="calculateTotal()" class="w-12 font-bold text-center outline-none">
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                             <div class="flex items-center bg-white rounded-xl border border-slate-200 px-3 py-1.5">
+                                 <span class="text-slate-400 font-bold mr-2 text-[10px] uppercase">Cant:</span>
+                                 <input type="number" x-model="item.quantity" @input="calculateTotal()" class="w-full font-black text-slate-800 text-center outline-none">
                              </div>
-                             <div class="flex items-center bg-white rounded-lg border border-slate-200 px-2 py-1 flex-1">
-                                 <span class="text-slate-400 mr-2">Precio $:</span>
-                                 <input type="number" step="0.01" x-model="item.price_usd" @input="calculateTotal()" class="w-full font-bold outline-none">
+                             <div class="flex items-center bg-white rounded-xl border border-slate-200 px-3 py-1.5">
+                                 <span class="text-slate-400 font-bold mr-2 text-[10px] uppercase">Precio $:</span>
+                                 <input type="number" step="0.01" x-model="item.price_usd" @input="calculateTotal()" class="w-full font-black text-slate-800 text-right outline-none">
                              </div>
                         </div>
                     </div>
@@ -76,21 +87,23 @@
             </div>
 
             <!-- Add Item Input -->
-            <div class="mt-4 relative" @click.outside="searchResults = []">
-                <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 ring-indigo-100 transition-all">
-                    <span class="material-icons text-slate-400">search</span>
-                    <input type="text" x-model="searchQuery" @input="searchItems()" @keydown.enter="addItemManual()" placeholder="Buscar o agregar manual..." class="w-full bg-transparent outline-none text-sm font-bold text-slate-700">
-                    <button @click="addItemManual()" class="text-indigo-600 text-xs font-bold uppercase" x-show="searchQuery.length > 0">Agregar</button>
+            <div class="relative pt-1" @click.outside="searchResults = []">
+                <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 focus-within:border-emerald-500 focus-within:bg-white transition-all">
+                    <span class="material-icons text-slate-400 text-lg">search</span>
+                    <input type="text" x-model="searchQuery" @input="searchItems()" @keydown.enter="addItemManual()" placeholder="Buscar producto o agregar manual..." class="w-full bg-transparent outline-none text-xs sm:text-sm font-bold text-slate-800">
+                    <button @click="addItemManual()" class="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs font-black uppercase px-2.5 py-1 rounded-xl shrink-0 transition-all" x-show="searchQuery.length > 0">
+                        Agregar
+                    </button>
                 </div>
 
                 <!-- Search Results Dropdown -->
-                <div x-show="searchResults.length > 0" class="absolute top-full left-0 right-0 bg-white shadow-xl rounded-xl mt-2 z-20 border border-slate-100 max-h-48 overflow-y-auto">
+                <div x-show="searchResults.length > 0" class="absolute top-full left-0 right-0 bg-white shadow-xl rounded-2xl mt-2 z-30 border border-slate-100 max-h-52 overflow-y-auto customize-scrollbar">
                     <template x-for="res in searchResults" :key="res.id">
-                        <div @click="selectItem(res)" class="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0">
-                            <p class="font-bold text-slate-800 text-sm" x-text="res.name"></p>
+                        <div @click="selectItem(res)" class="p-3 hover:bg-emerald-50/50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors">
+                            <p class="font-black text-slate-900 text-xs sm:text-sm truncate" x-text="res.name"></p>
                             <div class="flex justify-between mt-1">
-                                <span class="text-[10px] text-slate-400" x-text="'Stock: ' + res.stock + ' ' + res.unit"></span>
-                                <span class="text-[10px] font-bold text-emerald-600" x-text="'$ ' + res.price"></span>
+                                <span class="text-[10px] font-bold text-slate-400" x-text="'Stock: ' + res.stock + ' ' + (res.unit || 'und')"></span>
+                                <span class="text-[11px] font-black text-emerald-700" x-text="'$ ' + res.price"></span>
                             </div>
                         </div>
                     </template>
@@ -99,165 +112,158 @@
         </div>
 
         <!-- Pricing Card -->
-        <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 p-6 space-y-5 border border-slate-50">
+        <div class="bg-gradient-to-br from-emerald-50/70 to-teal-50/40 rounded-3xl p-5 space-y-4 border border-emerald-200/70 shadow-2xs">
             
             <!-- Exchange Rate -->
             <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tasa de Cambio</span>
-                <div class="flex items-center bg-indigo-50 px-3 py-1.5 rounded-full">
-                    <span class="text-xs font-bold text-indigo-600 mr-2">Bs.</span>
-                    <input type="number" x-model.number="form.exchange_rate" @input="calculateTotal()" class="w-16 text-right bg-transparent text-sm font-bold text-indigo-800 outline-none p-0 border-none">
+                <span class="text-[10px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+                    <span class="material-icons text-xs">currency_exchange</span>
+                    <span>Tasa de Cambio</span>
+                </span>
+                <div class="flex items-center bg-white px-3 py-1.5 rounded-xl border border-emerald-200/80 shadow-2xs">
+                    <span class="text-xs font-black text-emerald-700 mr-1.5">Bs.</span>
+                    <input type="number" x-model.number="form.exchange_rate" @input="calculateTotal()" class="w-16 text-right bg-transparent text-xs font-black text-slate-800 outline-none p-0 border-none">
                 </div>
             </div>
 
-            <div class="h-px bg-slate-100"></div>
+            <div class="h-px bg-emerald-200/40"></div>
 
             <!-- Amounts -->
-            <div class="grid grid-cols-2 gap-8">
-                <div>
-                    <label class="block text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Total ($)</label>
-                    <div class="flex items-center">
-                        <span class="text-emerald-500 text-xl font-medium mr-1">$</span>
-                        <input type="number" step="0.01" x-model.number="totals.usd" readonly class="w-full text-3xl font-black text-slate-800 placeholder-slate-200 outline-none bg-transparent">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white/80 p-3.5 rounded-2xl border border-emerald-100">
+                    <label class="block text-[10px] font-black text-emerald-700 uppercase tracking-wider mb-0.5">Total Dólares</label>
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-emerald-700 text-lg font-black">$</span>
+                        <input type="number" step="0.01" x-model.number="totals.usd" readonly class="w-full text-2xl font-black text-slate-900 outline-none bg-transparent">
                     </div>
                 </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total (Bs)</label>
-                    <div class="flex items-center">
-                        <span class="text-slate-400 text-xl font-medium mr-1">Bs</span>
-                        <input type="number" step="0.01" x-model.number="totals.bs" readonly class="w-full text-3xl font-black text-slate-800 placeholder-slate-200 outline-none bg-transparent">
+                <div class="bg-white/80 p-3.5 rounded-2xl border border-emerald-100">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Total Bolívares</label>
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-slate-400 text-sm font-black">Bs.</span>
+                        <input type="number" step="0.01" x-model.number="totals.bs" readonly class="w-full text-xl font-black text-slate-700 outline-none bg-transparent">
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Income Destination -->
-        <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 p-6 space-y-5 border border-slate-50">
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Destino del Ingreso</h3>
+        <!-- Income Destination Card -->
+        <div class="bg-white rounded-3xl shadow-xs p-5 space-y-4 border border-slate-100">
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Destino del Ingreso</h3>
             
             <!-- Account Selection -->
-            <div class="space-y-2">
-                <label class="block text-xs font-bold text-slate-600">Cuenta de Depósito</label>
-                <div class="relative">
-                    <select x-model="form.account_id" class="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-colors">
-                        <option value="" disabled>Seleccione cuenta...</option>
-                        <template x-for="acc in accounts" :key="acc.id">
-                            <option :value="acc.id" x-text="acc.name + ' (' + acc.currency + ')'"></option>
-                        </template>
-                    </select>
-                    <span class="material-icons absolute right-4 top-3.5 text-slate-400 pointer-events-none text-lg">expand_more</span>
-                </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Cuenta de Depósito</label>
+                <select x-model="form.account_id" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all">
+                    <option value="" disabled>Seleccione cuenta...</option>
+                    <template x-for="acc in accounts" :key="acc.id">
+                        <option :value="acc.id" x-text="acc.name + ' (' + acc.currency + ')'"></option>
+                    </template>
+                </select>
             </div>
 
             <!-- Category Selection -->
-            <div class="space-y-2">
-                <label class="block text-xs font-bold text-slate-600">Categoría</label>
-                <div class="relative">
-                    <select x-model="form.category_id" class="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-colors">
-                        <option value="" disabled>Seleccione categoría...</option>
-                        <template x-for="cat in categories" :key="cat.id">
-                            <option :value="cat.id" x-text="cat.name"></option>
-                        </template>
-                    </select>
-                    <span class="material-icons absolute right-4 top-3.5 text-slate-400 pointer-events-none text-lg">expand_more</span>
-                </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Categoría</label>
+                <select x-model="form.category_id" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all">
+                    <option value="" disabled>Seleccione categoría...</option>
+                    <template x-for="cat in categories" :key="cat.id">
+                        <option :value="cat.id" x-text="cat.name"></option>
+                    </template>
+                </select>
             </div>
 
             <!-- Owner Selection -->
-             <div class="space-y-2">
-                <label class="block text-xs font-bold text-slate-600">Asignar a</label>
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Asignar a</label>
                 <div class="grid grid-cols-3 gap-2">
                     <button @click="form.owner = 'Negocio'" type="button" 
-                            class="py-2 rounded-xl text-xs font-bold border transition-all"
-                            :class="form.owner === 'Negocio' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm' : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'">
+                            class="py-2.5 rounded-xl text-xs font-black border transition-all active:scale-95"
+                            :class="form.owner === 'Negocio' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'">
                         Negocio
                     </button>
                     <button @click="form.owner = 'Anthony'" type="button" 
-                            class="py-2 rounded-xl text-xs font-bold border transition-all"
-                            :class="form.owner === 'Anthony' ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-sm' : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'">
+                            class="py-2.5 rounded-xl text-xs font-black border transition-all active:scale-95"
+                            :class="form.owner === 'Anthony' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'">
                         Anthony
                     </button>
                     <button @click="form.owner = 'Arianny'" type="button" 
-                            class="py-2 rounded-xl text-xs font-bold border transition-all"
-                            :class="form.owner === 'Arianny' ? 'bg-pink-50 text-pink-600 border-pink-200 shadow-sm' : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'">
+                            class="py-2.5 rounded-xl text-xs font-black border transition-all active:scale-95"
+                            :class="form.owner === 'Arianny' ? 'bg-teal-700 text-white border-teal-700 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'">
                         Arianny
                     </button>
                 </div>
-             </div>
+            </div>
         </div>
 
-        <!-- Payment Status -->
-        <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 p-2 border border-slate-50">
-            <div class="flex relative bg-slate-100 rounded-xl p-1">
-                <div class="absolute inset-y-1 w-[48%] bg-white rounded-lg shadow-sm transition-all duration-300 ease-out"
-                     :class="form.status === 'paid' ? 'left-1' : 'left-[51%]'"></div>
-                
+        <!-- Payment Status (Paid / Partial) -->
+        <div class="bg-white rounded-3xl shadow-xs p-3 border border-slate-100">
+            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
                 <button @click="form.status = 'paid'; form.paid_amount = totals.bs; form.paid_amount_usd = totals.usd" 
-                        class="flex-1 relative z-10 py-3 text-sm font-bold transition-colors"
-                        :class="form.status === 'paid' ? 'text-emerald-600' : 'text-slate-400'">
-                    Pago Completo
+                        class="py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5"
+                        :class="form.status === 'paid' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'">
+                    <span class="material-icons text-sm">check_circle</span>
+                    <span>Pago Completo</span>
                 </button>
                 <button @click="form.status = 'partial'; form.paid_amount = ''; form.paid_amount_usd = ''" 
-                        class="flex-1 relative z-10 py-3 text-sm font-bold transition-colors"
-                        :class="form.status === 'partial' ? 'text-amber-600' : 'text-slate-400'">
-                    Crédito / Parcial
+                        class="py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5"
+                        :class="form.status === 'partial' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'">
+                    <span class="material-icons text-sm">pending</span>
+                    <span>Crédito / Abono</span>
                 </button>
             </div>
 
             <!-- Partial Payment Details -->
-            <div x-show="form.status === 'partial'" x-transition:enter="transition ease-out duration-300" 
-                 class="mt-4 px-4 pb-4 border-t border-slate-100 pt-4">
-                <p class="text-xs font-bold text-slate-400 uppercase mb-3 text-center">Abono Inicial</p>
+            <div x-show="form.status === 'partial'" class="mt-4 px-2 pb-2 pt-2 border-t border-slate-100">
+                <p class="text-[10px] font-black text-amber-700 uppercase tracking-wider mb-2 text-center">Abono Inicial Recibido</p>
                 
-                <div class="flex items-center justify-center gap-4">
-                     <div class="bg-amber-50 rounded-xl p-3 w-1/2">
-                        <label class="text-[10px] text-amber-700 font-bold block mb-1">Monto ($)</label>
-                        <input type="number" step="0.01" x-model.number="form.paid_amount_usd" @input="calculatePayment('usd')" class="w-full bg-transparent text-xl font-bold text-amber-900 outline-none" placeholder="0.00">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-3">
+                        <label class="text-[10px] text-amber-800 font-black block mb-0.5">Monto ($)</label>
+                        <input type="number" step="0.01" x-model.number="form.paid_amount_usd" @input="calculatePayment('usd')" class="w-full bg-transparent text-lg font-black text-slate-900 outline-none" placeholder="0.00">
                     </div>
-                    <div class="bg-amber-50 rounded-xl p-3 w-1/2">
-                        <label class="text-[10px] text-amber-700 font-bold block mb-1">Monto (Bs)</label>
-                        <input type="number" step="0.01" x-model.number="form.paid_amount" @input="calculatePayment('bs')" class="w-full bg-transparent text-xl font-bold text-amber-900 outline-none" placeholder="0.00">
+                    <div class="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-3">
+                        <label class="text-[10px] text-amber-800 font-black block mb-0.5">Monto (Bs)</label>
+                        <input type="number" step="0.01" x-model.number="form.paid_amount" @input="calculatePayment('bs')" class="w-full bg-transparent text-lg font-black text-slate-900 outline-none" placeholder="0.00">
                     </div>
                 </div>
                 
-                <div class="text-center mt-3">
-                    <span class="text-xs text-slate-400">Restante por cobrar:</span>
-                    <span class="text-sm font-bold text-rose-500" x-text="formatMoney((totals.usd || 0) - (form.paid_amount_usd || 0), 'USD')"></span>
+                <div class="text-center mt-3 text-xs font-bold">
+                    <span class="text-slate-400">Resta por cobrar:</span>
+                    <span class="font-black text-rose-600 ml-1" x-text="formatMoney((totals.usd || 0) - (form.paid_amount_usd || 0), 'USD')"></span>
                 </div>
             </div>
         </div>
 
-
-        <!-- Order Status -->
-        <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 p-6 border border-slate-50">
-            <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Estado del Pedido</h3>
+        <!-- Order Status Pills -->
+        <div class="bg-white rounded-3xl shadow-xs p-5 border border-slate-100">
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Estado Inicial de la Orden</h3>
             <div class="flex flex-wrap gap-2">
                 <template x-for="st in statuses" :key="st.id">
                     <button @click="form.order_status_id = st.id" 
                             type="button"
-                            class="px-4 py-2 rounded-xl text-xs font-bold transition-all border"
-                            :class="form.order_status_id == st.id ? (st.color + ' border-transparent shadow-md transform scale-105') : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'">
+                            class="px-3.5 py-2 rounded-xl text-xs font-black transition-all border active:scale-95"
+                            :class="form.order_status_id == st.id ? (st.color + ' border-transparent shadow-sm') : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'">
                         <span x-text="st.name"></span>
                     </button>
                 </template>
             </div>
         </div>
 
-        <!-- Note -->
-        <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 p-6 border border-slate-50">
-            <div class="input-group">
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Nota Adicional</label>
-                <input type="text" x-model="form.reference" class="w-full font-bold text-slate-600 placeholder-slate-300 border-none outline-none bg-transparent" placeholder="Referencia o detalles...">
-            </div>
+        <!-- Note Card -->
+        <div class="bg-white rounded-3xl shadow-xs p-5 border border-slate-100">
+            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Nota o Referencia</label>
+            <input type="text" x-model="form.reference" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all" placeholder="Referencia de pago, especificaciones...">
         </div>
 
-    </div>
+    </main>
 
-    <!-- Floating Action Button -->
-    <div class="fixed bottom-6 left-0 right-0 px-6 max-w-md mx-auto z-40">
-        <button @click="submit()" :disabled="loading || form.items.length === 0" class="w-full bg-indigo-900 text-white h-16 rounded-[2rem] font-bold text-lg shadow-2xl shadow-indigo-900/40 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed group">
-            <span x-show="!loading" class="group-hover:-translate-y-0.5 transition-transform">Registrar Venta</span>
-            <span x-show="!loading" class="material-icons text-indigo-300 group-hover:rotate-45 transition-transform">arrow_forward</span>
+    <!-- Floating Action Submit Button -->
+    <div class="fixed bottom-6 left-0 right-0 px-4 max-w-md mx-auto z-40 safe-bottom">
+        <button @click="submit()" :disabled="loading || form.items.length === 0" 
+                class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white h-14 rounded-2xl font-black text-base shadow-xl shadow-emerald-950/30 active:scale-95 transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span x-show="!loading">Registrar Venta</span>
+            <span x-show="!loading" class="material-icons text-xl">arrow_forward</span>
             <span x-show="loading" class="material-icons animate-spin">refresh</span>
         </button>
     </div>
@@ -267,13 +273,13 @@
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0 translate-y-10 scale-90"
          x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-         class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-4 border border-white/10 pointer-events-none min-w-[300px]">
-        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-            <span class="material-icons text-emerald-400 text-sm">check</span>
+         class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-950/90 backdrop-blur-md text-white px-5 py-3.5 rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-white/10 pointer-events-none min-w-[280px]">
+        <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <span class="material-icons text-base">check</span>
         </div>
-        <div>
-            <p class="font-bold text-sm">Notificación</p>
-            <p x-text="message" class="text-xs text-slate-300"></p>
+        <div class="min-w-0 flex-1">
+            <p class="font-black text-xs">Notificación</p>
+            <p x-text="message" class="text-[11px] text-slate-300 font-medium truncate"></p>
         </div>
     </div>
 
@@ -285,6 +291,7 @@
                     customer: '',
                     exchange_rate: 50,
                     status: 'paid',
+                    order_status_id: null,
                     paid_amount: '',
                     paid_amount_usd: '',
                     reference: '',
@@ -316,8 +323,6 @@
                         let data = await res.json();
                         if(data.status === 'success') {
                              this.categories = data.data;
-                             // Default to 'Ventas' if exists (usually ID 2 or name 'Ventas')
-                             // Or just select the first one
                              let salesCat = this.categories.find(c => c.name === 'Ventas' || c.name === 'Ingresos');
                              if (salesCat) {
                                  this.form.category_id = salesCat.id;
@@ -334,7 +339,6 @@
                         let data = await res.json();
                         if(data.status === 'success') {
                              this.accounts = data.data;
-                             // Auto select first active
                              if(this.accounts.length > 0) this.form.account_id = this.accounts[0].id;
                         }
                     } catch(e) {}
@@ -346,7 +350,6 @@
                         let data = await res.json();
                         if(data.status === 'success') {
                             this.statuses = data.data;
-                            // Set default to first one if exists and not set
                             if(this.statuses.length > 0 && !this.form.order_status_id) {
                                 this.form.order_status_id = this.statuses[0].id;
                             }
@@ -358,6 +361,8 @@
                     const rate = this.form.exchange_rate;
                     const date = this.form.date;
                     const statusId = this.form.order_status_id;
+                    const accId = this.form.account_id;
+                    const catId = this.form.category_id;
                     this.form = {
                         date: date,
                         customer: '',
@@ -367,7 +372,10 @@
                         paid_amount: '',
                         paid_amount_usd: '',
                         reference: '',
-                        items: []
+                        items: [],
+                        account_id: accId,
+                        category_id: catId,
+                        owner: 'Negocio'
                     };
                     this.calculateTotal();
                 },
@@ -393,7 +401,7 @@
                     try {
                         let res = await fetch('<?= base_url('inventory/search') ?>?q=' + encodeURIComponent(this.searchQuery));
                         let data = await res.json();
-                        this.searchResults = data.data;
+                        this.searchResults = data.data || [];
                     } catch(e) {}
                 },
 
@@ -438,7 +446,6 @@
                     this.totals.usd = totalUsd.toFixed(2);
                     this.totals.bs = (totalUsd * this.form.exchange_rate).toFixed(2);
 
-                    // Update payment fields if set to full payment
                     if (this.form.status === 'paid') {
                         this.form.paid_amount = this.totals.bs;
                         this.form.paid_amount_usd = this.totals.usd;
@@ -465,7 +472,7 @@
 
                 async submit() {
                     if (this.form.items.length === 0 || !this.form.customer) {
-                        this.showMsg('Agregue productos y cliente');
+                        this.showMsg('Agregue productos y el nombre del cliente');
                         return;
                     }
 

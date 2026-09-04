@@ -2,157 +2,204 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial de Ventas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Historial de Ventas | Fi-Hex</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Outfit', sans-serif; }</style>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        [x-cloak] { display: none !important; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .customize-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .customize-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .customize-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .safe-bottom { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+        .safe-top { padding-top: max(0.75rem, env(safe-area-inset-top)); }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen" x-data="historyApp()">
+<body class="bg-slate-50 min-h-screen text-slate-800 antialiased" x-data="historyApp()">
 
-    <!-- Header -->
-    <div class="bg-white/90 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40">
-        <div class="max-w-md mx-auto flex items-center justify-between p-4">
-            <a href="<?= base_url('sales') ?>" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors">
-                <span class="material-icons">arrow_back</span>
-            </a>
-            <h1 class="text-lg font-bold text-slate-800">Historial</h1>
-            <div class="w-10"></div> 
-        </div>
-    </div>
-
-    <div class="max-w-md mx-auto p-4 pb-20">
-        
-        <div class="space-y-4">
-        
-            <!-- Filters -->
-            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex flex-col gap-3">
-                <div class="relative">
-                    <span class="material-icons absolute left-3 top-2.5 text-slate-400 text-sm">search</span>
-                    <input type="text" x-model="filters.search" placeholder="Buscar cliente, referencia o ID..." 
-                           class="w-full pl-9 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 ring-indigo-100 transition-all">
-                </div>
-                
-                <div class="flex gap-2 text-xs overflow-x-auto pb-1 no-scrollbar">
-                    <button @click="filters.status = ''" 
-                            class="px-3 py-1.5 rounded-lg font-bold whitespace-nowrap transition-colors border"
-                            :class="filters.status === '' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'">
-                        Todos
-                    </button>
-                    <template x-for="st in statuses" :key="st.id">
-                        <button @click="filters.status = st.id" 
-                                class="px-3 py-1.5 rounded-lg font-bold whitespace-nowrap transition-colors border"
-                                :class="filters.status == st.id ? (st.color + ' border-transparent ring-2 ring-indigo-100') : 'bg-white text-slate-500 border-slate-200'">
-                            <span x-text="st.name"></span>
-                        </button>
-                    </template>
+    <!-- Executive Top Nav Header -->
+    <header class="sticky top-0 z-40 bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 text-white shadow-xl border-b border-emerald-800/30 safe-top">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="<?= base_url('sales') ?>" class="w-10 h-10 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white transition-all border border-white/10" title="Volver">
+                    <span class="material-icons text-xl">arrow_back</span>
+                </a>
+                <div>
+                    <h1 class="text-sm sm:text-base font-black tracking-tight text-white leading-tight">Historial de Ventas</h1>
+                    <p class="text-[10px] text-emerald-200/70 font-semibold" x-text="filteredSales.length + ' ventas encontradas'"></p>
                 </div>
             </div>
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-teal-400 p-[1.5px] shadow-sm">
+                <div class="w-full h-full bg-slate-950 rounded-[9px] flex items-center justify-center">
+                    <span class="material-icons text-blue-300 text-sm">history</span>
+                </div>
+            </div>
+        </div>
+    </header>
 
-            <!-- List -->
-            <div class="bg-white rounded-[1.5rem] shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-50">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest border-b border-slate-100">
-                                <th class="p-4 font-bold">Fecha</th>
-                                <th class="p-4 font-bold">Detalle</th>
-                                <th class="p-4 font-bold text-right">Monto</th>
-                                <th class="p-4 font-bold text-center">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <!-- Empty State -->
-                            <tr x-show="filteredSales.length === 0">
-                                <td colspan="4" class="p-8 text-center text-slate-400 text-sm">
-                                    No se encontraron ventas
+    <main class="max-w-4xl mx-auto p-4 pb-24 space-y-4 safe-bottom">
+        
+        <!-- Search & Filter Controls -->
+        <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-100 flex flex-col gap-3">
+            <div class="relative">
+                <span class="material-icons absolute left-3.5 top-2.5 text-slate-400 text-lg">search</span>
+                <input type="text" x-model="filters.search" placeholder="Buscar por cliente, referencia o #ID..." 
+                       class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all">
+            </div>
+            
+            <div class="flex gap-2 text-xs overflow-x-auto pb-1 no-scrollbar">
+                <button @click="filters.status = ''" 
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all border active:scale-95"
+                        :class="filters.status === '' ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white border-emerald-600 shadow-xs' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'">
+                    Todos
+                </button>
+                <template x-for="st in statuses" :key="st.id">
+                    <button @click="filters.status = st.id" 
+                            class="px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all border active:scale-95"
+                            :class="filters.status == st.id ? (st.color + ' border-transparent shadow-xs scale-105') : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'">
+                        <span x-text="st.name"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- Sales Records Container -->
+        <div class="bg-white rounded-3xl shadow-xs overflow-hidden border border-slate-100">
+            
+            <!-- Desktop View: Sleek Table -->
+            <div class="hidden sm:block overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-wider border-b border-slate-100">
+                            <th class="p-4">Fecha / ID</th>
+                            <th class="p-4">Detalle / Cliente</th>
+                            <th class="p-4 text-right">Monto</th>
+                            <th class="p-4 text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-xs sm:text-sm">
+                        <tr x-show="filteredSales.length === 0">
+                            <td colspan="4" class="p-8 text-center text-slate-400 font-bold">
+                                No se encontraron registros de ventas.
+                            </td>
+                        </tr>
+
+                        <template x-for="sale in filteredSales" :key="sale.id">
+                            <tr class="hover:bg-slate-50/80 transition-colors group cursor-pointer" @click="openSale(sale.id)">
+                                <td class="p-4">
+                                    <div class="flex flex-col">
+                                        <span class="font-black text-slate-800" x-text="formatDateShort(sale.date)"></span>
+                                        <span class="text-[10px] font-bold text-slate-400" x-text="'#' + sale.id"></span>
+                                    </div>
+                                </td>
+                                <td class="p-4">
+                                    <p class="font-black text-slate-900 group-hover:text-emerald-700 transition-colors" x-text="sale.customer"></p>
+                                    <p class="text-xs text-slate-400 font-medium truncate max-w-xs" x-text="sale.product"></p>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <p class="font-black text-slate-900" x-text="'$' + parseFloat(sale.amount_usd).toFixed(2)"></p>
+                                    <p class="text-[10px] text-slate-400 font-bold" x-text="'Bs. ' + parseFloat(sale.amount).toLocaleString('es-VE', {minimumFractionDigits: 2})"></p>
+                                </td>
+                                <td class="p-4 text-center">
+                                    <span class="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider inline-block"
+                                          :class="sale.status_color || 'bg-slate-100 text-slate-600'">
+                                        <span x-text="sale.status_name || 'Pendiente'"></span>
+                                    </span>
+                                    
+                                    <div x-show="sale.status == 'paid'" class="flex justify-center items-center mt-1 text-emerald-700">
+                                        <span class="material-icons text-xs mr-0.5">check_circle</span> 
+                                        <span class="text-[10px] font-black">Pagado</span>
+                                    </div>
+                                    <div x-show="sale.status == 'partial'" class="flex justify-center items-center mt-1 text-amber-700">
+                                        <span class="material-icons text-xs mr-0.5">pending</span> 
+                                        <span class="text-[10px] font-black">Abono</span>
+                                    </div>
                                 </td>
                             </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
 
-                            <template x-for="sale in filteredSales" :key="sale.id">
-                                <tr class="hover:bg-indigo-50/30 transition-colors group cursor-pointer" @click="openSale(sale.id)">
-                                    <td class="p-4">
-                                        <div class="flex flex-col">
-                                            <span class="text-xs font-bold text-slate-700" x-text="formatDateShort(sale.date)"></span>
-                                            <span class="text-[10px] text-slate-400" x-text="'#' + sale.id"></span>
-                                        </div>
-                                    </td>
-                                    <td class="p-4">
-                                        <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-900 transition-colors" x-text="sale.customer"></p>
-                                        <p class="text-xs text-slate-500 truncate w-32" x-text="sale.product"></p>
-                                    </td>
-                                    <td class="p-4 text-right">
-                                        <p class="text-sm font-black text-slate-800" x-text="'$' + parseFloat(sale.amount_usd).toFixed(2)"></p>
-                                        <p class="text-[10px] text-slate-400 font-medium" x-text="'Bs ' + parseFloat(sale.amount).toFixed(2)"></p>
-                                    </td>
-                                    <td class="p-4 text-center">
-                                        <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider block w-max mx-auto"
-                                              :class="sale.status_color || 'bg-slate-100 text-slate-500'">
-                                            <span x-text="sale.status_name || 'Pendiente'"></span>
-                                        </span>
-                                        
-                                        <div x-show="sale.status == 'paid'" class="flex justify-center items-center mt-1">
-                                            <span class="material-icons text-[10px] text-emerald-500 mr-0.5">paid</span> 
-                                            <span class="text-[9px] text-emerald-500 font-bold">Pagado</span>
-                                        </div>
-                                         <div x-show="sale.status == 'partial'" class="flex justify-center items-center mt-1">
-                                            <span class="material-icons text-[10px] text-amber-500 mr-0.5">pending</span> 
-                                            <span class="text-[9px] text-amber-500 font-bold">Parcial</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
+            <!-- Mobile View: Modern Cards (Zero Overflow) -->
+            <div class="sm:hidden divide-y divide-slate-100">
+                <template x-for="sale in filteredSales" :key="sale.id">
+                    <div class="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors cursor-pointer active:scale-98" @click="openSale(sale.id)">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5 mb-1">
+                                <span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase"
+                                      :class="sale.status_color || 'bg-slate-100 text-slate-600'"
+                                      x-text="sale.status_name || 'Pendiente'"></span>
+                                <span class="text-[10px] font-bold text-slate-400" x-text="formatDateShort(sale.date) + ' • #' + sale.id"></span>
+                            </div>
+                            <h4 class="font-black text-slate-900 text-xs truncate" x-text="sale.customer"></h4>
+                            <p class="text-[10px] text-slate-500 font-bold truncate mt-0.5" x-text="sale.product"></p>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="font-black text-slate-900 text-sm" x-text="'$' + parseFloat(sale.amount_usd).toFixed(2)"></p>
+                            <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded"
+                                  :class="sale.status === 'paid' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'"
+                                  x-text="sale.status === 'paid' ? 'Pagado' : 'Abono'"></span>
+                        </div>
+                    </div>
+                </template>
+                <div x-show="filteredSales.length === 0" class="p-8 text-center text-slate-400 font-bold text-xs">
+                    No se encontraron ventas con los filtros aplicados.
                 </div>
             </div>
+
         </div>
+    </main>
         
-    <!-- DETAILS MODAL -->
-    <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center px-4" x-cloak>
-        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showModal = false"></div>
+    <!-- DETAILS MODAL (Mobile Bottom Sheet) -->
+    <div x-show="showModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
+        <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity" @click="showModal = false"></div>
         
-        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl relative z-10 transform transition-all scale-100 flex flex-col max-h-[90vh]">
+        <div class="bg-white rounded-t-[2.5rem] sm:rounded-3xl w-full sm:max-w-lg shadow-2xl relative z-10 flex flex-col max-h-[90vh] safe-bottom animate-slide-up">
             
             <!-- Modal Header -->
-            <div class="p-6 border-b border-slate-100 flex justify-between items-start shrink-0">
+            <div class="p-5 sm:p-6 border-b border-slate-100 flex justify-between items-start shrink-0">
                 <div>
-                    <h2 class="text-xl font-bold text-slate-800">Detalle de Venta</h2>
-                    <p class="text-xs text-slate-500 font-medium mt-1">
+                    <h2 class="text-base sm:text-lg font-black text-slate-900">Detalle de Venta</h2>
+                    <p class="text-xs text-slate-400 font-bold mt-0.5">
                         #<span x-text="selectedSale?.id"></span> &bull; 
                         <span x-text="formatDate(selectedSale?.date)"></span>
                     </p>
                 </div>
-                <button @click="showModal = false" class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
+                <button @click="showModal = false" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors">
                     <span class="material-icons text-sm">close</span>
                 </button>
             </div>
 
             <!-- Modal Content -->
-            <div class="overflow-y-auto p-6 space-y-6">
+            <div class="overflow-y-auto p-5 sm:p-6 space-y-5 customize-scrollbar">
                 
-                <!-- Status & Customer -->
-                <div class="flex flex-col gap-4 bg-slate-50 p-4 rounded-xl">
+                <!-- Status & Customer Card -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 space-y-3">
                     <div class="flex justify-between items-start">
                         <div>
-                            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cliente</p>
-                            <p class="font-bold text-slate-700" x-text="selectedSale?.customer"></p>
+                            <p class="text-[10px] uppercase font-black text-slate-400 tracking-wider">Cliente</p>
+                            <p class="font-black text-slate-900 text-sm sm:text-base" x-text="selectedSale?.customer"></p>
                         </div>
-                        <div class="px-3 py-1 rounded-full text-xs font-bold capitalize"
-                             :class="selectedSale?.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'">
-                            <span x-text="selectedSale?.status === 'paid' ? 'Pagado' : 'Pendiente Pago'"></span>
+                        <div class="px-2.5 py-1 rounded-lg text-xs font-black uppercase"
+                             :class="selectedSale?.status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'">
+                            <span x-text="selectedSale?.status === 'paid' ? 'Pagado' : 'Abono / Crédito'"></span>
                         </div>
                     </div>
                     
                     <!-- Order Status Selector -->
                     <div>
-                        <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">Estado del Pedido</p>
+                        <p class="text-[10px] uppercase font-black text-slate-400 tracking-wider mb-2">Actualizar Estado</p>
                         <div class="flex flex-wrap gap-2">
                              <template x-for="st in statuses" :key="st.id">
                                  <button @click="changeStatus(st.id)"
-                                         class="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all"
-                                         :class="selectedSale?.order_status_id == st.id ? (st.color + ' border-transparent ring-2 ring-offset-1 ring-slate-200 shadow-sm') : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'">
+                                         class="px-3 py-1.5 rounded-xl text-xs font-black border transition-all active:scale-95"
+                                         :class="selectedSale?.order_status_id == st.id ? (st.color + ' border-transparent shadow-xs scale-105') : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'">
                                      <span x-text="st.name"></span>
                                  </button>
                              </template>
@@ -162,22 +209,22 @@
 
                 <!-- Items Table -->
                 <div>
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Productos</h3>
-                    <div class="border border-slate-100 rounded-xl overflow-hidden">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase">
+                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Productos Comprados</h3>
+                    <div class="border border-slate-200/70 rounded-2xl overflow-hidden">
+                        <table class="w-full text-left text-xs sm:text-sm">
+                            <thead class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase border-b border-slate-100">
                                 <tr>
-                                    <th class="p-3">Item</th>
+                                    <th class="p-3">Ítem</th>
                                     <th class="p-3 text-center">Cant</th>
-                                    <th class="p-3 text-right">Total</th>
+                                    <th class="p-3 text-right">Total ($)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-50">
+                            <tbody class="divide-y divide-slate-100">
                                 <template x-for="item in items" :key="item.id">
                                     <tr>
-                                        <td class="p-3 font-medium text-slate-700" x-text="item.item_name || 'Item Manual'"></td>
-                                        <td class="p-3 text-center text-slate-500" x-text="parseFloat(item.quantity) + ' ' + (item.unit || '')"></td>
-                                        <td class="p-3 text-right font-bold text-slate-700" x-text="'$' + parseFloat(item.subtotal).toFixed(2)"></td>
+                                        <td class="p-3 font-bold text-slate-800" x-text="item.item_name || 'Ítem Manual'"></td>
+                                        <td class="p-3 text-center font-bold text-slate-500" x-text="parseFloat(item.quantity) + ' ' + (item.unit || '')"></td>
+                                        <td class="p-3 text-right font-black text-emerald-700" x-text="'$' + parseFloat(item.subtotal).toFixed(2)"></td>
                                     </tr>
                                 </template>
                             </tbody>
@@ -186,30 +233,30 @@
                 </div>
 
                 <!-- Financials -->
-                <div class="space-y-3">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-medium text-slate-500">Total USD</span>
-                        <span class="text-lg font-black text-slate-800" x-text="'$' + parseFloat(selectedSale?.amount_usd || 0).toFixed(2)"></span>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-slate-500">Total Dólares</span>
+                        <span class="font-black text-slate-900 text-sm" x-text="'$' + parseFloat(selectedSale?.amount_usd || 0).toFixed(2)"></span>
                     </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-medium text-slate-500">Total BS</span>
-                        <span class="text-sm font-bold text-slate-600" x-text="'Bs ' + parseFloat(selectedSale?.amount || 0).toFixed(2)"></span>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-slate-500">Total Bolívares</span>
+                        <span class="font-bold text-slate-700" x-text="'Bs. ' + parseFloat(selectedSale?.amount || 0).toLocaleString('es-VE', {minimumFractionDigits: 2})"></span>
                     </div>
-                    <div class="h-px bg-slate-100 my-2"></div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-medium text-slate-500">Pagado</span>
-                        <span class="text-sm font-bold text-emerald-600" x-text="'$' + parseFloat(selectedSale?.paid_amount_usd || 0).toFixed(2)"></span>
+                    <div class="h-px bg-slate-200 my-1"></div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-slate-500">Total Pagado</span>
+                        <span class="font-black text-emerald-700 text-sm" x-text="'$' + parseFloat(selectedSale?.paid_amount_usd || 0).toFixed(2)"></span>
                     </div>
                 </div>
 
                 <!-- Payments History -->
                 <div x-show="payments.length > 0">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Historial de Pagos</h3>
+                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Historial de Pagos</h3>
                     <div class="space-y-2">
                         <template x-for="pay in payments" :key="pay.id">
-                            <div class="flex justify-between items-center text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                <span class="text-slate-500" x-text="formatDate(pay.date)"></span>
-                                <span class="font-bold text-slate-700" x-text="'$' + parseFloat(pay.amount_usd).toFixed(2)"></span>
+                            <div class="flex justify-between items-center text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                                <span class="text-slate-500 font-bold" x-text="formatDate(pay.date)"></span>
+                                <span class="font-black text-emerald-700" x-text="'$' + parseFloat(pay.amount_usd).toFixed(2)"></span>
                             </div>
                         </template>
                     </div>
@@ -219,7 +266,6 @@
         </div>
     </div>
 
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
         function historyApp() {
             return {
@@ -237,16 +283,13 @@
 
                 get filteredSales() {
                     return this.sales.filter(s => {
-                        // 1. Search
                         const q = this.filters.search.toLowerCase();
                         const matchSearch = !q || 
                             (s.customer && s.customer.toLowerCase().includes(q)) || 
                             (s.id && s.id.toString().includes(q)) ||
                             (s.product && s.product.toLowerCase().includes(q));
                             
-                        // 2. Status
                         const matchStatus = !this.filters.status || s.order_status_id == this.filters.status;
-                        
                         return matchSearch && matchStatus;
                     });
                 },
@@ -263,10 +306,9 @@
                     this.payments = [];
                     this.showModal = true;
                     
-                    // Optimistic Load from local list first for speed
                     const localSale = this.sales.find(s => s.id == id);
                     if(localSale) {
-                         this.selectedSale = {...localSale}; // Clone
+                         this.selectedSale = {...localSale};
                     }
                     
                     try {
@@ -274,15 +316,12 @@
                         let data = await res.json();
                         
                         if(data.status === 'success') {
-                            this.selectedSale = data.sale; // Full details
-                            this.items = data.items;
-                            this.payments = data.payments;
-                        } else {
-                            // If fail, we still have local data, maybe show subtle error
+                            this.selectedSale = data.sale;
+                            this.items = data.items || [];
+                            this.payments = data.payments || [];
                         }
                     } catch(e) {
                         console.error(e);
-                        // Network error, keep showing local data
                     }
                 },
                 
@@ -301,13 +340,10 @@
                         let data = await res.json();
                         
                         if(data.status === 'success') {
-                            // Update UI
                             this.selectedSale.order_status_id = newStatusId;
                             
-                            // Also update local list!
                             const idx = this.sales.findIndex(s => s.id == this.selectedSale.id);
                             if(idx !== -1) {
-                                // Find status object to get name/color
                                 const statusObj = this.statuses.find(st => st.id == newStatusId);
                                 if(statusObj) {
                                     this.sales[idx].order_status_id = newStatusId;

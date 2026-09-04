@@ -146,12 +146,12 @@
                 </div>
             </div>
             
-            <!-- Compact Menu Modal -->
+            <!-- Compact Menu Modal (Executive Fintech Design) -->
             <div x-cloak x-show="showMenu"
                  class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                  
                  <!-- Enhanced Backdrop (Darker for focus) -->
-                 <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+                 <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-md transition-opacity" 
                       x-transition:enter="duration-200 ease-out"
                       x-transition:enter-start="opacity-0"
                       x-transition:enter-end="opacity-100"
@@ -161,7 +161,7 @@
                       @click="showMenu = false"></div>
 
                  <!-- Menu Content Card (Compact & Centered) -->
-                 <div class="relative w-full max-w-sm bg-white/95 backdrop-blur-2xl rounded-[2rem] shadow-2xl ring-1 ring-white/20 overflow-hidden flex flex-col max-h-[85vh] transition-all transform pointer-events-auto"
+                 <div class="relative w-full max-w-sm bg-white/98 backdrop-blur-2xl rounded-[2.2rem] shadow-2xl border border-emerald-100/80 ring-1 ring-black/10 overflow-hidden flex flex-col max-h-[88vh] transition-all transform pointer-events-auto"
                       x-transition:enter="duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)"
                       x-transition:enter-start="opacity-0 scale-90 translate-y-8"
                       x-transition:enter-end="opacity-100 scale-100 translate-y-0"
@@ -170,98 +170,115 @@
                       x-transition:leave-end="opacity-0 scale-90 translate-y-8">
                       
                       <!-- Compact Header -->
-                      <div class="px-6 pt-6 pb-2 flex justify-between items-center border-b border-slate-100/50 shrink-0">
-                          <div>
-                              <h2 class="text-xl font-black text-slate-800 tracking-tight">Menú Principal</h2>
-                              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Acceso Rápido</p>
+                      <div class="px-5 pt-5 pb-3 flex justify-between items-center border-b border-slate-100 shrink-0">
+                          <div class="flex items-center gap-2.5">
+                              <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-xs">
+                                  <span class="material-icons text-base">grid_view</span>
+                              </div>
+                              <div>
+                                  <h2 class="text-lg font-black text-slate-900 tracking-tight leading-none">Menú Principal</h2>
+                                  <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mt-0.5">Acceso a Módulos</p>
+                              </div>
                           </div>
-                          <button @click="showMenu = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-all active:scale-90">
-                              <span class="material-icons text-lg">close</span>
+                          <button @click="showMenu = false" class="w-8 h-8 rounded-xl bg-slate-100 text-slate-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-all active:scale-90">
+                              <span class="material-icons text-base">close</span>
                           </button>
                       </div>
 
                       <!-- Compact Grid Content -->
-                      <div class="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
+                      <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
                           
                           <!-- Group: Finanzas -->
-                          <div class="space-y-3">
-                              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Finanzas</h3>
-                              <div class="grid grid-cols-3 gap-4">
-                                  <a href="<?= base_url('history') ?>" class="flex flex-col items-center gap-2 group">
-                                      <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm group-hover:scale-95 transition-transform group-hover:bg-emerald-100">
-                                          <span class="material-icons text-3xl">list</span>
+                          <div class="space-y-2">
+                              <span class="text-[9.5px] font-black text-emerald-800 uppercase tracking-widest pl-1 flex items-center gap-1">
+                                  <span class="w-1 h-3 bg-emerald-600 rounded-full inline-block"></span>
+                                  Finanzas
+                              </span>
+                              <div class="grid grid-cols-3 gap-2">
+                                  <a href="<?= base_url('history') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">list</span>
                                       </div>
-                                      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">Registros</span>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-emerald-950 text-center leading-tight">Registros</span>
                                   </a>
-                                  <a href="<?= base_url('accounts') ?>" class="flex flex-col items-center gap-2 group">
-                                      <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm group-hover:scale-95 transition-transform group-hover:bg-emerald-100">
-                                          <span class="material-icons text-3xl">account_balance_wallet</span>
+                                  <a href="<?= base_url('accounts') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">account_balance_wallet</span>
                                       </div>
-                                      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">Cuentas</span>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-emerald-950 text-center leading-tight">Cuentas</span>
                                   </a>
-                                  <a href="<?= base_url('metrics') ?>" class="flex flex-col items-center gap-2 group">
-                                      <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm group-hover:scale-95 transition-transform group-hover:bg-emerald-100">
-                                          <span class="material-icons text-3xl">bar_chart</span>
+                                  <a href="<?= base_url('metrics') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">bar_chart</span>
                                       </div>
-                                      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">Métricas</span>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-emerald-950 text-center leading-tight">Métricas</span>
                                   </a>
                               </div>
                           </div>
 
                           <!-- Group: Gestión -->
-                          <div class="space-y-3">
-                              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Gestión</h3>
-                              <div class="grid grid-cols-3 gap-4">
-                                  <a href="<?= base_url('sales') ?>" class="flex flex-col items-center gap-2 group">
-                                      <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm group-hover:scale-95 transition-transform group-hover:bg-emerald-100">
-                                          <span class="material-icons text-3xl">storefront</span>
+                          <div class="space-y-2">
+                              <span class="text-[9.5px] font-black text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1">
+                                  <span class="w-1 h-3 bg-teal-600 rounded-full inline-block"></span>
+                                  Gestión
+                              </span>
+                              <div class="grid grid-cols-3 gap-2">
+                                  <a href="<?= base_url('sales') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-teal-50/50 border border-slate-100 hover:border-teal-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-teal-50 group-hover:bg-teal-100 text-teal-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">storefront</span>
                                       </div>
-                                      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">Ventas</span>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-teal-950 text-center leading-tight">Ventas</span>
                                   </a>
-                                  <a href="<?= base_url('inventory') ?>" class="flex flex-col items-center gap-2 group">
-                                      <div class="w-16 h-16 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm group-hover:scale-95 transition-transform group-hover:bg-teal-100">
-                                          <span class="material-icons text-3xl">inventory_2</span>
+                                  <a href="<?= base_url('inventory') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-purple-50/50 border border-slate-100 hover:border-purple-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-purple-50 group-hover:bg-purple-100 text-purple-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">inventory_2</span>
                                       </div>
-                                      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">Inventario</span>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-purple-950 text-center leading-tight">Inventario</span>
                                   </a>
-                                  <a href="<?= base_url('printing') ?>" class="flex flex-col items-center gap-2 group">
-                                      <div class="w-16 h-16 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center shadow-sm group-hover:scale-95 transition-transform group-hover:bg-cyan-100">
-                                          <span class="material-icons text-3xl">print</span>
+                                  <a href="<?= base_url('printing') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">print</span>
                                       </div>
-                                      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">Impresiones</span>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-emerald-950 text-center leading-tight">Impresiones</span>
                                   </a>
                               </div>
                           </div>
 
                           <!-- Group: Sistema -->
-                          <div class="space-y-3">
-                              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Sistema</h3>
-                              <div class="grid grid-cols-3 gap-4">
-                                  <a href="<?= base_url('ai') ?>" class="flex flex-col items-center gap-2 group">
-                                      <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm group-hover:scale-95 transition-transform group-hover:bg-emerald-100">
-                                          <span class="material-icons text-3xl">psychology</span>
+                          <div class="space-y-2">
+                              <span class="text-[9.5px] font-black text-slate-400 uppercase tracking-widest pl-1 flex items-center gap-1">
+                                  <span class="w-1 h-3 bg-slate-400 rounded-full inline-block"></span>
+                                  Sistema
+                              </span>
+                              <div class="grid grid-cols-3 gap-2">
+                                  <a href="<?= base_url('ai') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">psychology</span>
                                       </div>
-                                      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">AI Assistant</span>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-emerald-950 text-center leading-tight">AI Assistant</span>
                                   </a>
-                                  <a href="<?= base_url('audit') ?>" class="flex flex-col items-center gap-2 group">
-                                      <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-sm group-hover:scale-95 transition-transform group-hover:bg-amber-100">
-                                          <span class="material-icons text-3xl">manage_search</span>
+                                  <a href="<?= base_url('audit') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-amber-50/50 border border-slate-100 hover:border-amber-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-amber-50 group-hover:bg-amber-100 text-amber-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">manage_search</span>
                                       </div>
-                                      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">Bitácora</span>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-amber-950 text-center leading-tight">Bitácora</span>
                                   </a>
-                                  <a href="<?= base_url('config') ?>" class="flex flex-col items-center gap-2 group">
-                                      <div class="w-16 h-16 rounded-2xl bg-slate-50 text-slate-600 flex items-center justify-center shadow-sm group-hover:scale-95 transition-transform group-hover:bg-slate-100">
-                                          <span class="material-icons text-3xl">settings</span>
+                                  <a href="<?= base_url('config') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-slate-100/70 border border-slate-100 hover:border-slate-300 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-slate-100 group-hover:bg-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">settings</span>
                                       </div>
-                                      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">Configuración</span>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-slate-900 text-center leading-tight">Ajustes</span>
                                   </a>
                               </div>
                           </div>
-                          
-                          <!-- Footer Info -->
-                          <div class="text-center pt-4 pb-2 opacity-30 border-t border-slate-50 mt-2">
-                              <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Fi-Hex Wallet v2.1</p>
-                          </div>
+                      </div>
+
+                      <!-- Footer Info -->
+                      <div class="text-center py-2.5 bg-slate-50 border-t border-slate-100 shrink-0">
+                          <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center justify-center gap-1">
+                              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                              Fi-Hex Wallet • v2.5 Executive
+                          </p>
                       </div>
                  </div>
             </div>
