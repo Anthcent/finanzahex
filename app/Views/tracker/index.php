@@ -496,44 +496,50 @@
                      </div>
                 </div>
 
-                <!-- Row 2: Context Bar (Type & Owner combined) -->
-                <div class="flex items-center gap-1.5 mb-1.5 h-7">
+                <!-- Row 2: Context Bar (Type & Owner Badges) -->
+                <div class="flex items-center justify-between gap-1.5 mb-1.5 h-7.5">
                      <!-- Type Selector (Gasto / Ingreso / Ahorro) -->
-                     <div class="flex-[3] flex bg-slate-100 p-0.5 rounded-lg shadow-inner h-full">
+                     <div class="flex-1 flex bg-slate-100 p-0.5 rounded-lg shadow-inner h-full max-w-[210px]">
                         <button type="button" @click="type = 'expense'" 
-                                :class="type === 'expense' ? 'bg-white shadow-xs text-rose-600 font-black' : 'text-slate-500 font-semibold'" 
-                                class="flex-1 rounded py-0 text-[9px] transition-all">Gasto</button>
+                                :class="type === 'expense' ? 'bg-white shadow-xs text-rose-600 font-black' : 'text-slate-500 font-semibold hover:text-slate-700'" 
+                                class="flex-1 rounded py-0 text-[10px] transition-all">Gasto</button>
                         <button type="button" @click="type = 'income'" 
-                                :class="type === 'income' ? 'bg-white shadow-xs text-emerald-600 font-black' : 'text-slate-500 font-semibold'" 
-                                class="flex-1 rounded py-0 text-[9px] transition-all">Ingreso</button>
+                                :class="type === 'income' ? 'bg-white shadow-xs text-emerald-600 font-black' : 'text-slate-500 font-semibold hover:text-slate-700'" 
+                                class="flex-1 rounded py-0 text-[10px] transition-all">Ingreso</button>
                         <button type="button" @click="type = 'savings'" 
-                                :class="type === 'savings' ? 'bg-white shadow-xs text-teal-700 font-black' : 'text-slate-500 font-semibold'" 
-                                class="flex-1 rounded py-0 text-[9px] transition-all">Ahorro</button>
+                                :class="type === 'savings' ? 'bg-white shadow-xs text-teal-700 font-black' : 'text-slate-500 font-semibold hover:text-slate-700'" 
+                                class="flex-1 rounded py-0 text-[10px] transition-all">Ahorro</button>
                      </div>
 
-                     <!-- Owner Selector (Arianny / Anthony / Negocio) - Reallocated here! -->
-                     <div class="flex-[4] flex bg-slate-100 p-0.5 rounded-lg shadow-inner h-full">
-                        <button type="button" @click="owner = (owner === 'Arianny' ? null : 'Arianny')" 
-                                :class="owner === 'Arianny' ? 'bg-gradient-to-r from-emerald-700 to-teal-800 text-white font-extrabold shadow-xs' : 'text-slate-500 font-semibold hover:text-slate-700'" 
-                                class="flex-1 rounded py-0 text-[9px] transition-all flex items-center justify-center gap-0.5">
-                            <span class="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black shrink-0"
-                                  :class="owner === 'Arianny' ? 'bg-white/25 text-white' : 'bg-pink-100 text-pink-700'">Ar</span>
-                            <span class="truncate">Arianny</span>
+                     <!-- Quick Owner Badges (Arianny / Anthony / Negocio) -->
+                     <div class="flex items-center gap-1 h-full">
+                        <!-- Arianny -->
+                        <button type="button" @click="toggleOwnerInBar('Arianny')" 
+                                title="Arianny"
+                                :class="owner === 'Arianny' ? 'bg-pink-500 text-white font-black shadow-xs ring-1 ring-pink-400' : 'bg-pink-50/90 text-pink-700 hover:bg-pink-100 border border-pink-200/60'" 
+                                class="h-full px-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 active:scale-95">
+                            <span class="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black shrink-0"
+                                  :class="owner === 'Arianny' ? 'bg-white/25 text-white' : 'bg-pink-200/80 text-pink-800'">Ar</span>
+                            <span class="hidden sm:inline">Arianny</span>
                         </button>
 
-                        <button type="button" @click="owner = (owner === 'Anthony' ? null : 'Anthony')" 
-                                :class="owner === 'Anthony' ? 'bg-gradient-to-r from-emerald-700 to-teal-800 text-white font-extrabold shadow-xs' : 'text-slate-500 font-semibold hover:text-slate-700'" 
-                                class="flex-1 rounded py-0 text-[9px] transition-all flex items-center justify-center gap-0.5">
-                            <span class="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black shrink-0"
-                                  :class="owner === 'Anthony' ? 'bg-white/25 text-white' : 'bg-emerald-100 text-emerald-800'">An</span>
-                            <span class="truncate">Anthony</span>
+                        <!-- Anthony -->
+                        <button type="button" @click="toggleOwnerInBar('Anthony')" 
+                                title="Anthony"
+                                :class="owner === 'Anthony' ? 'bg-emerald-700 text-white font-black shadow-xs ring-1 ring-emerald-500' : 'bg-emerald-50/90 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/60'" 
+                                class="h-full px-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 active:scale-95">
+                            <span class="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black shrink-0"
+                                  :class="owner === 'Anthony' ? 'bg-white/25 text-white' : 'bg-emerald-200/80 text-emerald-900'">An</span>
+                            <span class="hidden sm:inline">Anthony</span>
                         </button>
 
-                        <button type="button" @click="owner = (owner === 'Negocio' ? null : 'Negocio')" 
-                                :class="owner === 'Negocio' ? 'bg-gradient-to-r from-emerald-700 to-teal-800 text-white font-extrabold shadow-xs' : 'text-slate-500 font-semibold hover:text-slate-700'" 
-                                class="flex-1 rounded py-0 text-[9px] transition-all flex items-center justify-center gap-0.5">
-                            <span class="material-icons text-[11px]" :class="owner === 'Negocio' ? 'text-white' : 'text-purple-600'">store</span>
-                            <span class="truncate">Negocio</span>
+                        <!-- Negocio -->
+                        <button type="button" @click="toggleOwnerInBar('Negocio')" 
+                                title="Negocio"
+                                :class="owner === 'Negocio' ? 'bg-purple-600 text-white font-black shadow-xs ring-1 ring-purple-400' : 'bg-purple-50/90 text-purple-700 hover:bg-purple-100 border border-purple-200/60'" 
+                                class="h-full px-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 active:scale-95">
+                            <span class="material-icons text-[12px]" :class="owner === 'Negocio' ? 'text-white' : 'text-purple-600'">store</span>
+                            <span class="hidden sm:inline">Negocio</span>
                         </button>
                      </div>
                 </div>
@@ -669,7 +675,86 @@
                 </div>
 
                 <!-- Ergonomic Compact Tactile Keypad (Directly at the bottom) -->
-                <div class="grid grid-cols-4 gap-1.5 h-auto">
+                <div class="grid grid-cols-4 gap-1.5 h-auto relative">
+                    <!-- Quick Owner Picker Floating Popover (Fast & Non-invasive) -->
+                    <div x-show="showQuickOwnerPicker" 
+                         x-transition:enter="transition ease-out duration-150 transform"
+                         x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+                         x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-100 transform"
+                         x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 scale-95 translate-y-2"
+                         @click.outside="showQuickOwnerPicker = false"
+                         class="absolute bottom-20 right-0 z-50 w-64 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 shadow-2xl border border-emerald-100/90 ring-1 ring-black/10 flex flex-col gap-1.5"
+                         x-cloak>
+                        
+                        <!-- Header -->
+                        <div class="flex items-center justify-between px-1 pb-1 border-b border-slate-100">
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-icons text-emerald-600 text-xs">how_to_reg</span>
+                                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">¿Quién registra?</span>
+                            </div>
+                            <button type="button" @click="showQuickOwnerPicker = false" class="text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100">
+                                <span class="material-icons text-xs">close</span>
+                            </button>
+                        </div>
+
+                        <!-- 3 Quick Options -->
+                        <div class="space-y-1.5 pt-0.5">
+                            <!-- Arianny -->
+                            <button type="button" @click="selectOwnerAndSubmit('Arianny')" 
+                                    class="w-full h-9 px-2.5 rounded-xl bg-pink-50/90 hover:bg-pink-100 active:scale-98 border border-pink-200/70 flex items-center justify-between transition-all group">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-6 h-6 rounded-full bg-pink-500 text-white font-black text-[10px] flex items-center justify-center shadow-xs">Ar</span>
+                                    <span class="text-xs font-bold text-pink-900 group-hover:translate-x-0.5 transition-transform">Arianny</span>
+                                </div>
+                                <span class="text-[9px] font-extrabold text-pink-600 bg-pink-100/80 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                    Guardar <span class="material-icons text-[10px]">arrow_forward</span>
+                                </span>
+                            </button>
+
+                            <!-- Anthony -->
+                            <button type="button" @click="selectOwnerAndSubmit('Anthony')" 
+                                    class="w-full h-9 px-2.5 rounded-xl bg-emerald-50/90 hover:bg-emerald-100 active:scale-98 border border-emerald-200/70 flex items-center justify-between transition-all group">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-6 h-6 rounded-full bg-emerald-700 text-white font-black text-[10px] flex items-center justify-center shadow-xs">An</span>
+                                    <span class="text-xs font-bold text-emerald-950 group-hover:translate-x-0.5 transition-transform">Anthony</span>
+                                </div>
+                                <span class="text-[9px] font-extrabold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                    Guardar <span class="material-icons text-[10px]">arrow_forward</span>
+                                </span>
+                            </button>
+
+                            <!-- Negocio -->
+                            <button type="button" @click="selectOwnerAndSubmit('Negocio')" 
+                                    class="w-full h-9 px-2.5 rounded-xl bg-purple-50/90 hover:bg-purple-100 active:scale-98 border border-purple-200/70 flex items-center justify-between transition-all group">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-xs">
+                                        <span class="material-icons text-[12px]">store</span>
+                                    </span>
+                                    <div class="text-left">
+                                        <span class="text-xs font-bold text-purple-900 leading-none block">Negocio</span>
+                                    </div>
+                                </div>
+                                <span class="text-[9px] font-extrabold text-purple-700 bg-purple-100/80 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                    Guardar <span class="material-icons text-[10px]">arrow_forward</span>
+                                </span>
+                            </button>
+                        </div>
+
+                        <!-- Footer: Option to remember -->
+                        <div class="pt-1 mt-0.5 border-t border-slate-100 flex items-center justify-between text-[9px] text-slate-400 px-1">
+                            <label class="flex items-center gap-1.5 cursor-pointer select-none text-slate-500 hover:text-slate-700">
+                                <input type="checkbox" x-model="rememberOwner" class="rounded text-emerald-600 focus:ring-0 w-3 h-3">
+                                <span>Recordar selección</span>
+                            </label>
+                            <span class="text-[8px] text-slate-300">Esc para cerrar</span>
+                        </div>
+
+                        <!-- Pointer triangle aligned to big button -->
+                        <div class="absolute -bottom-1.5 right-6 w-3 h-3 bg-white rotate-45 border-r border-b border-emerald-100 shadow-xs"></div>
+                    </div>
+
                     <button @click="press(7)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
                             :class="compactLevel === 0 ? 'h-9 sm:h-10 text-base' : 'h-8 text-xs'">7</button>
                     <button @click="press(8)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
@@ -695,9 +780,19 @@
                     <button @click="press(3)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
                             :class="compactLevel === 0 ? 'h-9 sm:h-10 text-base' : 'h-8 text-xs'">3</button>
                     
-                    <button @click="submit()" :disabled="!owner" class="row-span-2 rounded-xl text-white shadow-lg flex items-center justify-center active:scale-95 transition-all"
-                            :class="owner ? 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 hover:brightness-105 shadow-emerald-600/35' : 'bg-slate-200 shadow-none text-slate-400 cursor-not-allowed'">
+                    <!-- Big Action / Submit Button (Always Active with Non-Invasive Flow) -->
+                    <button @click="submit()" 
+                            class="row-span-2 rounded-xl text-white shadow-lg flex flex-col items-center justify-center active:scale-95 transition-all relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 hover:brightness-105 shadow-emerald-600/35 cursor-pointer">
                         <span class="material-icons text-xl font-bold" x-text="mode === 'single' || mode === 'cart' && cart.length > 0 ? 'check' : 'add'"></span>
+                        <!-- Micro indicator badge if owner is active -->
+                        <span x-show="owner" 
+                              x-text="owner === 'Arianny' ? 'Ar' : (owner === 'Anthony' ? 'An' : '🏢')"
+                              :class="{
+                                  'bg-pink-400 text-white': owner === 'Arianny',
+                                  'bg-emerald-800 text-white': owner === 'Anthony',
+                                  'bg-purple-500 text-white': owner === 'Negocio'
+                              }"
+                              class="absolute top-1 right-1 px-1 py-0.2 rounded text-[7px] font-black leading-tight shadow-xs"></span>
                     </button>
 
                     <button @click="press(0)" class="col-span-2 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
@@ -718,6 +813,7 @@
                  <h3 class="text-lg font-extrabold text-slate-800 mb-1">Confirmar</h3>
                  <p class="text-xs text-slate-500 mb-4 px-2">
                      <span x-text="mode === 'cart' ? 'Guardar Carrito (' + cart.length + ' items)' : 'Guardar transacción'"></span>
+                     <span x-show="owner" class="text-[11px] font-bold text-emerald-800 block mt-0.5" x-text="'Registrado por: ' + owner"></span>
                      <br>
                      <span class="font-bold text-slate-800 text-sm block mt-1" x-text="mode === 'cart' ? formatMoney(cartTotal) : formatMoney(amount)"></span>
                  </p>
@@ -956,6 +1052,9 @@
                 type: 'expense',
                 currency: 'Bs', 
                 owner: null, // Initial check requires selection
+                showQuickOwnerPicker: false,
+                rememberOwner: false,
+                ownerLockedInBar: false,
                 exchangeRate: 50,
                 manualRate: false, // Prevents auto-update if true
                 selectedAccount: '<?= $accounts[0]['id'] ?? 1 ?>',
@@ -1188,6 +1287,16 @@
                     }, 600000); // 10 minutes
                 },
 
+                toggleOwnerInBar(name) {
+                    if (this.owner === name) {
+                        this.owner = null;
+                        this.ownerLockedInBar = false;
+                    } else {
+                        this.owner = name;
+                        this.ownerLockedInBar = true;
+                    }
+                },
+
                 // Modified submit check
                 async submit() {
                      let enteredValue = this.calculate();
@@ -1217,11 +1326,15 @@
                             return;
                      }
 
-                     // Case 2: Submit Action (Single or Cart Checkout)
-                     if (!this.owner) return this.showMsg('Seleccione quién registra');
-                     
-                     if (this.mode === 'single' && enteredValue <= 0) return;
-                     if (this.mode === 'cart' && this.cart.length === 0) return;
+                     // Validation
+                     if (this.mode === 'single' && enteredValue <= 0) return this.showMsg('Ingrese un monto');
+                     if (this.mode === 'cart' && this.cart.length === 0) return this.showMsg('El carrito está vacío');
+
+                     // If owner is not selected yet, trigger the fast non-invasive quick-picker!
+                     if (!this.owner) {
+                         this.showQuickOwnerPicker = true;
+                         return;
+                     }
 
                      // Fix: Update amount to calculated value so Modal shows number, not "6+7"
                      if (this.mode === 'single') {
@@ -1230,6 +1343,17 @@
                      }
 
                      this.showConfirmModal = true;
+                },
+
+                async selectOwnerAndSubmit(selectedOwner) {
+                    this.owner = selectedOwner;
+                    this.showQuickOwnerPicker = false;
+                    let enteredValue = this.calculate();
+                    if (this.mode === 'single') {
+                        this.amount = enteredValue.toString();
+                        this.display = this.amount;
+                    }
+                    await this.processSubmit();
                 },
 
                 async submitConfirmed() {
@@ -1276,7 +1400,7 @@
                             created_at: this.customDate
                         });
                         this.cart = [];
-                         this.display = "Enviado";
+                        this.display = "Enviado";
                         setTimeout(() => this.clear(), 1000);
                      } else {
                         // Single Mode
@@ -1296,8 +1420,6 @@
                          if(this.enablePurchase && this.purchaseItem) {
                              payload.inventory_item_id = this.purchaseItem.id;
                              payload.quantity = this.purchaseQuantity;
-                             // Append details to description if auto-generated one is not preferred, or let backend handle it.
-                             // Backend handles description if empty, but here we might want to preserve user description + details.
                              if(!this.description) {
                                  // Let backend handle default
                              } else {
@@ -1316,6 +1438,11 @@
 
                          this.display = "Enviado";
                          setTimeout(() => this.clear(), 1000);
+                     }
+
+                     // If owner was chosen through the quick picker without checking "remember", reset it
+                     if (!this.rememberOwner && !this.ownerLockedInBar) {
+                         this.owner = null;
                      }
                 },
 
@@ -1495,10 +1622,20 @@
                     }
 
                     // Clear / Esc / Backspace
-                    // Note: Backspace usually deletes last char, but in calculator "C" clears all. 
-                    // Let's make Backspace delete last char (if we had that function) or Clear all? 
-                    // Current app only has "Clear All" (C).
-                    if (e.key === 'Escape' || e.key === 'Delete' || e.key === 'Backspace') {
+                    if (e.key === 'Escape') {
+                        if (this.showQuickOwnerPicker) {
+                            this.showQuickOwnerPicker = false;
+                            return;
+                        }
+                        if (this.showConfirmModal) {
+                            this.showConfirmModal = false;
+                            return;
+                        }
+                        this.clear();
+                        return;
+                    }
+
+                    if (e.key === 'Delete' || e.key === 'Backspace') {
                         this.clear();
                         return;
                     }
