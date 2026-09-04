@@ -589,31 +589,47 @@
                      </div>
                 </div>
 
-                <!-- Row 2: Unified Note & Amount Display Card with Dynamic Type Feedback -->
-                <div class="mb-1.5 relative rounded-xl px-3 py-1.5 border transition-all duration-200 shadow-inner"
+                <!-- Row 2: Unified Note & Amount Display Card with Dynamic Type Feedback & Swipe Navigation -->
+                <div class="mb-1.5 relative rounded-xl px-3 py-1.5 border transition-all duration-200 shadow-inner select-none cursor-grab active:cursor-grabbing touch-pan-y"
                      :class="{
                          'bg-red-950/[0.03] border-red-300/80 shadow-red-950/5': type === 'expense',
                          'bg-emerald-950/[0.03] border-emerald-300/80 shadow-emerald-950/5': type === 'income',
                          'bg-blue-950/[0.03] border-blue-300/80 shadow-blue-950/5': type === 'savings'
-                     }">
+                     }"
+                     @touchstart.passive="handleSwipeStart($event)"
+                     @touchend.passive="handleSwipeEnd($event)"
+                     @mousedown="handleMouseDown($event)"
+                     @mouseup="handleMouseUp($event)">
+                     
                      <div class="flex items-center justify-between gap-2">
                         <!-- Note Input -->
                         <div class="flex items-center gap-1.5 flex-1 min-w-0">
                             <span class="material-icons text-slate-400 text-sm">edit_note</span>
                             <input type="text" x-model="description" placeholder="Añadir nota..." 
-                                   class="w-full text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none bg-transparent">
+                                   class="w-full text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none bg-transparent cursor-text select-text">
                         </div>
                         
                         <!-- Currency Toggle & Main Amount with Dynamic Type Indicator -->
                         <div class="flex items-baseline gap-1.5 shrink-0">
-                            <!-- Type Pill Badge -->
-                            <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded select-none leading-tight border"
-                                  :class="{
-                                      'bg-red-100 text-red-900 border-red-200': type === 'expense',
-                                      'bg-emerald-100 text-emerald-900 border-emerald-200': type === 'income',
-                                      'bg-blue-100 text-blue-900 border-blue-200': type === 'savings'
-                                  }"
-                                  x-text="type === 'expense' ? 'Gasto' : (type === 'income' ? 'Ingreso' : 'Ahorro')"></span>
+                            <!-- Type Pill Badge & Swipe Indicator Dots -->
+                            <div class="flex items-center gap-1 cursor-pointer select-none active:scale-95 transition-transform" 
+                                 @click="nextType()" 
+                                 title="Desliza a los lados o toca para cambiar tipo">
+                                <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded select-none leading-tight border transition-all"
+                                      :class="{
+                                          'bg-red-100 text-red-900 border-red-200': type === 'expense',
+                                          'bg-emerald-100 text-emerald-900 border-emerald-200': type === 'income',
+                                          'bg-blue-100 text-blue-900 border-blue-200': type === 'savings'
+                                      }"
+                                      x-text="type === 'expense' ? 'Gasto' : (type === 'income' ? 'Ingreso' : 'Ahorro')"></span>
+
+                                <!-- Micro Carousel Dots showing position -->
+                                <div class="flex items-center gap-0.5">
+                                    <span class="h-1 rounded-full transition-all duration-300" :class="type === 'expense' ? 'w-2 bg-red-700' : 'w-1 bg-slate-300'"></span>
+                                    <span class="h-1 rounded-full transition-all duration-300" :class="type === 'income' ? 'w-2 bg-emerald-800' : 'w-1 bg-slate-300'"></span>
+                                    <span class="h-1 rounded-full transition-all duration-300" :class="type === 'savings' ? 'w-2 bg-blue-700' : 'w-1 bg-slate-300'"></span>
+                                </div>
+                            </div>
 
                             <!-- Currency Toggle Pill -->
                             <button type="button" @click="currency = (currency === 'Bs' ? 'USD' : 'Bs')"
@@ -623,14 +639,14 @@
 
                             <!-- Amount with Dynamic +/-/★ prefix -->
                             <div class="flex items-baseline font-mono leading-none">
-                                <span class="font-black text-lg mr-0.5 select-none"
+                                <span class="font-black text-lg mr-0.5 select-none transition-all duration-200"
                                       :class="{
                                           'text-red-700': type === 'expense',
                                           'text-emerald-800': type === 'income',
                                           'text-blue-700': type === 'savings'
                                       }"
                                       x-text="type === 'expense' ? '-' : (type === 'income' ? '+' : '★')"></span>
-                                <div class="font-black text-slate-900 tracking-tight text-2xl font-mono leading-none" 
+                                <div class="font-black text-slate-900 tracking-tight text-2xl font-mono leading-none transition-all duration-200" 
                                      :class="{
                                          'text-2xl': compactLevel === 0,
                                          'text-xl': compactLevel === 1,
@@ -1294,6 +1310,12 @@
                 showAccountMenu: false,
                 showCategoryMenu: false,
                 categorySearch: '',
+                // Swipe Navigation State
+                touchStartX: 0,
+                touchStartY: 0,
+                touchStartTime: 0,
+                isSwiping: false,
+                isMouseDown: false,
                 showDivisasModal: false,
                 divisasMode: 'exchange',
                 divSource: '',
@@ -1355,6 +1377,77 @@
                     if(!this.categorySearch) return this.categories;
                     const q = this.categorySearch.toLowerCase().trim();
                     return this.categories.filter(c => c.name.toLowerCase().includes(q));
+                },
+
+                // Swipe navigation for Transaction Types (Gasto <-> Ingreso <-> Ahorro)
+                handleSwipeStart(e) {
+                    const touch = e.touches ? e.touches[0] : e;
+                    this.touchStartX = touch.clientX;
+                    this.touchStartY = touch.clientY;
+                    this.touchStartTime = Date.now();
+                    this.isSwiping = true;
+                },
+
+                handleSwipeEnd(e) {
+                    if (!this.isSwiping) return;
+                    this.isSwiping = false;
+                    const touch = e.changedTouches ? e.changedTouches[0] : e;
+                    const deltaX = touch.clientX - this.touchStartX;
+                    const deltaY = touch.clientY - this.touchStartY;
+                    const deltaTime = Date.now() - this.touchStartTime;
+
+                    // Require distance > 30px, predominantly horizontal, within 750ms
+                    if (Math.abs(deltaX) > 30 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1 && deltaTime < 750) {
+                        if (deltaX < 0) {
+                            // Swiped LEFT: Gasto -> Ingreso -> Ahorro
+                            this.nextType();
+                        } else {
+                            // Swiped RIGHT: Ahorro -> Ingreso -> Gasto
+                            this.prevType();
+                        }
+                        if (navigator.vibrate) {
+                            try { navigator.vibrate(15); } catch(err) {}
+                        }
+                    }
+                },
+
+                handleMouseDown(e) {
+                    if (e.target.tagName === 'INPUT' || e.target.closest('button')) {
+                        this.isMouseDown = false;
+                        return;
+                    }
+                    this.touchStartX = e.clientX;
+                    this.touchStartY = e.clientY;
+                    this.touchStartTime = Date.now();
+                    this.isMouseDown = true;
+                },
+
+                handleMouseUp(e) {
+                    if (!this.isMouseDown) return;
+                    this.isMouseDown = false;
+                    const deltaX = e.clientX - this.touchStartX;
+                    const deltaY = e.clientY - this.touchStartY;
+                    if (Math.abs(deltaX) > 35 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1) {
+                        if (deltaX < 0) {
+                            this.nextType();
+                        } else {
+                            this.prevType();
+                        }
+                    }
+                },
+
+                nextType() {
+                    const types = ['expense', 'income', 'savings'];
+                    const currentIndex = types.indexOf(this.type);
+                    const nextIndex = (currentIndex + 1) % types.length;
+                    this.type = types[nextIndex];
+                },
+
+                prevType() {
+                    const types = ['expense', 'income', 'savings'];
+                    const currentIndex = types.indexOf(this.type);
+                    const prevIndex = (currentIndex - 1 + types.length) % types.length;
+                    this.type = types[prevIndex];
                 },
                 
                 selectInvItem(item) {
