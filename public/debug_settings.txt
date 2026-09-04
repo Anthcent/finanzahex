@@ -1,0 +1,12 @@
+2026-02-09 05:05:33 - Request: stdClass Object
+(
+    [key] => default_print_account
+    [value] => 2
+)
+
+2026-02-09 05:05:33 - Request: stdClass Object
+(
+    [key] => default_print_category
+    [value] => 4
+)
+

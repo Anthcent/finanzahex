@@ -1,0 +1,142 @@
+<!-- Floating Save Button -->
+<button x-show="messages.length > 0" 
+        @click="promptSaveConversation()" 
+        class="fixed bottom-24 right-6 bg-purple-600 text-white p-4 rounded-full shadow-2xl hover:bg-purple-700 transition z-30"
+        title="Guardar conversación">
+    <span class="material-icons">bookmark</span>
+</button>
+
+<!-- Save/Load Modals and History Sidebar - Add to ai/index.php after API Key Modal -->
+
+<!-- Save Modal -->
+<div x-show="showSaveModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center px-4" x-cloak>
+    <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        <h2 class="text-lg font-bold mb-4">Guardar Conversación</h2>
+        <input type="text" x-model="saveTitle" placeholder="Título de la conversación" class="w-full border rounded-lg p-3 mb-4">
+        <div class="flex space-x-3">
+            <button @click="showSaveModal = false" class="flex-1 py-3 rounded-lg bg-gray-100 font-bold">Cancelar</button>
+            <button @click="saveConversation()" class="flex-1 py-3 rounded-lg bg-purple-600 text-white font-bold">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Load Modal -->
+<div x-show="showLoadModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center px-4" x-cloak>
+    <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        <h2 class="text-lg font-bold mb-4">⚠️ Cargar Conversación</h2>
+        <p class="text-sm text-gray-600 mb-4">Esto reemplazará la conversación actual.</p>
+        <div class="flex space-x-3">
+            <button @click="showLoadModal = false" class="flex-1 py-3 rounded-lg bg-gray-100 font-bold">Cancelar</button>
+            <button @click="loadConversation()" class="flex-1 py-3 rounded-lg bg-indigo-600 text-white font-bold">Cargar</button>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript Functions - Add to aiApp() function -->
+/*
+showSaveModal: false,
+showLoadModal: false,
+showHistory: false,
+saveTitle: '',
+savedConversations: [],
+loadingConvId: null,
+
+init() {
+    if (!this.apiKey) {
+        this.showApiKeyModal = true;
+    }
+    this.fetchSavedConversations();
+},
+
+async fetchSavedConversations() {
+    try {
+        const res = await fetch('<?= base_url('ai/conversations') ?>');
+        const data = await res.json();
+        if (data.status === 'success') {
+            this.savedConversations = data.data;
+        }
+    } catch(e) {
+        console.error('Error loading conversations:', e);
+    }
+},
+
+promptSaveConversation() {
+    if (this.messages.length === 0) return;
+    
+    // Auto-generate title from first user message
+    const firstUserMsg = this.messages.find(m => m.role === 'user');
+    this.saveTitle = firstUserMsg ? firstUserMsg.content.substring(0, 50) : 'Conversación';
+    
+    this.showSaveModal = true;
+},
+
+async saveConversation() {
+    if (!this.saveTitle.trim()) {
+        alert('Por favor ingresa un título');
+        return;
+    }
+    
+    try {
+        const res = await fetch('<?= base_url('ai/save-conversation') ?>', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                title: this.saveTitle,
+                messages: this.messages
+            })
+        });
+        
+        const data = await res.json();
+        if (data.status === 'success') {
+            alert('✓ Conversación guardada');
+            this.showSaveModal = false;
+            this.fetchSavedConversations();
+        }
+    } catch(e) {
+        alert('Error al guardar: ' + e.message);
+    }
+},
+
+confirmLoad(id) {
+    this.loadingConvId = id;
+    this.showLoadModal = true;
+},
+
+async loadConversation() {
+    try {
+        const res = await fetch('<?= base_url('ai/conversation/') ?>' + this.loadingConvId);
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            this.messages = data.data.messages;
+            this.showLoadModal = false;
+            this.showHistory = false;
+            alert('✓ Conversación cargada');
+        }
+    } catch(e) {
+        alert('Error al cargar: ' + e.message);
+    }
+},
+
+async deleteConv(id) {
+    if (!confirm('¿Eliminar esta conversación?')) return;
+    
+    try {
+        const res = await fetch('<?= base_url('ai/conversation/') ?>' + id, {
+            method: 'DELETE'
+        });
+        
+        const data = await res.json();
+        if (data.status === 'success') {
+            this.fetchSavedConversations();
+        }
+    } catch(e) {
+        alert('Error al eliminar: ' + e.message);
+    }
+},
+
+formatDate(dateStr) {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+}
+*/
