@@ -44,3 +44,4 @@ writable/session/*
 !writable/session/index.html
 writable/debugbar/*
 !writable/debugbar/.gitkeep
+writable/installed.lock

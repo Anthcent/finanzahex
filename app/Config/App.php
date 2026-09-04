@@ -48,6 +48,15 @@ class App extends BaseConfig
 
         if ($envBaseUrl = getenv('APP_BASE_URL') ?: getenv('BASE_URL')) {
             $this->baseURL = rtrim($envBaseUrl, '/') . '/';
+        } elseif (!empty($_SERVER['HTTP_HOST'])) {
+            $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+                ? 'https' : 'http';
+            $this->baseURL = $proto . '://' . $_SERVER['HTTP_HOST'] . '/';
+            $hostOnly = explode(':', $_SERVER['HTTP_HOST'])[0];
+            if (!in_array($hostOnly, $this->allowedHostnames, true)) {
+                $this->allowedHostnames[] = $hostOnly;
+            }
         }
     }
 
