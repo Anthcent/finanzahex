@@ -648,75 +648,199 @@
                 </div>
 
                 <!-- Row 3: Attributes (Account + Category) & Action Tools -->
-                <div class="flex items-center gap-1.5 mb-1.5 h-7">
-                    <!-- Account Select -->
-                    <div class="relative flex-1 min-w-0 h-full" @click.outside="showAccountMenu = false">
-                        <button @click="showAccountMenu = !showAccountMenu" 
-                                class="w-full h-full px-2 flex items-center justify-between rounded-lg bg-emerald-50/70 hover:bg-emerald-100/60 border border-emerald-200/80 text-emerald-950 text-[10px] font-bold transition-all shadow-xs">
-                            <div class="flex items-center gap-1 overflow-hidden">
-                                 <span class="material-icons text-emerald-600 text-[13px]">account_balance</span>
-                                 <span class="truncate" x-text="accounts.find(a => a.id == selectedAccount)?.name || 'Cuenta'"></span>
+                <div class="relative flex items-center gap-1.5 mb-1.5 h-8.5" 
+                     @click.outside="showAccountMenu = false; showCategoryMenu = false"
+                     @keydown.escape.window="showAccountMenu = false; showCategoryMenu = false">
+
+                    <!-- Account Dropdown Floating Popover (High Contrast, Full Detail, Never Cut Off) -->
+                    <div x-show="showAccountMenu" 
+                         x-transition:enter="transition ease-out duration-150 transform"
+                         x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+                         x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-100 transform"
+                         x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 scale-95 translate-y-2"
+                         class="absolute bottom-full left-0 right-0 mb-2 z-[90] bg-white/98 backdrop-blur-md rounded-2xl p-2.5 shadow-2xl border border-emerald-100/90 ring-1 ring-black/10 flex flex-col gap-1.5"
+                         x-cloak>
+                        
+                        <!-- Popover Header -->
+                        <div class="flex items-center justify-between px-1 pb-1 border-b border-slate-100">
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-icons text-emerald-600 text-xs">account_balance_wallet</span>
+                                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Seleccionar Cuenta</span>
                             </div>
-                            <span class="material-icons text-emerald-600 text-xs transition-transform" :class="{'rotate-180': showAccountMenu}">expand_more</span>
-                        </button>
-                        <div x-show="showAccountMenu" class="absolute bottom-full left-0 w-full mb-1 bg-white rounded-xl shadow-xl border border-slate-100 p-1 z-[80] max-h-40 overflow-y-auto">
-                             <template x-for="acc in accounts" :key="acc.id">
-                                 <div @click="selectedAccount = acc.id; showAccountMenu = false" class="p-2 hover:bg-emerald-50/60 result-item rounded flex justify-between items-center cursor-pointer group">
-                                     <span class="text-[10px] font-bold text-slate-700 group-hover:text-emerald-950" x-text="acc.name"></span>
-                                     <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded shadow-xs" x-text="formatMoney(acc.balance, acc.currency)"></span>
-                                 </div>
-                             </template>
-                        </div>
-                    </div>
-                    
-                    <!-- Category Select -->
-                    <div class="relative flex-1 min-w-0 h-full" @click.outside="showCategoryMenu = false">
-                         <button @click="showCategoryMenu = !showCategoryMenu" 
-                                 class="w-full h-full px-2 flex items-center justify-between rounded-lg bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-700 text-[10px] font-bold transition-all shadow-xs">
-                            <div class="flex items-center gap-1 overflow-hidden">
-                                 <span class="material-icons text-slate-400 text-[13px]">category</span>
-                                 <span class="truncate" x-text="categories.find(c => c.id == selectedCategory)?.name || 'Categoría'"></span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[9px] font-bold text-slate-400" x-text="accounts.length + ' cuentas'"></span>
+                                <button type="button" @click="showAccountMenu = false" class="text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100">
+                                    <span class="material-icons text-xs">close</span>
+                                </button>
                             </div>
-                            <span class="material-icons text-slate-400 text-xs transition-transform" :class="{'rotate-180': showCategoryMenu}">expand_more</span>
-                        </button>
-                         <div x-show="showCategoryMenu" class="absolute bottom-full left-0 w-full mb-1 bg-white rounded-xl shadow-xl border border-slate-100 p-1 z-[80] max-h-40 overflow-y-auto">
-                             <template x-for="cat in categories" :key="cat.id">
-                                 <div @click="selectedCategory = cat.id; showCategoryMenu = false" class="p-2 hover:bg-slate-50 rounded flex items-center gap-1.5 text-[10px] font-bold text-slate-700 cursor-pointer">
-                                     <span class="material-icons text-xs text-slate-400" x-text="getCategoryIcon(cat.name, cat.icon)"></span>
-                                     <span x-text="cat.name"></span>
-                                 </div>
-                             </template>
                         </div>
+
+                        <!-- Accounts List (Spacious, No Line Break, Full Balances) -->
+                        <div class="space-y-1 max-h-56 overflow-y-auto no-scrollbar pt-0.5 pr-0.5">
+                            <template x-for="acc in accounts" :key="acc.id">
+                                <div @click="selectedAccount = acc.id; showAccountMenu = false" 
+                                     class="p-2 rounded-xl border flex items-center justify-between gap-2 transition-all cursor-pointer select-none active:scale-[0.98] group"
+                                     :class="selectedAccount == acc.id 
+                                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-950 ring-1 ring-emerald-500/20 shadow-xs' 
+                                         : 'bg-white hover:bg-slate-50 border-slate-100 text-slate-700 hover:border-slate-200'">
+                                    
+                                    <!-- Left: Icon & Account Name -->
+                                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                                        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0"
+                                             :class="selectedAccount == acc.id ? 'bg-emerald-700 text-white shadow-xs' : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'">
+                                            <span class="material-icons text-[14px]" x-text="acc.type === 'cash' ? 'payments' : (acc.type === 'bank' ? 'account_balance' : 'account_balance_wallet')"></span>
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="font-bold text-xs truncate" :class="selectedAccount == acc.id ? 'text-emerald-950 font-black' : 'text-slate-800'" x-text="acc.name"></span>
+                                                <span class="text-[8px] font-extrabold px-1 py-0.2 rounded uppercase tracking-wider shrink-0"
+                                                      :class="acc.currency === 'USD' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'"
+                                                      x-text="acc.currency"></span>
+                                            </div>
+                                            <span class="text-[9px] text-slate-400 block truncate" x-text="acc.type === 'cash' ? 'Efectivo disponible' : (acc.type === 'bank' ? 'Cuenta bancaria' : 'Cuenta de fondos')"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Right: Balance (Full & Never Truncated) + Checkmark -->
+                                    <div class="flex items-center gap-2 shrink-0 pl-1">
+                                        <span class="font-mono font-black text-xs whitespace-nowrap"
+                                              :class="selectedAccount == acc.id ? 'text-emerald-700' : 'text-slate-700'"
+                                              x-text="formatMoney(acc.balance, acc.currency)"></span>
+                                        <span class="material-icons text-sm text-emerald-600 shrink-0" x-show="selectedAccount == acc.id">check_circle</span>
+                                        <span class="w-3.5" x-show="selectedAccount != acc.id"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="pt-1 mt-0.5 border-t border-slate-100 flex items-center justify-between text-[10px] px-1">
+                            <a href="<?= base_url('accounts') ?>" class="text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 transition-colors">
+                                <span class="material-icons text-[12px]">tune</span>
+                                <span>Gestionar cuentas</span>
+                            </a>
+                            <span class="text-[8px] text-slate-400">Esc para cerrar</span>
+                        </div>
+
+                        <!-- Pointer triangle aligned directly to Account button center -->
+                        <div class="absolute -bottom-1.5 left-[20%] -translate-x-1/2 w-3 h-3 bg-white rotate-45 border-r border-b border-emerald-100 shadow-xs"></div>
                     </div>
 
+                    <!-- Category Dropdown Floating Popover (Searchable, Visual, Fast) -->
+                    <div x-show="showCategoryMenu" 
+                         x-transition:enter="transition ease-out duration-150 transform"
+                         x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+                         x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-100 transform"
+                         x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 scale-95 translate-y-2"
+                         class="absolute bottom-full left-0 right-0 mb-2 z-[90] bg-white/98 backdrop-blur-md rounded-2xl p-2.5 shadow-2xl border border-slate-200/90 ring-1 ring-black/10 flex flex-col gap-1.5"
+                         x-cloak>
+                        
+                        <!-- Popover Header & Search -->
+                        <div class="flex items-center justify-between pb-1 border-b border-slate-100 gap-2">
+                            <div class="flex items-center gap-1.5 flex-1 relative">
+                                <span class="material-icons text-slate-400 text-xs absolute left-2 pointer-events-none">search</span>
+                                <input type="text" x-model="categorySearch" placeholder="Buscar categoría..." 
+                                       class="w-full pl-6 pr-2 py-1 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all">
+                                <button type="button" x-show="categorySearch" @click="categorySearch = ''" class="absolute right-1.5 text-slate-400 hover:text-slate-600">
+                                    <span class="material-icons text-[11px]">cancel</span>
+                                </button>
+                            </div>
+                            <button type="button" @click="showCategoryMenu = false; categorySearch = ''" class="text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 shrink-0">
+                                <span class="material-icons text-xs">close</span>
+                            </button>
+                        </div>
+
+                        <!-- Categories Grid (Visual, 2-Columns, Fast Tapping) -->
+                        <div class="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto no-scrollbar pt-0.5 pr-0.5">
+                            <template x-for="cat in filteredCategories" :key="cat.id">
+                                <button type="button" 
+                                        @click="selectedCategory = cat.id; showCategoryMenu = false; categorySearch = ''" 
+                                        class="p-2 rounded-xl border flex items-center justify-between gap-1.5 transition-all cursor-pointer select-none active:scale-95 text-left group"
+                                        :class="selectedCategory == cat.id 
+                                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-950 ring-1 ring-emerald-500/20 shadow-xs font-black' 
+                                            : 'bg-white hover:bg-slate-50 border-slate-100 text-slate-700 hover:border-slate-200 font-bold'">
+                                    
+                                    <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                                        <span class="w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0"
+                                              :class="selectedCategory == cat.id ? 'bg-emerald-700 text-white shadow-xs' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'">
+                                            <span class="material-icons text-[13px]" x-text="getCategoryIcon(cat.name, cat.icon)"></span>
+                                        </span>
+                                        <span class="text-[11px] truncate" x-text="cat.name"></span>
+                                    </div>
+                                    <span class="material-icons text-xs text-emerald-600 shrink-0" x-show="selectedCategory == cat.id">check</span>
+                                </button>
+                            </template>
+
+                            <!-- Empty search state -->
+                            <div x-show="filteredCategories.length === 0" class="col-span-2 py-4 text-center text-slate-400 text-xs">
+                                No se encontraron categorías para "<span x-text="categorySearch" class="font-bold"></span>"
+                            </div>
+                        </div>
+
+                        <!-- Pointer triangle aligned directly to Category button center -->
+                        <div class="absolute -bottom-1.5 left-[52%] -translate-x-1/2 w-3 h-3 bg-white rotate-45 border-r border-b border-slate-200 shadow-xs"></div>
+                    </div>
+
+                    <!-- Account Select Button -->
+                    <button type="button" 
+                            @click="showAccountMenu = !showAccountMenu; showCategoryMenu = false; showQuickOwnerPicker = false" 
+                            class="flex-1 h-full px-2.5 flex items-center justify-between rounded-xl transition-all shadow-xs select-none active:scale-95 border"
+                            :class="showAccountMenu 
+                                ? 'bg-emerald-100 border-emerald-400 text-emerald-950 ring-2 ring-emerald-500/30 font-black' 
+                                : 'bg-emerald-50/80 hover:bg-emerald-100/70 border-emerald-200/90 text-emerald-950 font-bold'">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                             <span class="material-icons text-emerald-700 text-sm">account_balance_wallet</span>
+                             <span class="text-xs truncate font-bold" x-text="accounts.find(a => a.id == selectedAccount)?.name || 'Cuenta'"></span>
+                        </div>
+                        <span class="material-icons text-emerald-700 text-xs transition-transform duration-200" :class="{'rotate-180': showAccountMenu}">expand_more</span>
+                    </button>
+
+                    <!-- Category Select Button -->
+                    <button type="button" 
+                            @click="showCategoryMenu = !showCategoryMenu; showAccountMenu = false; showQuickOwnerPicker = false" 
+                            class="flex-1 h-full px-2.5 flex items-center justify-between rounded-xl transition-all shadow-xs select-none active:scale-95 border"
+                            :class="showCategoryMenu 
+                                ? 'bg-slate-200 border-slate-400 text-slate-900 ring-2 ring-slate-400/30 font-black' 
+                                : 'bg-slate-50 hover:bg-slate-100/90 border-slate-200 text-slate-800 font-bold'">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                             <span class="material-icons text-slate-500 text-sm" x-text="getCategoryIcon(categories.find(c => c.id == selectedCategory)?.name, categories.find(c => c.id == selectedCategory)?.icon)"></span>
+                             <span class="text-xs truncate font-bold" x-text="categories.find(c => c.id == selectedCategory)?.name || 'Categoría'"></span>
+                        </div>
+                        <span class="material-icons text-slate-400 text-xs transition-transform duration-200" :class="{'rotate-180': showCategoryMenu}">expand_more</span>
+                    </button>
+
                     <!-- Divisas Modal Button -->
-                    <button @click="showDivisasModal = true" title="Operaciones Divisas"
-                            class="w-7 h-7 rounded-lg flex items-center justify-center border border-pink-200 bg-pink-50 hover:bg-pink-100 text-pink-500 shadow-xs transition-colors shrink-0">
-                        <span class="material-icons text-[14px]">savings</span>
+                    <button @click="showDivisasModal = true; showAccountMenu = false; showCategoryMenu = false" title="Operaciones Divisas"
+                            class="w-8.5 h-full rounded-xl flex items-center justify-center border border-pink-200 bg-pink-50 hover:bg-pink-100 text-pink-500 shadow-xs transition-colors shrink-0 active:scale-95">
+                        <span class="material-icons text-[15px]">savings</span>
                     </button>
 
                     <!-- Cart Mode Toggle -->
-                    <button @click="toggleMode()" title="Modo Carrito"
-                            class="w-7 h-7 rounded-lg flex items-center justify-center border shadow-xs transition-colors shrink-0" 
+                    <button @click="toggleMode(); showAccountMenu = false; showCategoryMenu = false" title="Modo Carrito"
+                            class="w-8.5 h-full rounded-xl flex items-center justify-center border shadow-xs transition-colors shrink-0 active:scale-95" 
                             :class="mode === 'cart' ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-400'">
-                        <span class="material-icons text-[14px]" x-text="mode === 'cart' ? 'shopping_cart' : 'payments'"></span>
+                        <span class="material-icons text-[15px]" x-text="mode === 'cart' ? 'shopping_cart' : 'payments'"></span>
                     </button>
 
                     <!-- Date Timer Toggle -->
-                    <div class="relative w-7 h-7 shrink-0">
+                    <div class="relative w-8.5 h-full shrink-0">
                          <div :class="customDate ? 'bg-emerald-100 text-emerald-700 animate-pulse' : 'bg-slate-50 text-slate-400'" 
-                              class="w-full h-full rounded-lg flex items-center justify-center border border-slate-200 shadow-xs transition-all relative">
-                             <span class="material-icons text-[13px]" x-text="customDate ? 'timer' : 'calendar_today'"></span>
+                              class="w-full h-full rounded-xl flex items-center justify-center border border-slate-200 shadow-xs transition-all relative">
+                             <span class="material-icons text-[14px]" x-text="customDate ? 'timer' : 'calendar_today'"></span>
                              <div x-show="customDate" class="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-rose-500 rounded-full"></div>
                          </div>
                          <input type="datetime-local" @change="startTimer($event.target.value)" class="absolute inset-0 opacity-0 z-10 cursor-pointer w-full h-full">
                     </div>
 
                     <!-- Bubble Toggle -->
-                    <button @click="showBubbles = !showBubbles" title="Burbujas de Actividad"
-                            class="w-7 h-7 rounded-lg flex items-center justify-center border transition-all shadow-xs shrink-0 active:scale-95"
+                    <button @click="showBubbles = !showBubbles; showAccountMenu = false; showCategoryMenu = false" title="Burbujas de Actividad"
+                            class="w-8.5 h-full rounded-xl flex items-center justify-center border transition-all shadow-xs shrink-0 active:scale-95"
                             :class="showBubbles ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-50 text-slate-400 border-slate-200'">
-                       <span class="material-icons text-[13px]">bubble_chart</span>
+                       <span class="material-icons text-[14px]">bubble_chart</span>
                     </button>
                 </div>
 
@@ -1169,6 +1293,7 @@
                 showMenu: false,
                 showAccountMenu: false,
                 showCategoryMenu: false,
+                categorySearch: '',
                 showDivisasModal: false,
                 divisasMode: 'exchange',
                 divSource: '',
@@ -1224,6 +1349,12 @@
                 get filteredInventory() {
                     const q = this.invSearch.toLowerCase();
                     return this.inventoryItems.filter(i => i.name.toLowerCase().includes(q));
+                },
+
+                get filteredCategories() {
+                    if(!this.categorySearch) return this.categories;
+                    const q = this.categorySearch.toLowerCase().trim();
+                    return this.categories.filter(c => c.name.toLowerCase().includes(q));
                 },
                 
                 selectInvItem(item) {
