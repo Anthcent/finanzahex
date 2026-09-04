@@ -79,6 +79,57 @@ class Database extends Config
     {
         parent::__construct();
 
+        // Support for DATABASE_URL (injected by Dokploy / Hexper Ops / Cloud providers)
+        $databaseUrl = getenv('DATABASE_URL') ?: (getenv('database.default.url') ?: null);
+        if (!empty($databaseUrl)) {
+            $parsed = parse_url($databaseUrl);
+            if ($parsed !== false) {
+                $scheme = strtolower($parsed['scheme'] ?? '');
+                if ($scheme === 'postgres' || $scheme === 'postgresql') {
+                    $this->default['DBDriver'] = 'Postgre';
+                    $this->default['port']     = isset($parsed['port']) ? (int) $parsed['port'] : 5432;
+                    $this->default['charset']  = 'utf8';
+                    $this->default['DBCollat'] = 'utf8_general_ci';
+                } elseif ($scheme === 'mysql' || $scheme === 'mysqli') {
+                    $this->default['DBDriver'] = 'MySQLi';
+                    $this->default['port']     = isset($parsed['port']) ? (int) $parsed['port'] : 3306;
+                }
+
+                if (!empty($parsed['host'])) {
+                    $this->default['hostname'] = $parsed['host'];
+                }
+                if (isset($parsed['user'])) {
+                    $this->default['username'] = urldecode($parsed['user']);
+                }
+                if (isset($parsed['pass'])) {
+                    $this->default['password'] = urldecode($parsed['pass']);
+                }
+                if (isset($parsed['path'])) {
+                    $this->default['database'] = urldecode(ltrim($parsed['path'], '/'));
+                }
+            }
+        } else {
+            // Support for individual environment variables
+            if ($dbDriver = getenv('DB_DRIVER')) {
+                $this->default['DBDriver'] = $dbDriver;
+            }
+            if ($dbHost = getenv('DB_HOST')) {
+                $this->default['hostname'] = $dbHost;
+            }
+            if ($dbPort = getenv('DB_PORT')) {
+                $this->default['port'] = (int) $dbPort;
+            }
+            if ($dbUser = getenv('DB_USER')) {
+                $this->default['username'] = $dbUser;
+            }
+            if ($dbPass = getenv('DB_PASSWORD')) {
+                $this->default['password'] = $dbPass;
+            }
+            if ($dbName = getenv('DB_NAME')) {
+                $this->default['database'] = $dbName;
+            }
+        }
+
         // Ensure that we always set the database group to 'tests' if
         // we are currently running an automated test suite, so that
         // we don't overwrite live data on accident.

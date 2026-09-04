@@ -8,6 +8,10 @@ class CreateSalesTables extends Migration
 {
     public function up()
     {
+        $isPg = ($this->db->DBDriver === 'Postgre');
+        $createdCol = $isPg ? 'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'created_at DATETIME DEFAULT CURRENT_TIMESTAMP';
+        $updatedCol = $isPg ? 'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP';
+
         // Sales Table
         $this->forge->addField([
             'id' => [
@@ -63,8 +67,8 @@ class CreateSalesTables extends Migration
                 'constraint' => '15,2',
                 'default'    => 0,
             ],
-            'created_at DATETIME DEFAULT CURRENT_TIMESTAMP',
-            'updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+            $createdCol,
+            $updatedCol,
         ]);
         $this->forge->addKey('id', true);
         $this->forge->createTable('sales', true);
@@ -101,7 +105,7 @@ class CreateSalesTables extends Migration
                 'constraint' => '100',
                 'null'       => true,
             ],
-            'created_at DATETIME DEFAULT CURRENT_TIMESTAMP',
+            $createdCol,
         ]);
         $this->forge->addKey('id', true);
         $this->forge->addForeignKey('sale_id', 'sales', 'id', 'CASCADE', 'CASCADE');

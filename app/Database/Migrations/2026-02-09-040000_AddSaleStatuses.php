@@ -8,6 +8,9 @@ class AddSaleStatuses extends Migration
 {
     public function up()
     {
+        $isPg = ($this->db->DBDriver === 'Postgre');
+        $createdCol = $isPg ? 'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'created_at DATETIME DEFAULT CURRENT_TIMESTAMP';
+
         // 1. Create sale_statuses table
         $this->forge->addField([
             'id' => [
@@ -24,7 +27,7 @@ class AddSaleStatuses extends Migration
                 'type'       => 'VARCHAR',
                 'constraint' => '50',
             ],
-            'created_at DATETIME DEFAULT CURRENT_TIMESTAMP',
+            $createdCol,
         ]);
         $this->forge->addKey('id', true);
         $this->forge->createTable('sale_statuses', true);

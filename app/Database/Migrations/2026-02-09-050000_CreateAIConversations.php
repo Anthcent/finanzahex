@@ -8,6 +8,9 @@ class CreateAIConversations extends Migration
 {
     public function up()
     {
+        $isPg = ($this->db->DBDriver === 'Postgre');
+        $updatedCol = $isPg ? 'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP';
+
         $this->forge->addField([
             'id' => [
                 'type'           => 'INT',
@@ -21,7 +24,7 @@ class CreateAIConversations extends Migration
                 'type' => 'JSON',
             ],
             'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-            'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+            $updatedCol,
         ]);
         $this->forge->addKey('id', true);
         $this->forge->addKey('created_at'); // Index

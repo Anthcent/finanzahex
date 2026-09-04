@@ -8,6 +8,10 @@ class InitialSchema extends Migration
 {
     public function up()
     {
+        $isPg = ($this->db->DBDriver === 'Postgre');
+        $createdCol = $isPg ? 'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'created_at DATETIME DEFAULT CURRENT_TIMESTAMP';
+        $updatedCol = $isPg ? 'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP';
+
         // Disable foreign key checks for reset if needed, though usually not needed for UP
         // $this->db->disableForeignKeyChecks();
 
@@ -30,8 +34,8 @@ class InitialSchema extends Migration
                 'constraint' => '15,2',
                 'default'    => 0.00,
             ],
-            'created_at DATETIME DEFAULT CURRENT_TIMESTAMP',
-            'updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+            $createdCol,
+            $updatedCol,
         ]);
         $this->forge->addKey('id', true);
         $this->forge->createTable('accounts', true);
@@ -55,7 +59,7 @@ class InitialSchema extends Migration
                 'constraint' => '50',
                 'null'       => true,
             ],
-            'created_at DATETIME DEFAULT CURRENT_TIMESTAMP',
+            $createdCol,
         ]);
         $this->forge->addKey('id', true);
         $this->forge->createTable('categories', true);
@@ -84,8 +88,8 @@ class InitialSchema extends Migration
                 'type' => 'TEXT',
                 'null' => true,
             ],
-            'created_at DATETIME DEFAULT CURRENT_TIMESTAMP',
-            'updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+            $createdCol,
+            $updatedCol,
         ]);
         $this->forge->addKey('id', true);
         $this->forge->addForeignKey('account_id', 'accounts', 'id', 'CASCADE', 'RESTRICT');

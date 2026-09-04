@@ -1,0 +1,46 @@
+# Git & IDE
+.git
+.gitignore
+.dockerignore
+.vscode
+.idea
+
+# Environment & Secrets
+.env
+.env*
+readmecreden.md
+*.key
+*.pem
+
+# Dependencies (installed cleanly inside container via composer)
+vendor/
+
+# Tests & Documentation
+tests/
+phpunit.xml*
+
+# Development & Scratch Scripts
+*.bat
+*.sql
+*.txt
+test_*.php
+debug_*.php
+repair_*.php
+fix_*.php
+check_*.php
+create_*.php
+add_*.php
+migrate_*.php
+manual_*.php
+final_test.php
+update_*.php
+
+# Runtime Storage Data (keep directories, ignore runtime contents)
+writable/cache/*
+!writable/cache/index.html
+writable/logs/*
+!writable/logs/index.html
+writable/session/*
+!writable/session/index.html
+writable/debugbar/*
+!writable/debugbar/.gitkeep

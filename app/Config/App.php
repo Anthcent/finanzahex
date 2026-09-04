@@ -38,9 +38,18 @@ class App extends BaseConfig
      *
      * Typically, this will be your `index.php` file, unless you've renamed it to
      * something else. If you have configured your web server to remove this file
-     * from your site URIs, set this variable to an empty string.
+     * from your URLs then set this variable to empty string.
      */
-    public string $indexPage = 'index.php';
+    public string $indexPage = '';
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        if ($envBaseUrl = getenv('APP_BASE_URL') ?: getenv('BASE_URL')) {
+            $this->baseURL = rtrim($envBaseUrl, '/') . '/';
+        }
+    }
 
     /**
      * --------------------------------------------------------------------------
