@@ -9,6 +9,38 @@ $routes->get('/', 'TransactionController::index');
 $routes->match(['get', 'head'], 'health', static function() {
     return 'OK';
 });
+$routes->get('debug-check', static function() {
+    $out = [
+        'php_version'        => PHP_VERSION,
+        'database_url_set'   => !empty(getenv('DATABASE_URL')),
+        'db_host_set'        => !empty(getenv('DB_HOST')),
+        'writable_exists'    => is_dir(WRITEPATH),
+        'writable_writeable' => is_writable(WRITEPATH),
+        'installed_lock'     => file_exists(WRITEPATH . 'installed.lock'),
+    ];
+
+    try {
+        $db = \Config\Database::connect();
+        $db->connect();
+        $out['db_status'] = 'Connected successfully';
+        $out['db_driver'] = $db->DBDriver;
+        $tables = $db->listTables();
+        $out['tables_count'] = count($tables);
+        $out['tables'] = $tables;
+    } catch (\Throwable $e) {
+        $out['db_status'] = 'Error: ' . $e->getMessage();
+    }
+
+    $todayLog = WRITEPATH . 'logs/log-' . date('Y-m-d') . '.log';
+    if (file_exists($todayLog)) {
+        $lines = file($todayLog);
+        $out['latest_logs'] = array_slice($lines, -15);
+    } else {
+        $out['latest_logs'] = 'No log file for today yet';
+    }
+
+    return \Config\Services::response()->setJSON($out);
+});
 $routes->post('transaction/save', 'TransactionController::save');
 $routes->post('transaction/update/(:num)', 'TransactionController::update/$1');
 $routes->get('transaction/stats', 'TransactionController::stats');

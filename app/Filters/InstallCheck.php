@@ -11,7 +11,8 @@ class InstallCheck implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
-        if (trim($request->getUri()->getPath(), '/') === 'health') {
+        $path = trim($request->getUri()->getPath(), '/');
+        if ($path === 'health' || $path === 'debug-check') {
             return;
         }
 
