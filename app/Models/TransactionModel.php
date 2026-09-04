@@ -24,9 +24,18 @@ class TransactionModel extends Model
                              ->like('created_at', $today)
                              ->selectSum('amount')->first()['amount'] ?? 0;
 
+        $recent = $this->builder()
+            ->select('transactions.*, accounts.name as account_name, categories.name as category_name, categories.icon as category_icon')
+            ->join('accounts', 'accounts.id = transactions.account_id', 'left')
+            ->join('categories', 'categories.id = transactions.category_id', 'left')
+            ->orderBy('transactions.created_at', 'DESC')
+            ->limit(5)
+            ->get()->getResultArray();
+
         return [
-            'balance' => $accountBalance,
-            'today_expense' => $todayExpense,
+            'balance' => (float)$accountBalance,
+            'today_expense' => (float)$todayExpense,
+            'recent' => $recent,
             'monthly_profit' => 0 // Removed for now as it's ambiguous
         ];
     }

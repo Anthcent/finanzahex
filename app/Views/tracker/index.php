@@ -230,37 +230,66 @@
                  </div>
             </div>
 
-            <div class="flex gap-3 overflow-x-auto pb-2 no-scrollbar snap-x" x-show="compactLevel < 2">
-                <div class="flex-1 min-w-[140px] bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900 border border-emerald-500/20 p-3 rounded-2xl shadow-lg shadow-emerald-950/20 snap-center text-white relative overflow-hidden group"
-                     :class="compactLevel === 1 ? 'py-2 px-3 min-w-[120px]' : 'p-3'">
-                    <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none"></div>
-                    <div class="relative z-10 w-full">
-                        <div class="flex items-center space-x-2 mb-1 opacity-90">
-                            <div class="p-1 bg-emerald-500/20 rounded-full backdrop-blur-sm">
-                                <span class="material-icons block text-emerald-400" :class="compactLevel === 1 ? 'text-[10px]' : 'text-[12px]'">account_balance_wallet</span>
-                            </div>
-                            <span class="font-semibold tracking-wide uppercase text-emerald-300" :class="compactLevel === 1 ? 'text-[8px]' : 'text-[9px]'">Balance</span>
+            <!-- Emerald Fintech Digital Card -->
+            <div class="relative w-full rounded-[1.75rem] bg-gradient-to-br from-emerald-950 via-emerald-800 to-teal-950 p-4 sm:p-5 text-white shadow-xl shadow-emerald-950/25 border border-emerald-500/30 overflow-hidden transition-all duration-300"
+                 x-show="compactLevel < 2"
+                 :class="compactLevel === 1 ? 'py-3 px-4' : 'p-4 sm:p-5'">
+                <!-- Ambient Glow Elements -->
+                <div class="absolute -right-8 -top-8 w-36 h-36 bg-emerald-400/15 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="absolute -left-8 -bottom-8 w-32 h-32 bg-teal-400/10 rounded-full blur-xl pointer-events-none"></div>
+                <div class="absolute right-1/3 bottom-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-lg pointer-events-none"></div>
+
+                <div class="relative z-10">
+                    <!-- Top Row: Card Brand + Contactless + Golden Chip -->
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span class="font-bold tracking-widest uppercase text-emerald-200/90 text-[10px]" :class="compactLevel === 1 ? 'text-[9px]' : 'text-[10px]'">Fi-Hex Card</span>
                         </div>
-                        <p @click="showMsg('Balance: ' + formatMoney(stats.balance))" 
-                           class="font-bold tracking-tight leading-none whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer hover:opacity-80 transition-opacity" 
-                           :class="compactLevel === 1 ? 'text-lg' : 'text-clamp-xl'"
-                           x-text="formatMoney(stats.balance)"></p>
+                        
+                        <!-- Contactless + Chip Icon -->
+                        <div class="flex items-center gap-2">
+                            <span class="material-icons text-emerald-300/60 text-sm rotate-90 select-none">wifi</span>
+                            <div class="w-6 h-4.5 rounded bg-gradient-to-tr from-amber-300 via-amber-200 to-amber-400 shadow-sm border border-amber-400/60 flex flex-col justify-between p-0.5 opacity-90 select-none">
+                                <div class="w-full h-px bg-amber-700/40"></div>
+                                <div class="flex justify-between w-full h-1 border-y border-amber-700/30">
+                                    <div class="w-1 h-full border-r border-amber-700/30"></div>
+                                    <div class="w-1 h-full border-l border-amber-700/30"></div>
+                                </div>
+                                <div class="w-full h-px bg-amber-700/40"></div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="flex-1 min-w-[140px] bg-white p-3 rounded-2xl shadow-lg shadow-slate-100 border border-slate-100 snap-center group relative overflow-hidden"
-                     :class="compactLevel === 1 ? 'py-2 px-3 min-w-[120px]' : 'p-3'">
-                    <div class="relative z-10 w-full">
-                        <div class="flex items-center space-x-2 mb-1">
-                            <div class="p-1 bg-rose-50 text-rose-500 rounded-full">
-                                <span class="material-icons block" :class="compactLevel === 1 ? 'text-[10px]' : 'text-[12px]'">trending_down</span>
+
+                    <!-- Balance Row: Main Amount + USD Conversion (Never Truncated!) -->
+                    <div class="my-1 cursor-pointer" @click="showMsg('Balance total: ' + formatMoney(stats.balance))">
+                        <p class="text-[10px] uppercase font-semibold text-emerald-300/80 tracking-wide mb-0.5">Balance Total</p>
+                        <div class="flex items-baseline flex-wrap gap-x-2 gap-y-1">
+                            <h2 class="font-extrabold tracking-tight text-white leading-none text-2xl sm:text-[28px] break-all"
+                                :class="compactLevel === 1 ? 'text-xl' : 'text-2xl sm:text-[28px]'"
+                                x-text="formatMoney(stats.balance)"></h2>
+                            <div class="inline-flex items-center gap-1 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 px-2 py-0.5 rounded-full text-emerald-200 text-[11px] font-semibold">
+                                <span class="text-[9px] opacity-75 font-normal">≈</span>
+                                <span x-text="exchangeRate > 0 ? '$ ' + (stats.balance / exchangeRate).toFixed(2) : '$ 0.00'"></span>
                             </div>
-                            <span class="font-bold text-slate-400 uppercase tracking-wide" :class="compactLevel === 1 ? 'text-[8px]' : 'text-[9px]'">Gasto Hoy</span>
                         </div>
-                        <p @click="showMsg('Gasto Hoy: ' + formatMoney(stats.today_expense))" 
-                           class="font-bold text-slate-800 tracking-tight leading-none whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer hover:opacity-80 transition-opacity" 
-                           :class="compactLevel === 1 ? 'text-lg' : 'text-clamp-xl'"
-                           x-text="formatMoney(stats.today_expense)"></p>
+                    </div>
+
+                    <!-- Bottom Bar inside Card: Gasto Hoy & Active Account -->
+                    <div class="pt-2.5 mt-2.5 border-t border-emerald-500/20 flex items-center justify-between text-[10px]">
+                        <div class="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity" 
+                             @click="showMsg('Gasto hoy: ' + formatMoney(stats.today_expense))">
+                            <div class="w-4 h-4 rounded-full bg-rose-500/20 text-rose-300 flex items-center justify-center">
+                                <span class="material-icons text-[10px]">trending_down</span>
+                            </div>
+                            <span class="text-emerald-200/70 font-medium">Gasto Hoy:</span>
+                            <span class="font-bold text-rose-200" x-text="formatMoney(stats.today_expense)"></span>
+                        </div>
+
+                        <div class="flex items-center gap-1 text-emerald-300/80 font-medium bg-emerald-900/50 px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                            <span class="material-icons text-[12px] text-emerald-400">account_balance</span>
+                            <span class="truncate max-w-[110px]" x-text="(accounts.find(a => a.id == selectedAccount)?.name || 'Cuenta')"></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -325,6 +354,100 @@
                 </div>
                 <p class="text-slate-400 font-medium text-sm">Tu carrito está vacío</p>
             </div>
+
+            <!-- Single Mode: Categorías Rápidas & Actividad Viva -->
+            <div x-show="mode === 'single'" class="space-y-3 pt-0.5">
+                
+                <!-- Quick Category Carousel -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5 px-0.5">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-icons text-xs text-emerald-600">bolt</span>
+                            Acceso Rápido
+                        </span>
+                        <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full" 
+                              x-text="categories.find(c => c.id == selectedCategory)?.name || 'Seleccione'"></span>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 -mx-1 px-1">
+                        <template x-for="cat in categories" :key="cat.id">
+                            <button type="button" 
+                                    @click="selectedCategory = cat.id"
+                                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 select-none active:scale-95 border"
+                                    :class="selectedCategory == cat.id 
+                                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-transparent shadow-md shadow-emerald-600/30 scale-[1.02]' 
+                                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/80 shadow-xs'">
+                                <span class="material-icons text-sm" 
+                                      :class="selectedCategory == cat.id ? 'text-white' : 'text-emerald-600'" 
+                                      x-text="getCategoryIcon(cat.name, cat.icon)"></span>
+                                <span x-text="cat.name"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Actividad Viva: Recent Transactions Feed -->
+                <div>
+                    <div class="flex items-center justify-between mb-2 px-0.5">
+                        <div class="flex items-center gap-1.5">
+                            <span class="relative flex h-2 w-2">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <h3 class="text-xs font-bold text-slate-700 tracking-tight">Últimos Movimientos</h3>
+                        </div>
+                        <a href="<?= base_url('history') ?>" class="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5 transition-colors">
+                            Ver todo
+                            <span class="material-icons text-xs">arrow_forward</span>
+                        </a>
+                    </div>
+
+                    <!-- Items Feed List -->
+                    <div class="space-y-2">
+                        <template x-for="item in (stats.recent || [])" :key="item.id">
+                            <div class="bg-white p-2.5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between hover:border-emerald-200 hover:shadow-md transition-all group">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <!-- Category Avatar -->
+                                    <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-xs"
+                                         :class="{
+                                             'bg-emerald-50 text-emerald-600': item.type === 'income' || item.type === 'return',
+                                             'bg-rose-50 text-rose-500': item.type === 'expense',
+                                             'bg-teal-50 text-teal-600': item.type === 'savings' || item.type === 'exchange',
+                                             'bg-slate-100 text-slate-600': !['income','expense','savings','exchange','return'].includes(item.type)
+                                         }">
+                                        <span class="material-icons text-lg" x-text="getCategoryIcon(item.category_name, item.category_icon)"></span>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="font-bold text-slate-800 text-xs truncate leading-tight" 
+                                           x-text="item.description || item.category_name || 'Transacción'"></p>
+                                        <div class="flex items-center gap-1.5 text-[9px] text-slate-400 mt-0.5">
+                                            <span class="font-semibold text-slate-500" x-text="item.account_name || 'Cuenta'"></span>
+                                            <span>•</span>
+                                            <span x-text="formatTime(item.created_at)"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0 pl-2">
+                                    <p class="font-extrabold text-xs tracking-tight"
+                                       :class="item.type === 'income' || item.type === 'return' ? 'text-emerald-600' : 'text-slate-800'"
+                                       x-text="(item.type === 'income' || item.type === 'return' ? '+ ' : '- ') + formatMoney(item.amount)"></p>
+                                    <p class="text-[9px] text-slate-400 font-medium" 
+                                       x-show="item.amount_usd > 0"
+                                       x-text="'$ ' + parseFloat(item.amount_usd).toFixed(2)"></p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Empty state if no recent items -->
+                        <div x-show="!stats.recent || stats.recent.length === 0" class="p-6 text-center bg-white/70 rounded-2xl border border-dashed border-slate-200">
+                            <span class="material-icons text-slate-300 text-3xl mb-1">receipt_long</span>
+                            <p class="text-xs font-semibold text-slate-400">Sin movimientos registrados</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Ingresa un monto para empezar</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
             
         </div>
 
@@ -336,24 +459,28 @@
             </div>
 
             <div class="px-4 pb-4 pt-0" :class="compactLevel > 0 ? 'p-2' : 'px-4 pb-4 pt-0'">
-                <div class="mb-2 relative">
-                     <div class="flex flex-col border-b border-slate-100 pb-1">
-                        <div class="flex justify-between items-center mb-0.5">
-                              <input type="text" x-model="description" placeholder="Nota..." class="w-full text-xs font-medium text-slate-800 placeholder-slate-400 outline-none bg-transparent">
-                              <span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
-                                    :class="currency === 'USD' ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-50 text-emerald-700'"
-                                    x-text="currency"></span>
+                <!-- Main Input & Display Card -->
+                <div class="mb-2 relative bg-slate-50/80 rounded-2xl p-2.5 border border-slate-100 shadow-inner">
+                     <div class="flex flex-col">
+                        <div class="flex justify-between items-center mb-1">
+                              <div class="flex items-center gap-1.5 flex-1 mr-2">
+                                  <span class="material-icons text-slate-400 text-xs">edit_note</span>
+                                  <input type="text" x-model="description" placeholder="Añadir nota o concepto..." class="w-full text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none bg-transparent">
+                              </div>
+                              <button type="button" @click="currency = (currency === 'Bs' ? 'USD' : 'Bs')"
+                                      class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider transition-all duration-200 border"
+                                      :class="currency === 'USD' ? 'bg-emerald-500 text-white border-emerald-400 shadow-xs' : 'bg-white text-emerald-800 border-emerald-200 shadow-xs'"
+                                      x-text="currency"></button>
                         </div>
                         <!-- Main Number Display -->
                         <div class="flex justify-between items-baseline group relative">
-                             <div class="flex flex-col leading-none mr-2">
-                                <span class="text-sm font-medium text-slate-300 select-none" x-text="currency === 'USD' ? '$' : 'Bs'"></span>
-                                <span x-show="parseFloat(amount) > 0" class="text-[10px] font-bold text-slate-400" x-text="'≈ ' + (currency === 'Bs' ? '$' : 'Bs') + ' ' + formatMoney(currentConversion)"></span>
+                             <div class="flex flex-col leading-none mr-2 shrink-0">
+                                <span class="text-xs font-bold text-slate-400 select-none uppercase tracking-wide" x-text="currency === 'USD' ? '$' : 'Bs'"></span>
+                                <span x-show="parseFloat(amount) > 0" class="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded-md mt-0.5" x-text="'≈ ' + (currency === 'Bs' ? '$ ' : 'Bs ') + formatMoney(currentConversion)"></span>
                              </div>
-                             <!-- Reduced text size to 4xl for compactness -->
-                             <div class="font-black text-slate-900 tracking-tighter truncate leading-tight w-full text-right transition-all" 
+                             <div class="font-black text-slate-900 tracking-tight truncate leading-tight w-full text-right transition-all font-mono" 
                                   :class="{
-                                      'text-4xl': compactLevel === 0,
+                                      'text-3xl sm:text-4xl': compactLevel === 0,
                                       'text-2xl': compactLevel === 1,
                                       'text-xl': compactLevel === 2
                                   }"
@@ -365,17 +492,17 @@
                 <div class="grid grid-cols-2 gap-2 mb-2">
                     <!-- Account Select -->
                     <div class="relative" @click.outside="showAccountMenu = false">
-                        <button @click="showAccountMenu = !showAccountMenu" class="w-full px-2 flex items-center justify-between rounded-lg bg-emerald-50/60 border border-emerald-100 text-emerald-950 text-[10px] font-bold"
-                                :class="compactLevel > 0 ? 'h-6 text-[9px]' : 'h-8 text-[10px]'">
+                        <button @click="showAccountMenu = !showAccountMenu" class="w-full px-2.5 flex items-center justify-between rounded-xl bg-emerald-50/70 hover:bg-emerald-100/60 border border-emerald-200/80 text-emerald-950 text-[10px] font-bold transition-all shadow-xs"
+                                :class="compactLevel > 0 ? 'h-7 text-[9px]' : 'h-8 text-[10px]'">
                             <div class="flex items-center gap-1.5 overflow-hidden">
                                  <span class="material-icons text-emerald-600 text-[14px]">account_balance</span>
                                  <div class="flex items-center gap-1 overflow-hidden">
                                      <span class="truncate" x-text="accounts.find(a => a.id == selectedAccount)?.name || 'Cuenta'"></span>
-                                     <span class="text-[8px] font-bold text-emerald-700 bg-white/80 px-1 py-px rounded shrink-0" 
+                                     <span class="text-[8px] font-bold text-emerald-700 bg-white/90 px-1 py-px rounded shrink-0 shadow-xs" 
                                            x-text="formatMoney(accounts.find(a => a.id == selectedAccount)?.balance || 0, accounts.find(a => a.id == selectedAccount)?.currency)"></span>
                                  </div>
                             </div>
-                            <span class="material-icons text-emerald-500 text-sm" :class="{'rotate-180': showAccountMenu}">expand_more</span>
+                            <span class="material-icons text-emerald-600 text-sm transition-transform" :class="{'rotate-180': showAccountMenu}">expand_more</span>
                         </button>
                         <div x-show="showAccountMenu" class="absolute bottom-full left-0 w-full mb-1 bg-white rounded-xl shadow-xl border border-slate-100 p-1 z-[80] max-h-40 overflow-y-auto">
                              <template x-for="acc in accounts" :key="acc.id">
@@ -391,24 +518,27 @@
                     <div class="flex gap-2">
                         <!-- Category Select -->
                         <div class="relative flex-1" @click.outside="showCategoryMenu = false">
-                             <button @click="showCategoryMenu = !showCategoryMenu" class="w-full px-2 flex items-center justify-between rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-[10px] font-bold"
-                                     :class="compactLevel > 0 ? 'h-6 text-[9px]' : 'h-8 text-[10px]'">
+                             <button @click="showCategoryMenu = !showCategoryMenu" class="w-full px-2 flex items-center justify-between rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-700 text-[10px] font-bold transition-all shadow-xs"
+                                     :class="compactLevel > 0 ? 'h-7 text-[9px]' : 'h-8 text-[10px]'">
                                 <div class="flex items-center gap-1.5 overflow-hidden">
                                      <span class="material-icons text-slate-400 text-[14px]">category</span>
                                      <span class="truncate" x-text="categories.find(c => c.id == selectedCategory)?.name || 'Categoría'"></span>
                                 </div>
-                                <span class="material-icons text-slate-400 text-sm" :class="{'rotate-180': showCategoryMenu}">expand_more</span>
+                                <span class="material-icons text-slate-400 text-sm transition-transform" :class="{'rotate-180': showCategoryMenu}">expand_more</span>
                             </button>
                              <div x-show="showCategoryMenu" class="absolute bottom-full left-0 w-full mb-1 bg-white rounded-xl shadow-xl border border-slate-100 p-1 z-[80] max-h-40 overflow-y-auto">
                                  <template x-for="cat in categories" :key="cat.id">
-                                     <div @click="selectedCategory = cat.id; showCategoryMenu = false" class="p-2 hover:bg-slate-50 rounded text-[10px] font-bold text-slate-700" x-text="cat.name"></div>
+                                     <div @click="selectedCategory = cat.id; showCategoryMenu = false" class="p-2 hover:bg-slate-50 rounded flex items-center gap-1.5 text-[10px] font-bold text-slate-700 cursor-pointer">
+                                         <span class="material-icons text-xs text-slate-400" x-text="getCategoryIcon(cat.name, cat.icon)"></span>
+                                         <span x-text="cat.name"></span>
+                                     </div>
                                  </template>
                             </div>
                         </div>
 
                         <!-- Date Timer Toggle -->
-                        <div class="relative flex-none" :class="compactLevel > 0 ? 'w-6 h-6' : 'w-8 h-8'">
-                             <div :class="customDate ? 'bg-emerald-100 text-emerald-700 animate-pulse' : 'bg-slate-50 text-slate-400'" class="w-full h-full rounded-lg flex items-center justify-center border border-slate-200 shadow-sm transition-all relative">
+                        <div class="relative flex-none" :class="compactLevel > 0 ? 'w-7 h-7' : 'w-8 h-8'">
+                             <div :class="customDate ? 'bg-emerald-100 text-emerald-700 animate-pulse' : 'bg-slate-50 text-slate-400'" class="w-full h-full rounded-xl flex items-center justify-center border border-slate-200 shadow-xs transition-all relative">
                                  <span class="material-icons text-sm" x-text="customDate ? 'timer' : 'calendar_today'"></span>
                                  <div x-show="customDate" class="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full"></div>
                              </div>
@@ -417,8 +547,8 @@
 
                          <!-- Bubble Toggle -->
                          <button @click="showBubbles = !showBubbles" 
-                                 class="flex-none rounded-lg flex items-center justify-center border transition-all shadow-sm"
-                                 :class="[compactLevel > 0 ? 'w-6 h-6' : 'w-8 h-8', showBubbles ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-50 text-slate-400 border-slate-200']">
+                                 class="flex-none rounded-xl flex items-center justify-center border transition-all shadow-xs active:scale-95"
+                                 :class="[compactLevel > 0 ? 'w-7 h-7' : 'w-8 h-8', showBubbles ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-50 text-slate-400 border-slate-200']">
                             <span class="material-icons text-sm">bubble_chart</span>
                          </button>
                     </div>
@@ -434,8 +564,8 @@
                         <div class="flex items-center gap-2">
                             <span x-show="enablePurchase" class="text-[9px] text-purple-400">Total: <b x-text="formatMoney(purchaseQuantity * purchaseCost)"></b></span>
                             <button @click="togglePurchaseMode()" 
-                                    class="text-[9px] font-bold px-3 py-1 rounded-full transition-all shadow-sm active:scale-95"
-                                    :class="enablePurchase ? 'bg-purple-600 text-white shadow-purple-200' : 'bg-white text-purple-400 border border-purple-200'">
+                                     class="text-[9px] font-bold px-3 py-1 rounded-full transition-all shadow-sm active:scale-95"
+                                     :class="enablePurchase ? 'bg-purple-600 text-white shadow-purple-200' : 'bg-white text-purple-400 border border-purple-200'">
                                 <span x-text="enablePurchase ? 'Activo' : 'Activar'"></span>
                             </button>
                         </div>
@@ -460,11 +590,11 @@
                                 <template x-for="item in filteredInventory" :key="item.id">
                                     <div @click="selectInvItem(item)" class="p-2 hover:bg-purple-50 rounded flex justify-between items-center cursor-pointer group border-b border-slate-50 last:border-0">
                                         <div>
-                                            <p class="text-[11px] font-bold text-slate-700 group-hover:text-purple-700" x-text="item.name"></p>
-                                            <p class="text-[9px] text-slate-400" x-text="'Stock: ' + item.stock + ' ' + item.unit"></p>
+                                             <p class="text-[11px] font-bold text-slate-700 group-hover:text-purple-700" x-text="item.name"></p>
+                                             <p class="text-[9px] text-slate-400" x-text="'Stock: ' + item.stock + ' ' + item.unit"></p>
                                         </div>
                                         <div class="text-right">
-                                            <span class="text-[10px] font-bold text-slate-600 block" x-text="'$' + parseFloat(item.cost).toFixed(2)"></span>
+                                             <span class="text-[10px] font-bold text-slate-600 block" x-text="'$' + parseFloat(item.cost).toFixed(2)"></span>
                                         </div>
                                     </div>
                                 </template>
@@ -478,7 +608,7 @@
                                 </div>
                                 
                                 <div x-show="filteredInventory.length === 0 && invSearch.length === 0" class="p-2 text-center text-[10px] text-slate-400">
-                                    Escribe para buscar...
+                                     Escribe para buscar...
                                 </div>
                             </div>
                         </div>
@@ -497,71 +627,102 @@
                     </div>
                 </div>
                 
+                <!-- Controls Row: Type & Currency & Features -->
                 <div class="flex mb-2 gap-2 h-7">
-                     <div class="flex-[3] flex bg-slate-100 p-0.5 rounded-md">
-                        <button @click="type = 'expense'" :class="type === 'expense' ? 'bg-white shadow-sm text-rose-600' : 'text-slate-400'" class="flex-1 rounded py-0 text-[9px] font-bold transition-all">Gasto</button>
-                        <button @click="type = 'income'" :class="type === 'income' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-400'" class="flex-1 rounded py-0 text-[9px] font-bold transition-all">Ingreso</button>
-                        <button @click="type = 'savings'" :class="type === 'savings' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-400'" class="flex-1 rounded py-0 text-[9px] font-bold transition-all">Ahorro</button>
+                     <div class="flex-[3] flex bg-slate-100 p-0.5 rounded-lg shadow-inner">
+                        <button @click="type = 'expense'" :class="type === 'expense' ? 'bg-white shadow-xs text-rose-600 font-extrabold' : 'text-slate-500 font-semibold'" class="flex-1 rounded-md py-0 text-[9px] transition-all">Gasto</button>
+                        <button @click="type = 'income'" :class="type === 'income' ? 'bg-white shadow-xs text-emerald-600 font-extrabold' : 'text-slate-500 font-semibold'" class="flex-1 rounded-md py-0 text-[9px] transition-all">Ingreso</button>
+                        <button @click="type = 'savings'" :class="type === 'savings' ? 'bg-white shadow-xs text-teal-700 font-extrabold' : 'text-slate-500 font-semibold'" class="flex-1 rounded-md py-0 text-[9px] transition-all">Ahorro</button>
                      </div>
-                     <div class="flex-1 flex bg-slate-100 p-0.5 rounded-md">
-                        <button @click="currency = 'Bs'" :class="currency === 'Bs' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-400'" class="flex-1 rounded py-0 text-[9px] font-bold transition-all">Bs</button>
-                        <button @click="currency = 'USD'" :class="currency === 'USD' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-400'" class="flex-1 rounded py-0 text-[9px] font-bold transition-all">$</button>
+                     <div class="flex-1 flex bg-slate-100 p-0.5 rounded-lg shadow-inner">
+                        <button @click="currency = 'Bs'" :class="currency === 'Bs' ? 'bg-white shadow-xs text-emerald-700 font-extrabold' : 'text-slate-500 font-semibold'" class="flex-1 rounded-md py-0 text-[9px] transition-all">Bs</button>
+                        <button @click="currency = 'USD'" :class="currency === 'USD' ? 'bg-white shadow-xs text-emerald-600 font-extrabold' : 'text-slate-500 font-semibold'" class="flex-1 rounded-md py-0 text-[9px] transition-all">$</button>
                      </div>
-                     <button @click="showDivisasModal = true" class="px-2 rounded-md font-bold text-[9px] border border-slate-100 bg-pink-50 text-pink-500">
+                     <button @click="showDivisasModal = true" class="px-2 rounded-lg font-bold text-[9px] border border-slate-200/80 bg-pink-50 hover:bg-pink-100/80 text-pink-500 shadow-xs transition-colors">
                         <span class="material-icons text-[16px]">savings</span>
                      </button>
-                     <button @click="toggleMode()" class="px-2 rounded-md font-bold text-[9px] border border-slate-100" 
-                             :class="mode === 'cart' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-400 bg-white'">
+                     <button @click="toggleMode()" class="px-2 rounded-lg font-bold text-[9px] border border-slate-200/80 shadow-xs transition-colors" 
+                             :class="mode === 'cart' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 bg-white hover:bg-slate-50'">
                         <span class="material-icons text-[16px]" x-text="mode === 'cart' ? 'shopping_cart' : 'payments'"></span>
                      </button>
-                     <button @click="toggleCompactMode()" class="px-2 rounded-md font-bold text-[9px] border border-slate-100" 
-                             :class="compactLevel > 0 ? 'bg-emerald-50 text-emerald-700' : 'text-slate-400 bg-white'">
+                     <button @click="toggleCompactMode()" class="px-2 rounded-lg font-bold text-[9px] border border-slate-200/80 shadow-xs transition-colors" 
+                             :class="compactLevel > 0 ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 bg-white hover:bg-slate-50'">
                         <span class="material-icons text-[16px]" x-text="compactLevel === 0 ? 'unfold_less' : (compactLevel === 1 ? 'unfold_more' : 'close_fullscreen')"></span>
                      </button>
                 </div>
 
+                <!-- Tactile Keypad -->
                 <div class="grid grid-cols-4 gap-1.5 h-auto mb-2">
-                    <button @click="press(7)" class="bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">7</button>
-                    <button @click="press(8)" class="bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">8</button>
-                    <button @click="press(9)" class="bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">9</button>
-                    <button @click="pressOperation('+')" class="bg-emerald-50 rounded-lg text-emerald-700 active:bg-emerald-100 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">+</button>
+                    <button @click="press(7)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">7</button>
+                    <button @click="press(8)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">8</button>
+                    <button @click="press(9)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">9</button>
+                    <button @click="pressOperation('+')" class="bg-emerald-50 hover:bg-emerald-100/80 active:bg-emerald-200 rounded-xl text-emerald-700 font-black border border-emerald-100 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-xl' : (compactLevel === 1 ? 'h-9 text-base' : 'h-7 text-sm')">+</button>
 
-                    <button @click="press(4)" class="bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">4</button>
-                    <button @click="press(5)" class="bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">5</button>
-                    <button @click="press(6)" class="bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">6</button>
-                    <button @click="clear()" class="bg-slate-100 text-slate-500 rounded-lg font-bold active:bg-slate-200 transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-xs' : (compactLevel === 1 ? 'h-8 text-[10px]' : 'h-7 text-[9px]')">C</button>
+                    <button @click="press(4)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">4</button>
+                    <button @click="press(5)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">5</button>
+                    <button @click="press(6)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">6</button>
+                    <button @click="clear()" class="bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-600 rounded-xl font-black border border-rose-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-sm' : (compactLevel === 1 ? 'h-9 text-xs' : 'h-7 text-[10px]')">C</button>
 
-                    <button @click="press(1)" class="bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">1</button>
-                    <button @click="press(2)" class="bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">2</button>
-                    <button @click="press(3)" class="bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">3</button>
+                    <button @click="press(1)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">1</button>
+                    <button @click="press(2)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">2</button>
+                    <button @click="press(3)" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">3</button>
                     
-                    <button @click="submit()" :disabled="!owner" class="row-span-2 rounded-xl text-white shadow-lg flex items-center justify-center active:scale-95 transition-all"
-                            :class="owner ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-200 shadow-none text-slate-400 cursor-not-allowed'">
-                        <span class="material-icons text-xl font-bold" x-text="mode === 'single' || mode === 'cart' && cart.length > 0 ? 'check' : 'add'"></span>
+                    <button @click="submit()" :disabled="!owner" class="row-span-2 rounded-2xl text-white shadow-lg flex items-center justify-center active:scale-95 transition-all"
+                            :class="owner ? 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 hover:brightness-105 shadow-emerald-600/35' : 'bg-slate-200 shadow-none text-slate-400 cursor-not-allowed'">
+                        <span class="material-icons text-2xl font-bold" x-text="mode === 'single' || mode === 'cart' && cart.length > 0 ? 'check' : 'add'"></span>
                     </button>
 
-                    <button @click="press(0)" class="col-span-2 bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">0</button>
-                    <button @click="press('.')" class="bg-slate-50 rounded-lg text-slate-800 active:bg-slate-200 pb-1 font-bold transition-all" 
-                            :class="compactLevel === 0 ? 'h-10 text-lg' : (compactLevel === 1 ? 'h-8 text-sm' : 'h-7 text-xs')">.</button>
+                    <button @click="press(0)" class="col-span-2 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">0</button>
+                    <button @click="press('.')" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 rounded-xl text-slate-800 font-bold border border-slate-100/80 shadow-xs active:scale-95 transition-all" 
+                            :class="compactLevel === 0 ? 'h-11 text-lg' : (compactLevel === 1 ? 'h-9 text-sm' : 'h-7 text-xs')">.</button>
                 </div>
 
-                <div class="flex space-x-1">
-                    <button @click="owner = (owner === 'Arianny' ? null : 'Arianny')" :class="owner === 'Arianny' ? 'bg-gradient-to-r from-emerald-700 to-teal-800 text-white border-transparent shadow-sm' : 'bg-transparent text-slate-500 border border-slate-200 hover:border-slate-300'" class="flex-1 py-1.5 rounded-lg font-bold text-[9px] transition-all border">Arianny</button>
-                    <button @click="owner = (owner === 'Anthony' ? null : 'Anthony')" :class="owner === 'Anthony' ? 'bg-gradient-to-r from-emerald-700 to-teal-800 text-white border-transparent shadow-sm' : 'bg-transparent text-slate-500 border border-slate-200 hover:border-slate-300'" class="flex-1 py-1.5 rounded-lg font-bold text-[9px] transition-all border">Anthony</button>
-                    <button @click="owner = (owner === 'Negocio' ? null : 'Negocio')" :class="owner === 'Negocio' ? 'bg-gradient-to-r from-emerald-700 to-teal-800 text-white border-transparent shadow-sm' : 'bg-transparent text-slate-500 border border-slate-200 hover:border-slate-300'" class="flex-1 py-1.5 rounded-lg font-bold text-[9px] transition-all border">Negocio</button>
-                 </div>
+                <!-- Modernized Owner Selector Chips -->
+                <div class="flex space-x-1.5 pt-0.5">
+                    <button @click="owner = (owner === 'Arianny' ? null : 'Arianny')" 
+                            :class="owner === 'Arianny' 
+                                ? 'bg-gradient-to-r from-emerald-700 to-teal-800 text-white border-transparent shadow-md shadow-emerald-900/20 ring-2 ring-emerald-500/30 scale-[1.02]' 
+                                : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 hover:border-slate-300'" 
+                            class="flex-1 py-1.5 px-2 rounded-xl font-bold text-[10px] transition-all flex items-center justify-center gap-1.5 active:scale-95">
+                        <span class="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black"
+                              :class="owner === 'Arianny' ? 'bg-white/20 text-white' : 'bg-pink-100 text-pink-700'">Ar</span>
+                        <span>Arianny</span>
+                    </button>
+
+                    <button @click="owner = (owner === 'Anthony' ? null : 'Anthony')" 
+                            :class="owner === 'Anthony' 
+                                ? 'bg-gradient-to-r from-emerald-700 to-teal-800 text-white border-transparent shadow-md shadow-emerald-900/20 ring-2 ring-emerald-500/30 scale-[1.02]' 
+                                : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 hover:border-slate-300'" 
+                            class="flex-1 py-1.5 px-2 rounded-xl font-bold text-[10px] transition-all flex items-center justify-center gap-1.5 active:scale-95">
+                        <span class="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black"
+                              :class="owner === 'Anthony' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'">An</span>
+                        <span>Anthony</span>
+                    </button>
+
+                    <button @click="owner = (owner === 'Negocio' ? null : 'Negocio')" 
+                            :class="owner === 'Negocio' 
+                                ? 'bg-gradient-to-r from-emerald-700 to-teal-800 text-white border-transparent shadow-md shadow-emerald-900/20 ring-2 ring-emerald-500/30 scale-[1.02]' 
+                                : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 hover:border-slate-300'" 
+                            class="flex-1 py-1.5 px-2 rounded-xl font-bold text-[10px] transition-all flex items-center justify-center gap-1.5 active:scale-95">
+                        <span class="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black"
+                              :class="owner === 'Negocio' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'">
+                            <span class="material-icons text-[10px]">store</span>
+                        </span>
+                        <span>Negocio</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -818,7 +979,7 @@
                 selectedAccount: '<?= $accounts[0]['id'] ?? 1 ?>',
                 selectedCategory: '<?= $categories[0]['id'] ?? 1 ?>',
                 cart: [],
-                stats: { balance: 0, today_expense: 0 },
+                stats: { balance: 0, today_expense: 0, recent: [] },
                 message: '',
                 showMenu: false,
                 showAccountMenu: false,
@@ -829,8 +990,8 @@
                 divDest: '',
                 divAmountBs: '',
                 divAmountUsd: '',
-                accounts: [],
-                categories: [],
+                accounts: <?= json_encode($accounts ?? []) ?>,
+                categories: <?= json_encode($categories ?? []) ?>,
                 
                 // Bubbles
                 showBubbles: false,
@@ -953,6 +1114,39 @@
                     return new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'VES', minimumFractionDigits: 2 }).format(value);
                 },
 
+                formatTime(dateStr) {
+                    if (!dateStr) return '';
+                    try {
+                        const d = new Date(dateStr.replace(' ', 'T'));
+                        const now = new Date();
+                        const isToday = d.toDateString() === now.toDateString();
+                        const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        if (isToday) return timePart;
+                        return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + timePart;
+                    } catch(e) {
+                        return dateStr;
+                    }
+                },
+
+                getCategoryIcon(catName, iconName) {
+                    const map = {
+                        'fast-food': 'fastfood',
+                        'food': 'restaurant',
+                        'car': 'directions_car',
+                        'transport': 'directions_car',
+                        'cash': 'payments',
+                        'store': 'storefront',
+                        'comida': 'fastfood',
+                        'transporte': 'directions_car',
+                        'salario': 'payments',
+                        'ventas': 'storefront',
+                        'general': 'category'
+                    };
+                    if (iconName && map[iconName]) return map[iconName];
+                    if (catName && map[catName.toLowerCase()]) return map[catName.toLowerCase()];
+                    return 'category';
+                },
+
                 get currentConversion() {
                     const val = this.calculate();
                     if (this.currency === 'USD') {
@@ -998,18 +1192,6 @@
                     } catch (e) {
                         return 0;
                     }
-                },
-
-                startTimer(dateVal) {
-                    if (!dateVal) return;
-                    this.customDate = dateVal;
-                    if (this.dateTimer) clearInterval(this.dateTimer);
-                    
-                    this.showMsg('Fecha temporal activada (10 min)');
-                    this.dateTimer = setTimeout(() => {
-                        this.customDate = null;
-                        this.showMsg('Fecha temporal expirada');
-                    }, 600000); // 10 minutes
                 },
 
                 startTimer(dateVal) {
