@@ -297,61 +297,132 @@
         <!-- Main Content (Cart Layout) -->
         <div class="flex-1 overflow-y-auto px-5 pb-4 space-y-4 no-scrollbar min-h-0 relative z-0">
             
-            <!-- Cart Items -->
-            <template x-if="mode === 'cart' && cart.length > 0">
-                <div class="space-y-4">
-                    <div class="flex justify-between items-end px-1">
-                        <h3 class="font-bold text-slate-800 text-lg">Carrito Actual</h3>
-                        <button @click="toggleMode()" class="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors px-3 py-1.5 rounded-full">Limpiar Todo</button>
+            <!-- Cart Layout (Compact, Streamlined, Highly Ergonomic) -->
+            <div x-show="mode === 'cart'" class="space-y-2.5">
+                
+                <!-- Cart Header Bar -->
+                <div class="flex items-center justify-between px-0.5">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shadow-xs">
+                            <span class="material-icons text-sm font-bold">shopping_cart</span>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <h3 class="font-extrabold text-slate-800 text-sm leading-tight">Carrito Actual</h3>
+                                <span x-show="cart.length > 0" 
+                                      class="text-[9px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full"
+                                      x-text="cart.length + (cart.length === 1 ? ' item' : ' items')"></span>
+                            </div>
+                            <span class="text-[9px] text-slate-400 font-medium leading-none block">Agrega productos con el teclado</span>
+                        </div>
                     </div>
 
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" 
+                                x-show="cart.length > 0"
+                                @click="clearCart()" 
+                                title="Vaciar Carrito"
+                                class="h-7 px-2 rounded-lg text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 transition-all flex items-center gap-1 border border-rose-100">
+                            <span class="material-icons text-[12px]">delete_sweep</span>
+                            <span>Vaciar</span>
+                        </button>
+                        
+                        <button type="button" 
+                                @click="toggleMode()" 
+                                title="Salir del Carrito"
+                                class="h-7 px-2 rounded-lg text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 active:scale-95 transition-all flex items-center gap-0.5">
+                            <span class="material-icons text-[14px]">close</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Total Estimado Card (Compact, Modern & at top of list) -->
+                <div x-show="cart.length > 0" 
+                     class="bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white p-3 rounded-2xl shadow-md border border-emerald-700/40 flex items-center justify-between relative overflow-hidden">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-bold text-emerald-300/90 uppercase tracking-wider flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Total Estimado
+                        </span>
+                        <span class="text-[9px] text-emerald-200/80 font-medium" 
+                              x-text="cart.reduce((sum, item) => sum + item.quantity, 0) + ' unidades en total'"></span>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-black text-xl font-mono text-white leading-tight" x-text="formatMoney(cartTotal)"></div>
+                        <div class="text-[9px] font-semibold text-emerald-300/80" 
+                             x-text="'≈ $ ' + (exchangeRate > 0 ? (cartTotal / exchangeRate).toFixed(2) : '0.00')"></div>
+                    </div>
+                </div>
+
+                <!-- Empty State (When in cart mode with 0 items) -->
+                <div x-show="cart.length === 0" 
+                     class="py-8 px-4 text-center bg-white/70 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center justify-center">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2 shadow-xs">
+                        <span class="material-icons text-2xl">add_shopping_cart</span>
+                    </div>
+                    <h4 class="text-xs font-bold text-slate-700">El carrito está vacío</h4>
+                    <p class="text-[10px] text-slate-400 mt-0.5 max-w-[200px]">Escribe un monto abajo y presiona el botón '+' para agregar cada artículo.</p>
+                    <button type="button" @click="toggleMode()" class="mt-3 text-[10px] font-bold text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200/80 px-3 py-1 rounded-lg transition-colors">
+                        Volver a Modo Normal
+                    </button>
+                </div>
+
+                <!-- Cart Items List (Compact & Ergonomic) -->
+                <div x-show="cart.length > 0" class="space-y-1.5 max-h-[260px] overflow-y-auto no-scrollbar pr-0.5">
                     <template x-for="(item, index) in cart" :key="index">
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 relative group transition-transform active:scale-[0.99]">
-                            <!-- Delete Action -->
-                             <button @click="removeItem(index)" class="absolute -top-2 -right-2 bg-white text-rose-500 p-1.5 rounded-full shadow-md hover:bg-rose-50 transition-colors z-10">
-                                <span class="material-icons text-sm block">close</span>
-                             </button>
+                        <div class="bg-white px-3 py-2 rounded-xl border border-slate-100 shadow-xs flex items-center justify-between gap-2 hover:border-emerald-200 transition-all">
                             
-                            <div class="flex justify-between items-start mb-3">
-                                <div>
-                                    <p class="font-bold text-slate-800 text-lg leading-tight" x-text="item.name"></p>
-                                    <p class="text-xs font-medium text-slate-400 mt-0.5" x-text="item.description || 'Sin descripción adicional'"></p>
+                            <!-- Left: Item Name & Unit Info -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-5 h-5 rounded-md bg-slate-100 text-slate-600 font-black text-[9px] flex items-center justify-center shrink-0" 
+                                          x-text="index + 1"></span>
+                                    <p class="font-bold text-slate-800 text-xs truncate" x-text="item.name"></p>
                                 </div>
-                                <div class="text-right">
-                                    <p class="font-bold text-slate-800 text-lg" x-text="formatMoney(item.price * item.quantity)"></p>
-                                    <p class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-1" x-text="item.currency === 'USD' ? item.price_usd + ' USD' : 'Bs Base'"></p>
+                                <div class="flex items-center gap-1.5 mt-0.5 pl-6">
+                                    <span class="text-[9px] font-semibold text-slate-400" 
+                                          x-text="item.currency === 'USD' ? ('$' + parseFloat(item.price_usd).toFixed(2) + ' c/u') : (formatMoney(item.price) + ' c/u')"></span>
+                                    <span class="text-[8px] font-bold px-1 rounded uppercase tracking-wider"
+                                          :class="item.currency === 'USD' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+                                          x-text="item.currency"></span>
                                 </div>
                             </div>
 
-                            <!-- Quantity Control -->
-                            <div class="flex justify-between items-center pt-2 border-t border-slate-50">
-                                 <div class="flex items-center bg-slate-50 rounded-xl p-1">
-                                    <button @click="item.quantity > 1 ? item.quantity-- : removeItem(index)" class="w-8 h-8 rounded-lg bg-white shadow-sm text-slate-600 flex items-center justify-center active:scale-90 transition-transform">
-                                        <span class="material-icons text-sm font-bold">remove</span>
-                                    </button>
-                                    <span class="font-bold text-sm w-8 text-center text-slate-700" x-text="item.quantity"></span>
-                                    <button @click="item.quantity++" class="w-8 h-8 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 shadow-md shadow-emerald-500/25 text-white flex items-center justify-center active:scale-90 transition-transform">
-                                        <span class="material-icons text-sm font-bold">add</span>
-                                    </button>
-                                 </div>
-                                 <span class="text-xs font-medium text-slate-400" x-text="formatMoney(item.price) + ' / unidad'"></span>
+                            <!-- Center: Tactile Micro Stepper -->
+                            <div class="flex items-center bg-slate-50 rounded-lg p-0.5 border border-slate-100 shrink-0">
+                                <button type="button" 
+                                        @click="item.quantity > 1 ? item.quantity-- : removeItem(index)" 
+                                        class="w-6 h-6 rounded bg-white hover:bg-slate-200 active:scale-90 text-slate-600 flex items-center justify-center shadow-2xs transition-all">
+                                    <span class="material-icons text-[12px] font-bold">remove</span>
+                                </button>
+                                <span class="font-black text-xs w-6 text-center text-slate-800 select-none" x-text="item.quantity"></span>
+                                <button type="button" 
+                                        @click="item.quantity++" 
+                                        class="w-6 h-6 rounded bg-emerald-600 hover:bg-emerald-700 active:scale-90 text-white flex items-center justify-center shadow-xs transition-all">
+                                    <span class="material-icons text-[12px] font-bold">add</span>
+                                </button>
                             </div>
+
+                            <!-- Right: Line Total & Delete Button -->
+                            <div class="flex items-center gap-2 shrink-0">
+                                <div class="text-right">
+                                    <p class="font-black text-slate-900 text-xs font-mono" 
+                                       x-text="item.currency === 'USD' ? ('$' + (item.price_usd * item.quantity).toFixed(2)) : formatMoney(item.price * item.quantity)"></p>
+                                    <span x-show="item.currency === 'USD'" class="text-[8px] font-semibold text-emerald-600 block leading-tight" 
+                                          x-text="'≈ ' + formatMoney(item.price * item.quantity)"></span>
+                                </div>
+                                <button type="button" 
+                                        @click="removeItem(index)" 
+                                        title="Eliminar producto"
+                                        class="w-6 h-6 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-colors active:scale-90">
+                                    <span class="material-icons text-[15px]">delete_outline</span>
+                                </button>
+                            </div>
+
                         </div>
                     </template>
+                </div>
 
-                    <div class="bg-gradient-to-br from-emerald-800 to-teal-950 text-white p-5 rounded-3xl shadow-xl shadow-emerald-900/30 mt-4 flex justify-between items-center relative overflow-hidden">
-                        <div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-10 -mt-10"></div>
-                        <span class="text-emerald-200 font-medium">Total Estimado</span>
-                        <span class="font-extrabold text-2xl relative z-10" x-text="formatMoney(cartTotal)"></span>
-                    </div>
-                </div>
-            </template>
-            
-            <div class="h-full flex flex-col items-center justify-center gap-4 text-center py-10 opacity-60" x-show="mode === 'cart' && cart.length === 0">
-                <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-300">
-                    <span class="material-icons text-4xl">shopping_bag</span>
-                </div>
-                <p class="text-slate-400 font-medium text-sm">Tu carrito está vacío</p>
             </div>
 
             <!-- Single Mode: Categorías Rápidas & Actividad Viva -->
@@ -783,7 +854,8 @@
                     <!-- Big Action / Submit Button (Always Active with Non-Invasive Flow) -->
                     <button @click="submit()" 
                             class="row-span-2 rounded-xl text-white shadow-lg flex flex-col items-center justify-center active:scale-95 transition-all relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 hover:brightness-105 shadow-emerald-600/35 cursor-pointer">
-                        <span class="material-icons text-xl font-bold" x-text="mode === 'single' || mode === 'cart' && cart.length > 0 ? 'check' : 'add'"></span>
+                        <span class="material-icons text-xl font-bold" 
+                              x-text="mode === 'cart' ? (calculate() > 0 ? 'add_shopping_cart' : 'shopping_bag') : 'check'"></span>
                         <!-- Micro indicator badge if owner is active -->
                         <span x-show="owner" 
                               x-text="owner === 'Arianny' ? 'Ar' : (owner === 'Anthony' ? 'An' : '🏢')"
@@ -1259,7 +1331,17 @@
 
                 toggleMode() {
                     this.mode = this.mode === 'single' ? 'cart' : 'single';
-                    this.cart = [];
+                    if (this.mode === 'single') {
+                        this.cart = [];
+                    }
+                    this.showMsg(this.mode === 'cart' ? 'Modo Carrito Activo' : 'Modo Registro Individual');
+                },
+
+                clearCart() {
+                    if (this.cart.length > 0) {
+                        this.cart = [];
+                        this.showMsg('Carrito vaciado');
+                    }
                 },
                 
                 removeItem(index) {
