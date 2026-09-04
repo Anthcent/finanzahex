@@ -25,23 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Configure Apache DocumentRoot to CodeIgniter's public folder
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
-    && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-
-# Configure Apache to listen on 0.0.0.0:8080
-RUN sed -ri -e 's/80/8080/g' /etc/apache2/ports.conf /etc/apache2/sites-available/*.conf
-
 # Enable Apache mod_rewrite for CodeIgniter 4 routing
 RUN a2enmod rewrite
-
-# Allow .htaccess overrides in DocumentRoot
-RUN echo '<Directory /var/www/html/public>\n\
-    Options -Indexes +FollowSymLinks\n\
-    AllowOverride All\n\
-    Require all granted\n\
-</Directory>' > /etc/apache2/conf-available/codeigniter.conf \
-    && a2enconf codeigniter
 
 # Copy official Composer binary
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -52,11 +37,20 @@ WORKDIR /var/www/html
 # Copy application source code (filtered by .dockerignore)
 COPY . /var/www/html
 
+# Copy clean Apache VirtualHost and Ports configuration (supports 8080, 80, 3000)
+COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY docker/apache/ports.conf /etc/apache2/ports.conf
+
 # Install production dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Configure writable directory permissions for www-data
-RUN chown -R www-data:www-data /var/www/html/writable \
+# Create and configure writable directories with proper permissions for www-data
+RUN mkdir -p /var/www/html/writable/cache \
+             /var/www/html/writable/logs \
+             /var/www/html/writable/session \
+             /var/www/html/writable/uploads \
+             /var/www/html/writable/debugbar \
+    && chown -R www-data:www-data /var/www/html/writable \
     && chmod -R 775 /var/www/html/writable
 
 # Setup entrypoint script
@@ -67,9 +61,9 @@ RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
 # Single EXPOSE directive for Dokploy / Hexper Ops
 EXPOSE 8080
 
-# Healthcheck checking 127.0.0.1:8080
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -f http://127.0.0.1:8080/ || exit 1
+# Healthcheck checking 127.0.0.1 on /health (fast, does not depend on DB status)
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://127.0.0.1:8080/health || curl -f http://127.0.0.1:80/health || exit 1
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["apache2-foreground"]

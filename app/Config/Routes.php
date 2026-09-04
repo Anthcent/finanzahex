@@ -6,6 +6,9 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 $routes->get('/', 'TransactionController::index');
+$routes->match(['get', 'head'], 'health', static function() {
+    return 'OK';
+});
 $routes->post('transaction/save', 'TransactionController::save');
 $routes->post('transaction/update/(:num)', 'TransactionController::update/$1');
 $routes->get('transaction/stats', 'TransactionController::stats');

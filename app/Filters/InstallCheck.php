@@ -11,6 +11,10 @@ class InstallCheck implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
+        if (trim($request->getUri()->getPath(), '/') === 'health') {
+            return;
+        }
+
         $lockFile = WRITEPATH . 'installed.lock';
 
         if (!file_exists($lockFile)) {
