@@ -486,9 +486,9 @@
                                     <!-- Category Avatar -->
                                     <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-xs"
                                          :class="{
-                                             'bg-emerald-50 text-emerald-600': item.type === 'income' || item.type === 'return',
-                                             'bg-rose-50 text-rose-500': item.type === 'expense',
-                                             'bg-teal-50 text-teal-600': item.type === 'savings' || item.type === 'exchange',
+                                             'bg-emerald-50 text-emerald-800': item.type === 'income' || item.type === 'return',
+                                             'bg-rose-50 text-red-700': item.type === 'expense',
+                                             'bg-blue-50 text-blue-700': item.type === 'savings' || item.type === 'exchange',
                                              'bg-slate-100 text-slate-600': !['income','expense','savings','exchange','return'].includes(item.type)
                                          }">
                                         <span class="material-icons text-lg" x-text="getCategoryIcon(item.category_name, item.category_icon)"></span>
@@ -505,8 +505,8 @@
                                 </div>
                                 <div class="text-right shrink-0 pl-2">
                                     <p class="font-extrabold text-xs tracking-tight"
-                                       :class="item.type === 'income' || item.type === 'return' ? 'text-emerald-600' : 'text-slate-800'"
-                                       x-text="(item.type === 'income' || item.type === 'return' ? '+ ' : '- ') + formatMoney(item.amount)"></p>
+                                       :class="item.type === 'income' || item.type === 'return' ? 'text-emerald-800 font-black' : (item.type === 'savings' ? 'text-blue-700 font-black' : 'text-red-700 font-bold')"
+                                       x-text="(item.type === 'income' || item.type === 'return' ? '+ ' : (item.type === 'savings' ? '★ ' : '- ')) + formatMoney(item.amount)"></p>
                                     <p class="text-[9px] text-slate-400 font-medium" 
                                        x-show="item.amount_usd > 0"
                                        x-text="'$ ' + parseFloat(item.amount_usd).toFixed(2)"></p>
@@ -539,33 +539,33 @@
                 <div class="flex items-center justify-between gap-1.5 mb-1.5 h-8.5">
                      <!-- Type Tabs (Gasto / Ingreso / Ahorro) - High-Visibility Tactile Controls -->
                      <div class="flex-1 grid grid-cols-3 gap-1 p-0.5 bg-slate-100 rounded-xl shadow-inner h-full">
-                        <!-- Gasto -->
+                        <!-- Gasto (Darker Red / Crimson) -->
                         <button type="button" @click="type = 'expense'" 
                                 :class="type === 'expense' 
-                                    ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white font-black shadow-xs ring-1 ring-rose-400 scale-[1.01]' 
-                                    : 'text-slate-500 hover:text-slate-700 font-bold hover:bg-white/40'" 
+                                    ? 'bg-gradient-to-r from-red-800 via-rose-900 to-red-950 text-white font-black shadow-sm ring-1 ring-red-700/60 scale-[1.01]' 
+                                    : 'text-slate-500 hover:text-red-800 font-bold hover:bg-white/40'" 
                                 class="rounded-lg py-0 text-[11px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
-                            <span class="material-icons text-[13px]" :class="type === 'expense' ? 'text-white' : 'text-rose-500'">trending_down</span>
+                            <span class="material-icons text-[13px]" :class="type === 'expense' ? 'text-white' : 'text-red-700'">trending_down</span>
                             <span>Gasto</span>
                         </button>
 
-                        <!-- Ingreso -->
+                        <!-- Ingreso (Darker Emerald / Forest) -->
                         <button type="button" @click="type = 'income'" 
                                 :class="type === 'income' 
-                                    ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black shadow-xs ring-1 ring-emerald-400 scale-[1.01]' 
-                                    : 'text-slate-500 hover:text-slate-700 font-bold hover:bg-white/40'" 
+                                    ? 'bg-gradient-to-r from-emerald-800 via-teal-900 to-emerald-950 text-white font-black shadow-sm ring-1 ring-emerald-600/60 scale-[1.01]' 
+                                    : 'text-slate-500 hover:text-emerald-800 font-bold hover:bg-white/40'" 
                                 class="rounded-lg py-0 text-[11px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
-                            <span class="material-icons text-[13px]" :class="type === 'income' ? 'text-white' : 'text-emerald-600'">trending_up</span>
+                            <span class="material-icons text-[13px]" :class="type === 'income' ? 'text-white' : 'text-emerald-800'">trending_up</span>
                             <span>Ingreso</span>
                         </button>
 
-                        <!-- Ahorro -->
+                        <!-- Ahorro (Deep Royal Blue) -->
                         <button type="button" @click="type = 'savings'" 
                                 :class="type === 'savings' 
-                                    ? 'bg-gradient-to-r from-teal-700 to-cyan-800 text-white font-black shadow-xs ring-1 ring-teal-400 scale-[1.01]' 
-                                    : 'text-slate-500 hover:text-slate-700 font-bold hover:bg-white/40'" 
+                                    ? 'bg-gradient-to-r from-blue-700 via-indigo-800 to-blue-950 text-white font-black shadow-sm ring-1 ring-blue-500/60 scale-[1.01]' 
+                                    : 'text-slate-500 hover:text-blue-800 font-bold hover:bg-white/40'" 
                                 class="rounded-lg py-0 text-[11px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
-                            <span class="material-icons text-[13px]" :class="type === 'savings' ? 'text-white' : 'text-teal-600'">savings</span>
+                            <span class="material-icons text-[13px]" :class="type === 'savings' ? 'text-white' : 'text-blue-700'">savings</span>
                             <span>Ahorro</span>
                         </button>
                      </div>
@@ -592,9 +592,9 @@
                 <!-- Row 2: Unified Note & Amount Display Card with Dynamic Type Feedback -->
                 <div class="mb-1.5 relative rounded-xl px-3 py-1.5 border transition-all duration-200 shadow-inner"
                      :class="{
-                         'bg-rose-50/20 border-rose-200/90': type === 'expense',
-                         'bg-emerald-50/20 border-emerald-200/90': type === 'income',
-                         'bg-teal-50/20 border-teal-200/90': type === 'savings'
+                         'bg-red-950/[0.03] border-red-300/80 shadow-red-950/5': type === 'expense',
+                         'bg-emerald-950/[0.03] border-emerald-300/80 shadow-emerald-950/5': type === 'income',
+                         'bg-blue-950/[0.03] border-blue-300/80 shadow-blue-950/5': type === 'savings'
                      }">
                      <div class="flex items-center justify-between gap-2">
                         <!-- Note Input -->
@@ -609,25 +609,25 @@
                             <!-- Type Pill Badge -->
                             <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded select-none leading-tight border"
                                   :class="{
-                                      'bg-rose-100 text-rose-700 border-rose-200': type === 'expense',
-                                      'bg-emerald-100 text-emerald-800 border-emerald-200': type === 'income',
-                                      'bg-teal-100 text-teal-800 border-teal-200': type === 'savings'
+                                      'bg-red-100 text-red-900 border-red-200': type === 'expense',
+                                      'bg-emerald-100 text-emerald-900 border-emerald-200': type === 'income',
+                                      'bg-blue-100 text-blue-900 border-blue-200': type === 'savings'
                                   }"
                                   x-text="type === 'expense' ? 'Gasto' : (type === 'income' ? 'Ingreso' : 'Ahorro')"></span>
 
                             <!-- Currency Toggle Pill -->
                             <button type="button" @click="currency = (currency === 'Bs' ? 'USD' : 'Bs')"
                                     class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider transition-all border select-none"
-                                    :class="currency === 'USD' ? 'bg-emerald-500 text-white border-emerald-400 shadow-xs' : 'bg-white text-emerald-800 border-emerald-200 shadow-xs'"
+                                    :class="currency === 'USD' ? 'bg-emerald-700 text-white border-emerald-600 shadow-xs' : 'bg-white text-emerald-900 border-emerald-300 shadow-xs'"
                                     x-text="currency"></button>
 
                             <!-- Amount with Dynamic +/-/★ prefix -->
                             <div class="flex items-baseline font-mono leading-none">
                                 <span class="font-black text-lg mr-0.5 select-none"
                                       :class="{
-                                          'text-rose-500': type === 'expense',
-                                          'text-emerald-500': type === 'income',
-                                          'text-teal-600': type === 'savings'
+                                          'text-red-700': type === 'expense',
+                                          'text-emerald-800': type === 'income',
+                                          'text-blue-700': type === 'savings'
                                       }"
                                       x-text="type === 'expense' ? '-' : (type === 'income' ? '+' : '★')"></span>
                                 <div class="font-black text-slate-900 tracking-tight text-2xl font-mono leading-none" 
