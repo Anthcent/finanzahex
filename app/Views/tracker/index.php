@@ -56,57 +56,93 @@
     <!-- App Container (Responsive Card) -->
     <div class="w-full h-full lg:w-[400px] lg:h-[90vh] lg:max-h-[850px] bg-[#F8FAFC] lg:rounded-[2.5rem] lg:shadow-2xl overflow-hidden flex flex-col relative ring-1 ring-emerald-950/5 safe-bottom">
 
-        <!-- Header Area -->
-        <div class="flex-none pt-2 px-5 pb-2 z-50 relative lg:pt-6">
-            <div class="flex justify-between items-center mb-4 transition-all duration-300" :class="compactLevel > 0 ? 'mb-2' : 'mb-4'">
-                <!-- Brand / Title -->
-                <!-- Brand / Title & Shortcuts -->
-                <div class="flex items-center gap-3" :class="compactLevel > 1 ? 'hidden' : 'block'">
-                    <div>
-                        <h1 class="font-bold text-slate-800 tracking-tight leading-none" :class="compactLevel === 1 ? 'text-sm' : 'text-lg'">Fi-Hex <span class="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent font-extrabold">Wallet</span></h1>
-                        <p class="text-[9px] font-medium text-slate-400" x-show="compactLevel === 0">Resumen financiero</p>
+        <!-- Header Area (Executive Fintech Top Nav) -->
+        <div class="flex-none pt-2.5 px-4 pb-2 z-50 relative lg:pt-6">
+            <div class="flex justify-between items-center mb-3 transition-all duration-300" :class="compactLevel > 0 ? 'mb-1.5' : 'mb-3'">
+                
+                <!-- Brand / Logo & Title -->
+                <div class="flex items-center gap-2.5 min-w-0" :class="compactLevel > 1 ? 'hidden' : 'flex'">
+                    <!-- Fintech Hexagon Monogram Badge -->
+                    <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-950 text-white flex items-center justify-center shadow-md shadow-emerald-950/20 ring-1 ring-emerald-400/40 shrink-0">
+                        <span class="material-icons text-lg">account_balance_wallet</span>
                     </div>
                     
-                    <!-- Shortcut: Printing -->
-                    <a href="<?= base_url('printing') ?>" class="w-8 h-8 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors shadow-sm" title="Ir a Impresiones">
-                        <span class="material-icons text-sm">print</span>
-                    </a>
+                    <div class="leading-tight min-w-0">
+                        <h1 class="font-black text-slate-900 tracking-tight leading-none truncate" :class="compactLevel === 1 ? 'text-sm' : 'text-base'">
+                            Fi-Hex <span class="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-black">Wallet</span>
+                        </h1>
+                        <p class="text-[9px] font-bold text-slate-400 flex items-center gap-1 mt-0.5" x-show="compactLevel === 0">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                            <span>Resumen financiero</span>
+                        </p>
+                    </div>
                 </div>
                 
-                <!-- Controls Container -->
-                <div class="flex items-center gap-2" :class="compactLevel > 1 ? 'w-full justify-between' : ''">
-                     
-                     <!-- Ultra Mode Brand (Only visible in Level 2) -->
-                     <div class="flex items-center gap-1" x-show="compactLevel > 1">
-                        <div class="w-5 h-5 bg-gradient-to-br from-emerald-600 to-teal-600 rounded flex items-center justify-center text-white font-bold text-[10px] shadow-sm">F</div>
-                        <span class="font-bold text-slate-700 text-[10px]">Fi-Hex</span>
-                     </div>
+                <!-- Ultra Mode Brand (Only visible in Level 2) -->
+                <div class="flex items-center gap-1.5 shrink-0" x-show="compactLevel > 1">
+                    <div class="w-7 h-7 bg-gradient-to-br from-emerald-600 to-teal-800 rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-xs">
+                        <span class="material-icons text-sm">account_balance_wallet</span>
+                    </div>
+                    <span class="font-black text-slate-800 text-xs">Fi-Hex</span>
+                </div>
 
-                     <div class="flex items-center gap-2">
-                         <!-- Rate Badge (Redesigned) -->
-                         <div class="flex items-center bg-white/70 backdrop-blur-md border border-emerald-100 rounded-xl px-2 py-1 shadow-sm gap-2">
-                             <div class="flex flex-col items-end leading-none">
-                                <span class="text-[7px] font-bold uppercase tracking-wider transition-colors"
-                                      :class="rateUpdated ? 'text-emerald-500' : 'text-slate-400'"
-                                      x-text="rateUpdated ? 'ACTUALIZADO' : 'TASA BCV'"></span>
-                                <div class="flex items-baseline">
-                                     <span class="text-[10px] font-bold text-slate-500 mr-0.5" :class="compactLevel > 0 ? 'text-[9px]' : 'text-[10px]'">Bs</span>
-                                     <input type="number" x-model.number="exchangeRate" :disabled="!manualRate" 
-                                            class="bg-transparent font-bold text-slate-700 text-right focus:outline-none p-0 border-none h-auto w-16 transition-colors"
-                                            :class="{'text-emerald-600': rateUpdated, 'text-xs': compactLevel > 0, 'text-sm': compactLevel === 0}"
-                                            placeholder="0">
-                                </div>
-                             </div>
-                             <button @click="toggleManualRate()" class="w-4 h-4 flex items-center justify-center rounded-full transition-colors" :class="manualRate ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-300'">
-                                <span class="material-icons text-[10px]">edit</span>
-                             </button>
-                         </div>
-                         
-                         <!-- Menu Button -->
-                         <button @click="showMenu = !showMenu" class="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-sm border border-slate-200 text-slate-600 active:scale-95 transition-all">
-                            <span class="material-icons text-lg">menu</span>
-                         </button>
-                     </div>
+                <!-- Controls & Actions Toolbar -->
+                <div class="flex items-center gap-1.5 shrink-0">
+                    
+                    <!-- Rate Badge Widget (Modern Interactive Pill) -->
+                    <div class="h-9 flex items-center bg-white/90 backdrop-blur-md border rounded-2xl px-2.5 py-1 shadow-xs transition-all"
+                         :class="manualRate ? 'border-amber-300 bg-amber-50/40 ring-1 ring-amber-400/20' : 'border-emerald-200/80 hover:border-emerald-300'">
+                        <div class="flex flex-col items-end leading-none">
+                            <div class="flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full" 
+                                      :class="manualRate ? 'bg-amber-500' : (rateUpdated ? 'bg-emerald-400 animate-ping' : 'bg-emerald-500')"></span>
+                                <span class="text-[7.5px] font-black uppercase tracking-wider transition-colors"
+                                      :class="manualRate ? 'text-amber-700' : (rateUpdated ? 'text-emerald-700 font-black' : 'text-slate-500')"
+                                      x-text="rateUpdated ? 'ACTUALIZADO' : (manualRate ? 'MANUAL' : 'TASA BCV')"></span>
+                            </div>
+                            <div class="flex items-baseline mt-0.5">
+                                <span class="text-[9px] font-black mr-0.5"
+                                      :class="manualRate ? 'text-amber-700' : 'text-slate-500'">Bs</span>
+                                <input type="number" step="0.01" x-model.number="exchangeRate" :disabled="!manualRate" 
+                                       class="bg-transparent font-mono font-black text-slate-800 text-right focus:outline-none p-0 border-none h-auto w-16 text-xs transition-colors"
+                                       :class="{'text-emerald-700': rateUpdated && !manualRate, 'text-amber-900 font-black': manualRate}"
+                                       placeholder="0.00">
+                            </div>
+                        </div>
+                        
+                        <!-- Rate Action Buttons -->
+                        <div class="flex items-center gap-0.5 pl-1.5 ml-1 border-l border-slate-100">
+                            <!-- Re-sync BCV (only shown if manual mode is active) -->
+                            <button type="button" @click="fetchRate(); manualRate = false; showMsg('Sincronizando tasa BCV...')" 
+                                    x-show="manualRate"
+                                    class="w-5 h-5 flex items-center justify-center rounded-lg bg-amber-100 hover:bg-emerald-100 text-amber-700 hover:text-emerald-700 transition-colors"
+                                    title="Volver a tasa automática oficial">
+                                <span class="material-icons text-[12px]">sync</span>
+                            </button>
+
+                            <!-- Edit / Save Toggle Button -->
+                            <button type="button" @click="toggleManualRate()" 
+                                    class="w-5 h-5 flex items-center justify-center rounded-lg transition-colors"
+                                    :class="manualRate ? 'bg-amber-500 text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700'"
+                                    :title="manualRate ? 'Fijar tasa manual' : 'Editar tasa manualmente'">
+                                <span class="material-icons text-[11px]" x-text="manualRate ? 'check' : 'edit'"></span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Shortcut: Printing Tool -->
+                    <a href="<?= base_url('printing') ?>" 
+                       class="w-9 h-9 flex items-center justify-center bg-white/90 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-2xl border border-slate-200/80 hover:border-emerald-300 transition-all shadow-xs active:scale-95 group shrink-0" 
+                       title="Módulo de Impresiones">
+                        <span class="material-icons text-base group-hover:scale-110 transition-transform">print</span>
+                    </a>
+
+                    <!-- Main Menu Hamburger Button -->
+                    <button type="button" @click="showMenu = !showMenu" 
+                            class="w-9 h-9 flex items-center justify-center bg-white/90 hover:bg-slate-100 text-slate-700 rounded-2xl border border-slate-200/80 hover:border-slate-300 shadow-xs active:scale-95 transition-all shrink-0" 
+                            title="Menú Principal">
+                        <span class="material-icons text-xl">menu</span>
+                    </button>
                 </div>
             </div>
             
