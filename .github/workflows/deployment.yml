@@ -1,5 +1,7 @@
 name: PostgreSQL deployment
 on:
+  push:
+    branches: [main, fix/dokploy-postgresql]
   pull_request:
   workflow_dispatch:
 permissions:
