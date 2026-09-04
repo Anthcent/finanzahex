@@ -230,29 +230,28 @@
                  </div>
             </div>
 
-            <!-- Emerald Fintech Digital Card -->
-            <div class="relative w-full rounded-[1.75rem] bg-gradient-to-br from-emerald-950 via-emerald-800 to-teal-950 p-4 sm:p-5 text-white shadow-xl shadow-emerald-950/25 border border-emerald-500/30 overflow-hidden transition-all duration-300"
+            <!-- Emerald Fintech Digital Card (Compact & Rich Dark Emerald) -->
+            <div class="relative w-full rounded-2xl bg-gradient-to-br from-[#021810] via-[#052e1f] to-[#01140e] p-3.5 sm:p-4 text-white shadow-xl shadow-emerald-950/30 border border-emerald-500/25 overflow-hidden transition-all duration-300"
                  x-show="compactLevel < 2"
-                 :class="compactLevel === 1 ? 'py-3 px-4' : 'p-4 sm:p-5'">
-                <!-- Ambient Glow Elements -->
-                <div class="absolute -right-8 -top-8 w-36 h-36 bg-emerald-400/15 rounded-full blur-2xl pointer-events-none"></div>
-                <div class="absolute -left-8 -bottom-8 w-32 h-32 bg-teal-400/10 rounded-full blur-xl pointer-events-none"></div>
-                <div class="absolute right-1/3 bottom-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-lg pointer-events-none"></div>
+                 :class="compactLevel === 1 ? 'py-2.5 px-3' : 'p-3.5 sm:p-4'">
+                <!-- Ambient Subtle Glow Elements -->
+                <div class="absolute -right-8 -top-8 w-32 h-32 bg-emerald-400/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="absolute -left-6 -bottom-6 w-28 h-28 bg-teal-400/5 rounded-full blur-xl pointer-events-none"></div>
 
                 <div class="relative z-10">
                     <!-- Top Row: Card Brand + Contactless + Golden Chip -->
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span class="font-bold tracking-widest uppercase text-emerald-200/90 text-[10px]" :class="compactLevel === 1 ? 'text-[9px]' : 'text-[10px]'">Fi-Hex Card</span>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span class="font-bold tracking-widest uppercase text-emerald-300/80 text-[9px]">Fi-Hex Card</span>
                         </div>
                         
                         <!-- Contactless + Chip Icon -->
-                        <div class="flex items-center gap-2">
-                            <span class="material-icons text-emerald-300/60 text-sm rotate-90 select-none">wifi</span>
-                            <div class="w-6 h-4.5 rounded bg-gradient-to-tr from-amber-300 via-amber-200 to-amber-400 shadow-sm border border-amber-400/60 flex flex-col justify-between p-0.5 opacity-90 select-none">
+                        <div class="flex items-center gap-1.5">
+                            <span class="material-icons text-emerald-300/50 text-xs rotate-90 select-none">wifi</span>
+                            <div class="w-5 h-3.5 rounded bg-gradient-to-tr from-amber-300 via-amber-200 to-amber-400 shadow-xs border border-amber-400/60 flex flex-col justify-between p-0.5 opacity-90 select-none">
                                 <div class="w-full h-px bg-amber-700/40"></div>
-                                <div class="flex justify-between w-full h-1 border-y border-amber-700/30">
+                                <div class="flex justify-between w-full h-0.5 border-y border-amber-700/30">
                                     <div class="w-1 h-full border-r border-amber-700/30"></div>
                                     <div class="w-1 h-full border-l border-amber-700/30"></div>
                                 </div>
@@ -261,34 +260,34 @@
                         </div>
                     </div>
 
-                    <!-- Balance Row: Main Amount + USD Conversion (Never Truncated!) -->
-                    <div class="my-1 cursor-pointer" @click="showMsg('Balance total: ' + formatMoney(stats.balance))">
-                        <p class="text-[10px] uppercase font-semibold text-emerald-300/80 tracking-wide mb-0.5">Balance Total</p>
+                    <!-- Balance Row: Main Amount + USD Conversion -->
+                    <div class="cursor-pointer my-0.5" @click="showMsg('Balance total: ' + formatMoney(stats.balance))">
+                        <p class="text-[9px] uppercase font-semibold text-emerald-400/75 tracking-wider mb-0.5">Balance Total</p>
                         <div class="flex items-baseline flex-wrap gap-x-2 gap-y-1">
-                            <h2 class="font-extrabold tracking-tight text-white leading-none text-2xl sm:text-[28px] break-all"
-                                :class="compactLevel === 1 ? 'text-xl' : 'text-2xl sm:text-[28px]'"
+                            <h2 class="font-black tracking-tight text-white leading-none text-2xl sm:text-[26px] break-all drop-shadow-sm"
+                                :class="compactLevel === 1 ? 'text-lg' : 'text-2xl sm:text-[26px]'"
                                 x-text="formatMoney(stats.balance)"></h2>
-                            <div class="inline-flex items-center gap-1 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 px-2 py-0.5 rounded-full text-emerald-200 text-[11px] font-semibold">
-                                <span class="text-[9px] opacity-75 font-normal">≈</span>
+                            <div class="inline-flex items-center gap-1 bg-emerald-500/15 backdrop-blur-md border border-emerald-400/25 px-2 py-0.5 rounded-full text-emerald-300 text-[10px] font-bold">
+                                <span class="text-[8px] opacity-70 font-normal">≈</span>
                                 <span x-text="exchangeRate > 0 ? '$ ' + (stats.balance / exchangeRate).toFixed(2) : '$ 0.00'"></span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Bottom Bar inside Card: Gasto Hoy & Active Account -->
-                    <div class="pt-2.5 mt-2.5 border-t border-emerald-500/20 flex items-center justify-between text-[10px]">
+                    <div class="pt-2 mt-2 border-t border-emerald-500/15 flex items-center justify-between text-[10px]">
                         <div class="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity" 
                              @click="showMsg('Gasto hoy: ' + formatMoney(stats.today_expense))">
-                            <div class="w-4 h-4 rounded-full bg-rose-500/20 text-rose-300 flex items-center justify-center">
-                                <span class="material-icons text-[10px]">trending_down</span>
+                            <div class="w-3.5 h-3.5 rounded-full bg-rose-500/20 text-rose-300 flex items-center justify-center">
+                                <span class="material-icons text-[9px]">trending_down</span>
                             </div>
-                            <span class="text-emerald-200/70 font-medium">Gasto Hoy:</span>
-                            <span class="font-bold text-rose-200" x-text="formatMoney(stats.today_expense)"></span>
+                            <span class="text-emerald-300/70 font-medium text-[9px]">Gasto Hoy:</span>
+                            <span class="font-bold text-rose-200 text-[10px]" x-text="formatMoney(stats.today_expense)"></span>
                         </div>
 
-                        <div class="flex items-center gap-1 text-emerald-300/80 font-medium bg-emerald-900/50 px-2 py-0.5 rounded-lg border border-emerald-500/20">
-                            <span class="material-icons text-[12px] text-emerald-400">account_balance</span>
-                            <span class="truncate max-w-[110px]" x-text="(accounts.find(a => a.id == selectedAccount)?.name || 'Cuenta')"></span>
+                        <div class="flex items-center gap-1 text-emerald-300/90 font-medium bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-500/20 text-[9px]">
+                            <span class="material-icons text-[11px] text-emerald-400">account_balance</span>
+                            <span class="truncate max-w-[100px]" x-text="(accounts.find(a => a.id == selectedAccount)?.name || 'Cuenta')"></span>
                         </div>
                     </div>
                 </div>
@@ -358,29 +357,35 @@
             <!-- Single Mode: Categorías Rápidas & Actividad Viva -->
             <div x-show="mode === 'single'" class="space-y-3 pt-0.5">
                 
-                <!-- Quick Category Carousel -->
+                <!-- Quick Accounts Carousel (Acceso Directo Cuentas) -->
                 <div>
                     <div class="flex items-center justify-between mb-1.5 px-0.5">
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                            <span class="material-icons text-xs text-emerald-600">bolt</span>
-                            Acceso Rápido
+                            <span class="material-icons text-xs text-emerald-600">account_balance_wallet</span>
+                            Cuentas (Acceso Directo)
                         </span>
-                        <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full" 
-                              x-text="categories.find(c => c.id == selectedCategory)?.name || 'Seleccione'"></span>
+                        <a href="<?= base_url('accounts') ?>" class="text-[9px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5 transition-colors">
+                            Gestionar
+                            <span class="material-icons text-[10px]">tune</span>
+                        </a>
                     </div>
                     
-                    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 -mx-1 px-1">
-                        <template x-for="cat in categories" :key="cat.id">
+                    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 -mx-1 px-1 snap-x">
+                        <template x-for="acc in accounts" :key="acc.id">
                             <button type="button" 
-                                    @click="selectedCategory = cat.id"
-                                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 select-none active:scale-95 border"
-                                    :class="selectedCategory == cat.id 
-                                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-transparent shadow-md shadow-emerald-600/30 scale-[1.02]' 
-                                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/80 shadow-xs'">
-                                <span class="material-icons text-sm" 
-                                      :class="selectedCategory == cat.id ? 'text-white' : 'text-emerald-600'" 
-                                      x-text="getCategoryIcon(cat.name, cat.icon)"></span>
-                                <span x-text="cat.name"></span>
+                                    @click="selectedAccount = acc.id"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 select-none active:scale-95 border snap-start"
+                                    :class="selectedAccount == acc.id 
+                                        ? 'bg-gradient-to-br from-[#021810] via-[#052e1f] to-[#01140e] text-white border-emerald-500/50 shadow-md shadow-emerald-950/20 ring-2 ring-emerald-400/40 scale-[1.02]' 
+                                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-xs'">
+                                <div class="w-6 h-6 rounded-xl flex items-center justify-center text-xs shrink-0"
+                                     :class="selectedAccount == acc.id ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-100 text-slate-500'">
+                                    <span class="material-icons text-[14px]">account_balance</span>
+                                </div>
+                                <div class="flex flex-col text-left leading-tight">
+                                    <span class="font-bold text-[11px]" :class="selectedAccount == acc.id ? 'text-white' : 'text-slate-800'" x-text="acc.name"></span>
+                                    <span class="text-[9px]" :class="selectedAccount == acc.id ? 'text-emerald-300 font-bold' : 'text-emerald-700 font-semibold'" x-text="formatMoney(acc.balance, acc.currency)"></span>
+                                </div>
                             </button>
                         </template>
                     </div>
