@@ -535,8 +535,67 @@
             </div>
 
             <div class="px-3.5 pb-2 pt-0" :class="compactLevel > 0 ? 'p-1.5' : 'px-3.5 pb-2 pt-0'">
-                <!-- Row 1: Unified Note & Amount Display Card -->
-                <div class="mb-1.5 relative bg-slate-50/90 rounded-xl px-3 py-1.5 border border-slate-100 shadow-inner">
+                <!-- Row 1: Primary Transaction Type Tabs & Owner Chip -->
+                <div class="flex items-center justify-between gap-1.5 mb-1.5 h-8.5">
+                     <!-- Type Tabs (Gasto / Ingreso / Ahorro) - High-Visibility Tactile Controls -->
+                     <div class="flex-1 grid grid-cols-3 gap-1 p-0.5 bg-slate-100 rounded-xl shadow-inner h-full">
+                        <!-- Gasto -->
+                        <button type="button" @click="type = 'expense'" 
+                                :class="type === 'expense' 
+                                    ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white font-black shadow-xs ring-1 ring-rose-400 scale-[1.01]' 
+                                    : 'text-slate-500 hover:text-slate-700 font-bold hover:bg-white/40'" 
+                                class="rounded-lg py-0 text-[11px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
+                            <span class="material-icons text-[13px]" :class="type === 'expense' ? 'text-white' : 'text-rose-500'">trending_down</span>
+                            <span>Gasto</span>
+                        </button>
+
+                        <!-- Ingreso -->
+                        <button type="button" @click="type = 'income'" 
+                                :class="type === 'income' 
+                                    ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black shadow-xs ring-1 ring-emerald-400 scale-[1.01]' 
+                                    : 'text-slate-500 hover:text-slate-700 font-bold hover:bg-white/40'" 
+                                class="rounded-lg py-0 text-[11px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
+                            <span class="material-icons text-[13px]" :class="type === 'income' ? 'text-white' : 'text-emerald-600'">trending_up</span>
+                            <span>Ingreso</span>
+                        </button>
+
+                        <!-- Ahorro -->
+                        <button type="button" @click="type = 'savings'" 
+                                :class="type === 'savings' 
+                                    ? 'bg-gradient-to-r from-teal-700 to-cyan-800 text-white font-black shadow-xs ring-1 ring-teal-400 scale-[1.01]' 
+                                    : 'text-slate-500 hover:text-slate-700 font-bold hover:bg-white/40'" 
+                                class="rounded-lg py-0 text-[11px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
+                            <span class="material-icons text-[13px]" :class="type === 'savings' ? 'text-white' : 'text-teal-600'">savings</span>
+                            <span>Ahorro</span>
+                        </button>
+                     </div>
+
+                     <!-- Owner Chip (Quick Tap to Open Picker or Clear) -->
+                     <div class="h-full shrink-0">
+                        <button type="button" @click="showQuickOwnerPicker = !showQuickOwnerPicker" 
+                                title="Seleccionar quién registra"
+                                class="h-full px-2 rounded-xl border text-[10px] font-bold flex items-center gap-1 transition-all shadow-xs active:scale-95 select-none"
+                                :class="owner ? (owner === 'Arianny' ? 'bg-pink-50 text-pink-700 border-pink-200 shadow-pink-100' : (owner === 'Anthony' ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-emerald-100' : 'bg-purple-50 text-purple-700 border-purple-200 shadow-purple-100')) : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'">
+                            <span class="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black shrink-0"
+                                  :class="owner ? (owner === 'Arianny' ? 'bg-pink-500 text-white' : (owner === 'Anthony' ? 'bg-emerald-700 text-white' : 'bg-purple-600 text-white')) : 'bg-slate-200 text-slate-500'"
+                                  x-text="owner ? (owner === 'Arianny' ? 'Ar' : (owner === 'Anthony' ? 'An' : '🏢')) : '👤'"></span>
+                            <span class="truncate max-w-[48px]" x-text="owner || 'Dueño'"></span>
+                            <span x-show="owner" @click.stop="owner = null; ownerLockedInBar = false" 
+                                  class="text-slate-400 hover:text-rose-500 p-0.5 rounded-full transition-colors" title="Desasignar">
+                                <span class="material-icons text-[10px]">close</span>
+                            </span>
+                            <span x-show="!owner" class="material-icons text-[12px] text-slate-400">expand_more</span>
+                        </button>
+                     </div>
+                </div>
+
+                <!-- Row 2: Unified Note & Amount Display Card with Dynamic Type Feedback -->
+                <div class="mb-1.5 relative rounded-xl px-3 py-1.5 border transition-all duration-200 shadow-inner"
+                     :class="{
+                         'bg-rose-50/20 border-rose-200/90': type === 'expense',
+                         'bg-emerald-50/20 border-emerald-200/90': type === 'income',
+                         'bg-teal-50/20 border-teal-200/90': type === 'savings'
+                     }">
                      <div class="flex items-center justify-between gap-2">
                         <!-- Note Input -->
                         <div class="flex items-center gap-1.5 flex-1 min-w-0">
@@ -545,73 +604,46 @@
                                    class="w-full text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none bg-transparent">
                         </div>
                         
-                        <!-- Currency Toggle & Main Amount -->
+                        <!-- Currency Toggle & Main Amount with Dynamic Type Indicator -->
                         <div class="flex items-baseline gap-1.5 shrink-0">
+                            <!-- Type Pill Badge -->
+                            <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded select-none leading-tight border"
+                                  :class="{
+                                      'bg-rose-100 text-rose-700 border-rose-200': type === 'expense',
+                                      'bg-emerald-100 text-emerald-800 border-emerald-200': type === 'income',
+                                      'bg-teal-100 text-teal-800 border-teal-200': type === 'savings'
+                                  }"
+                                  x-text="type === 'expense' ? 'Gasto' : (type === 'income' ? 'Ingreso' : 'Ahorro')"></span>
+
+                            <!-- Currency Toggle Pill -->
                             <button type="button" @click="currency = (currency === 'Bs' ? 'USD' : 'Bs')"
                                     class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider transition-all border select-none"
                                     :class="currency === 'USD' ? 'bg-emerald-500 text-white border-emerald-400 shadow-xs' : 'bg-white text-emerald-800 border-emerald-200 shadow-xs'"
                                     x-text="currency"></button>
-                            <div class="font-black text-slate-900 tracking-tight text-2xl font-mono leading-none" 
-                                 :class="{
-                                     'text-2xl': compactLevel === 0,
-                                     'text-xl': compactLevel === 1,
-                                     'text-lg': compactLevel === 2
-                                 }"
-                                 x-text="display"></div>
+
+                            <!-- Amount with Dynamic +/-/★ prefix -->
+                            <div class="flex items-baseline font-mono leading-none">
+                                <span class="font-black text-lg mr-0.5 select-none"
+                                      :class="{
+                                          'text-rose-500': type === 'expense',
+                                          'text-emerald-500': type === 'income',
+                                          'text-teal-600': type === 'savings'
+                                      }"
+                                      x-text="type === 'expense' ? '-' : (type === 'income' ? '+' : '★')"></span>
+                                <div class="font-black text-slate-900 tracking-tight text-2xl font-mono leading-none" 
+                                     :class="{
+                                         'text-2xl': compactLevel === 0,
+                                         'text-xl': compactLevel === 1,
+                                         'text-lg': compactLevel === 2
+                                     }"
+                                     x-text="display"></div>
+                            </div>
                         </div>
                      </div>
                      <!-- Conversion Sub-line -->
                      <div x-show="parseFloat(amount) > 0" class="flex justify-end pt-0.5">
                          <span class="text-[9px] font-bold text-emerald-700 bg-emerald-100/60 px-1.5 py-0.2 rounded" 
                                x-text="'≈ ' + (currency === 'Bs' ? '$ ' : 'Bs ') + formatMoney(currentConversion)"></span>
-                     </div>
-                </div>
-
-                <!-- Row 2: Context Bar (Type & Owner Badges) -->
-                <div class="flex items-center justify-between gap-1.5 mb-1.5 h-7.5">
-                     <!-- Type Selector (Gasto / Ingreso / Ahorro) -->
-                     <div class="flex-1 flex bg-slate-100 p-0.5 rounded-lg shadow-inner h-full max-w-[210px]">
-                        <button type="button" @click="type = 'expense'" 
-                                :class="type === 'expense' ? 'bg-white shadow-xs text-rose-600 font-black' : 'text-slate-500 font-semibold hover:text-slate-700'" 
-                                class="flex-1 rounded py-0 text-[10px] transition-all">Gasto</button>
-                        <button type="button" @click="type = 'income'" 
-                                :class="type === 'income' ? 'bg-white shadow-xs text-emerald-600 font-black' : 'text-slate-500 font-semibold hover:text-slate-700'" 
-                                class="flex-1 rounded py-0 text-[10px] transition-all">Ingreso</button>
-                        <button type="button" @click="type = 'savings'" 
-                                :class="type === 'savings' ? 'bg-white shadow-xs text-teal-700 font-black' : 'text-slate-500 font-semibold hover:text-slate-700'" 
-                                class="flex-1 rounded py-0 text-[10px] transition-all">Ahorro</button>
-                     </div>
-
-                     <!-- Quick Owner Badges (Arianny / Anthony / Negocio) -->
-                     <div class="flex items-center gap-1 h-full">
-                        <!-- Arianny -->
-                        <button type="button" @click="toggleOwnerInBar('Arianny')" 
-                                title="Arianny"
-                                :class="owner === 'Arianny' ? 'bg-pink-500 text-white font-black shadow-xs ring-1 ring-pink-400' : 'bg-pink-50/90 text-pink-700 hover:bg-pink-100 border border-pink-200/60'" 
-                                class="h-full px-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 active:scale-95">
-                            <span class="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black shrink-0"
-                                  :class="owner === 'Arianny' ? 'bg-white/25 text-white' : 'bg-pink-200/80 text-pink-800'">Ar</span>
-                            <span class="hidden sm:inline">Arianny</span>
-                        </button>
-
-                        <!-- Anthony -->
-                        <button type="button" @click="toggleOwnerInBar('Anthony')" 
-                                title="Anthony"
-                                :class="owner === 'Anthony' ? 'bg-emerald-700 text-white font-black shadow-xs ring-1 ring-emerald-500' : 'bg-emerald-50/90 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/60'" 
-                                class="h-full px-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 active:scale-95">
-                            <span class="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black shrink-0"
-                                  :class="owner === 'Anthony' ? 'bg-white/25 text-white' : 'bg-emerald-200/80 text-emerald-900'">An</span>
-                            <span class="hidden sm:inline">Anthony</span>
-                        </button>
-
-                        <!-- Negocio -->
-                        <button type="button" @click="toggleOwnerInBar('Negocio')" 
-                                title="Negocio"
-                                :class="owner === 'Negocio' ? 'bg-purple-600 text-white font-black shadow-xs ring-1 ring-purple-400' : 'bg-purple-50/90 text-purple-700 hover:bg-purple-100 border border-purple-200/60'" 
-                                class="h-full px-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 active:scale-95">
-                            <span class="material-icons text-[12px]" :class="owner === 'Negocio' ? 'text-white' : 'text-purple-600'">store</span>
-                            <span class="hidden sm:inline">Negocio</span>
-                        </button>
                      </div>
                 </div>
 
