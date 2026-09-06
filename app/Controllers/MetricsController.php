@@ -4,12 +4,28 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\TransactionModel;
+use App\Models\AccountModel;
+use App\Models\CategoryModel;
 
 class MetricsController extends BaseController
 {
     public function index()
     {
-        return view('metrics/index');
+        $db = \Config\Database::connect();
+        $accountModel = new AccountModel();
+        $categoryModel = new CategoryModel();
+
+        $accounts = $accountModel->where('status', 'active')->orderBy('name', 'ASC')->findAll();
+        $categories = $categoryModel->orderBy('name', 'ASC')->findAll();
+
+        $rateRow = $db->table('settings')->where('key', 'bcv_usd_rate')->get()->getRowArray();
+        $exchangeRate = (float) ($rateRow['value'] ?? 50.0);
+
+        return view('metrics/index', [
+            'accounts' => $accounts,
+            'categories' => $categories,
+            'exchangeRate' => $exchangeRate,
+        ]);
     }
 
     public function fetch()
@@ -41,7 +57,7 @@ class MetricsController extends BaseController
         
         header("Content-Description: File Transfer");
         header("Content-Disposition: attachment; filename=$filename");
-        header("Content-Type: application/csv; "); 
+        header("Content-Type: application/csv; charset=UTF-8"); 
 
         $file = fopen('php://output', 'w');
         
@@ -49,20 +65,29 @@ class MetricsController extends BaseController
         fwrite($file, "\xEF\xBB\xBF");
 
         // Headers
-        fputcsv($file, ['ID', 'Fecha', 'Descripcion', 'Categoria', 'Cuenta', 'Tipo', 'Monto (Bs)', 'Monto ($)', 'Tasa', 'Responsable']);
+        fputcsv($file, ['ID', 'Fecha', 'Descripcion', 'Categoria', 'Cuenta', 'Tipo', 'Monto (Bs)', 'Monto ($ USD)', 'Tasa', 'Responsable']);
+
+        $typeLabels = [
+            'income' => 'Ingreso',
+            'expense' => 'Gasto',
+            'savings' => 'Ahorro',
+        ];
 
         foreach ($history as $row) {
+            $type = $row['type'] ?? 'expense';
+            $typeLabel = $typeLabels[$type] ?? ucfirst($type);
+
             fputcsv($file, [
                 $row['id'],
                 $row['created_at'],
                 $row['description'],
                 $row['category_name'] ?? 'Sin Categoría',
                 $row['account_name'] ?? 'Sin Cuenta',
-                ucfirst($row['type']),
-                number_format($row['amount'], 2, ',', '.'),
-                number_format($row['amount_usd'], 2, ',', '.'),
-                $row['exchange_rate'],
-                $row['owner']
+                $typeLabel,
+                number_format((float) ($row['amount'] ?? 0), 2, ',', '.'),
+                number_format((float) ($row['amount_usd'] ?? 0), 2, '.', ''),
+                number_format((float) ($row['exchange_rate'] ?? 0), 2, ',', '.'),
+                $row['owner'] ?? 'General'
             ]);
         }
         fclose($file);
