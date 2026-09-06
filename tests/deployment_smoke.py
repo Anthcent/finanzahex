@@ -74,7 +74,25 @@ request('sales')
 sales = request('sales/get-active-orders')['data']
 sale_id = next(s['id'] for s in sales if s['customer'] == tag)
 request('sales/add-payment', {'sale_id': sale_id, 'amount': 25, 'amount_usd': 0.5,
-                              'rate': 50, 'date': today, 'reference': tag})
+                              'rate': 50, 'date': today, 'reference': tag,
+                              'account_id': account_id})
+request('sales/store', {'customer': tag + ' debt', 'customer_phone': '04121234567',
+                        'due_date': today, 'date': today, 'exchange_rate': 50,
+                        'status': 'partial', 'paid_amount': 0, 'paid_amount_usd': 0,
+                        'account_id': account_id, 'category_id': category,
+                        'items': [{'id': item_id, 'quantity': 1, 'price_usd': 1, 'price_bs': 50}]})
+debts_page = request('sales/debts')
+sales = request('sales/get-active-orders')['data']
+debt_id = next(s['id'] for s in sales if s['customer'] == tag + ' debt')
+request('sales/update-debt', {'sale_id': debt_id, 'customer_phone': '0412-1234567',
+                              'due_date': today, 'collection_notes': tag})
+request('sales/record-reminder', {'sale_id': debt_id})
+debt_details = request('sales/get-details/' + str(debt_id))
+assert debt_details['sale']['customer_phone'] == '0412-1234567'
+assert int(debt_details['sale']['reminder_count']) == 1
+request('sales/add-payment', {'sale_id': debt_id, 'amount': 50, 'amount_usd': 1,
+                              'rate': 50, 'date': today, 'reference': tag,
+                              'account_id': account_id})
 request('sales/get-details/' + str(sale_id))
 request('sales/history')
 printing_products = request('printing/products')['data']

@@ -10,7 +10,7 @@ class SalePaymentModel extends Model
     protected $primaryKey = 'id';
     protected $allowedFields = [
         'sale_id', 'amount', 'amount_usd', 'rate', 
-        'date', 'reference', 'created_at'
+        'date', 'reference', 'account_id', 'created_at'
     ];
     protected $useTimestamps = false; // We use created_at manually or default
 

@@ -12,7 +12,8 @@ class SaleModel extends Model
         'date', 'product', 'amount', 'amount_usd', 'exchange_rate', 
         'customer', 'status', 'reference', 'description', 
         'paid_amount', 'paid_amount_usd', 'created_at', 'updated_at',
-        'order_status_id'
+        'order_status_id', 'customer_phone', 'due_date', 'collection_notes',
+        'last_reminder_at', 'reminder_count'
     ];
     protected $useTimestamps = true;
 
@@ -25,6 +26,9 @@ class SaleModel extends Model
     // Get pending debts (partial status)
     public function getDebts()
     {
-        return $this->where('status', 'partial')->orderBy('date', 'ASC')->findAll();
+        return $this->where('status', 'partial')
+            ->where('amount_usd > paid_amount_usd')
+            ->orderBy('date', 'ASC')
+            ->findAll();
     }
 }

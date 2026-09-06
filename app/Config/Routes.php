@@ -128,6 +128,8 @@ $routes->get('sales/create', 'SalesController::create');
 $routes->post('sales/store', 'SalesController::store');
 $routes->get('sales/debts', 'SalesController::debts');
 $routes->post('sales/add-payment', 'SalesController::addPayment');
+$routes->post('sales/update-debt', 'SalesController::updateDebt');
+$routes->post('sales/record-reminder', 'SalesController::recordDebtReminder');
 $routes->get('sales/history', 'SalesController::history');
 $routes->get('sales/get-details/(:num)', 'SalesController::getSaleDetails/$1');
 $routes->get('sales/get-statuses', 'SalesController::getStatuses');

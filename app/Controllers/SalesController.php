@@ -78,8 +78,18 @@ class SalesController extends BaseController
 
     public function debts()
     {
+        $db = \Config\Database::connect();
         $debts = $this->saleModel->getDebts();
-        return view('sales/debts', ['debts' => $debts]);
+        $accounts = $db->table('accounts')
+            ->where('status', 'active')
+            ->orderBy('name', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        return view('sales/debts', [
+            'debts' => $debts,
+            'accounts' => $accounts,
+        ]);
     }
 
 
@@ -127,7 +137,10 @@ class SalesController extends BaseController
             'product' => count($json->items) . ' Productos', // Summary for legacy view
             'reference' => $json->reference ?? '',
             'paid_amount' => 0,
-            'paid_amount_usd' => 0
+            'paid_amount_usd' => 0,
+            'customer_phone' => !empty($json->customer_phone) ? trim((string) $json->customer_phone) : null,
+            'due_date' => !empty($json->due_date) ? $json->due_date : null,
+            'collection_notes' => !empty($json->collection_notes) ? trim((string) $json->collection_notes) : null,
         ];
 
         // Handle Payments
@@ -149,7 +162,8 @@ class SalesController extends BaseController
                 'amount_usd' => $data['paid_amount_usd'],
                 'rate' => $json->exchange_rate,
                 'date' => $json->date,
-                'reference' => 'Inicial'
+                'reference' => 'Inicial',
+                'account_id' => $json->account_id ?? null,
             ]);
         }
 
@@ -250,42 +264,192 @@ class SalesController extends BaseController
 
     public function addPayment()
     {
-        $json = $this->request->getJSON();
-        $saleId = $json->sale_id;
-        
-        // 1. Record Payment
-        $this->paymentModel->save([
-            'sale_id' => $saleId,
-            'amount' => $json->amount,
-            'amount_usd' => $json->amount_usd,
-            'rate' => $json->rate,
-            'date' => $json->date,
-            'reference' => $json->reference
-        ]);
+        $payload = $this->request->getJSON(true) ?? [];
+        $saleId = (int) ($payload['sale_id'] ?? 0);
+        $accountId = (int) ($payload['account_id'] ?? 0);
+        $amountBs = round((float) ($payload['amount'] ?? 0), 2);
+        $amountUsd = round((float) ($payload['amount_usd'] ?? 0), 2);
+        $rate = (float) ($payload['rate'] ?? 0);
+        $paymentDate = (string) ($payload['date'] ?? date('Y-m-d'));
+        $reference = trim((string) ($payload['reference'] ?? ''));
 
-        // 2. Update Sale Totals
-        $sale = $this->saleModel->find($saleId);
-        $newPaidBs = $sale['paid_amount'] + $json->amount;
-        $newPaidUsd = $sale['paid_amount_usd'] + $json->amount_usd;
-        
-        // Check if fully paid (allow small margin of error for float precision)
-        // Logic: If Paid USD >= Total USD OR Paid BS >= Total BS (depending on main currency... simplified check)
-        // Let's check against Total USD for simplicity as base
-        $isPaid = false;
-        if ($newPaidUsd >= ($sale['amount_usd'] - 0.01)) {
-            $isPaid = true;
+        if ($saleId <= 0 || $accountId <= 0 || $rate <= 0 || $amountBs < 0 || $amountUsd <= 0) {
+            return $this->failValidationErrors('Revisa el monto, la tasa y la cuenta de destino.');
         }
 
-        $this->saleModel->update($saleId, [
-            'paid_amount' => $newPaidBs,
-            'paid_amount_usd' => $newPaidUsd,
-            'status' => $isPaid ? 'paid' : 'partial'
+        $parsedDate = \DateTime::createFromFormat('Y-m-d', $paymentDate);
+        if (!$parsedDate || $parsedDate->format('Y-m-d') !== $paymentDate) {
+            return $this->failValidationErrors('La fecha del abono no es válida.');
+        }
+
+        $db = \Config\Database::connect();
+        $accountModel = new \App\Models\AccountModel();
+        $transactionModel = new \App\Models\TransactionModel();
+        $db->transBegin();
+
+        try {
+            $sale = $db->query('SELECT * FROM sales WHERE id = ? FOR UPDATE', [$saleId])->getRowArray();
+            if (!$sale || $sale['status'] !== 'partial') {
+                throw new \InvalidArgumentException('La deuda no existe o ya fue pagada.');
+            }
+
+            $remainingUsd = max(0, (float) $sale['amount_usd'] - (float) $sale['paid_amount_usd']);
+            if ($amountUsd > ($remainingUsd + 0.01)) {
+                throw new \InvalidArgumentException('El abono no puede superar el saldo pendiente.');
+            }
+
+            $account = $accountModel->find($accountId);
+            if (!$account || ($account['status'] ?? 'active') !== 'active') {
+                throw new \InvalidArgumentException('Selecciona una cuenta activa para recibir el pago.');
+            }
+
+            $newPaidUsd = min((float) $sale['amount_usd'], (float) $sale['paid_amount_usd'] + $amountUsd);
+            $newPaidBs = min((float) $sale['amount'], (float) $sale['paid_amount'] + $amountBs);
+            $isPaid = $newPaidUsd >= ((float) $sale['amount_usd'] - 0.01);
+
+            if (!$this->paymentModel->insert([
+                'sale_id' => $saleId,
+                'account_id' => $accountId,
+                'amount' => $amountBs,
+                'amount_usd' => $amountUsd,
+                'rate' => $rate,
+                'date' => $paymentDate,
+                'reference' => $reference,
+                'created_at' => date('Y-m-d H:i:s'),
+            ])) {
+                throw new \RuntimeException('No se pudo guardar el abono.');
+            }
+
+            $this->saleModel->update($saleId, [
+                'paid_amount' => $newPaidBs,
+                'paid_amount_usd' => $newPaidUsd,
+                'status' => $isPaid ? 'paid' : 'partial',
+            ]);
+
+            $category = $db->table('categories')->select('id')->like('name', 'Venta')->limit(1)->get()->getRowArray();
+            if (!$category) {
+                $category = $db->table('categories')->select('id')->limit(1)->get()->getRowArray();
+            }
+            if (!$category) {
+                throw new \RuntimeException('No existe una categoría para registrar el ingreso.');
+            }
+
+            $transactionId = $transactionModel->insert([
+                'account_id' => $accountId,
+                'category_id' => $category['id'],
+                'amount' => $amountBs,
+                'amount_usd' => $amountUsd,
+                'exchange_rate' => $rate,
+                'type' => 'income',
+                'owner' => 'Negocio',
+                'description' => "Abono venta #{$saleId} - {$sale['customer']}",
+                'created_at' => $paymentDate . ' ' . date('H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+            if (!$transactionId) {
+                throw new \RuntimeException('No se pudo registrar el ingreso del abono.');
+            }
+
+            $balanceIncrease = ($account['currency'] ?? 'Bs') === 'USD' ? $amountUsd : $amountBs;
+            if (!$accountModel->update($accountId, ['balance' => (float) $account['balance'] + $balanceIncrease])) {
+                throw new \RuntimeException('No se pudo actualizar el saldo de la cuenta.');
+            }
+
+            AuditLogModel::log(
+                'sales',
+                'payment',
+                $saleId,
+                null,
+                $payload,
+                ['amount' => $amountBs, 'amount_usd' => $amountUsd, 'account_id' => $accountId],
+                "Pago a Venta #{$saleId}"
+            );
+
+            if ($db->transStatus() === false) {
+                throw new \RuntimeException('No se pudo completar la transacción del abono.');
+            }
+            $db->transCommit();
+
+            return $this->respond([
+                'status' => 'success',
+                'message' => $isPaid ? 'Deuda pagada completamente' : 'Abono registrado',
+                'sale' => $this->saleModel->find($saleId),
+            ]);
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            $statusCode = $e instanceof \InvalidArgumentException ? 422 : 500;
+            return $this->respond([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    public function updateDebt()
+    {
+        $payload = $this->request->getJSON(true) ?? [];
+        $saleId = (int) ($payload['sale_id'] ?? 0);
+        $sale = $this->saleModel->find($saleId);
+        if (!$sale || $sale['status'] !== 'partial') {
+            return $this->respond(['status' => 'error', 'message' => 'La deuda no existe o ya fue pagada.'], 404);
+        }
+
+        $dueDate = trim((string) ($payload['due_date'] ?? ''));
+        if ($dueDate !== '') {
+            $parsedDate = \DateTime::createFromFormat('Y-m-d', $dueDate);
+            if (!$parsedDate || $parsedDate->format('Y-m-d') !== $dueDate) {
+                return $this->failValidationErrors('La fecha límite no es válida.');
+            }
+        }
+
+        $phone = trim((string) ($payload['customer_phone'] ?? ''));
+        if ($phone !== '' && !preg_match('/^[+0-9()\-\s]{7,32}$/', $phone)) {
+            return $this->failValidationErrors('El teléfono sólo puede contener números, espacios, +, guiones y paréntesis.');
+        }
+
+        $notes = trim((string) ($payload['collection_notes'] ?? ''));
+        if (mb_strlen($notes) > 2000) {
+            return $this->failValidationErrors('Las notas no pueden superar 2.000 caracteres.');
+        }
+
+        $before = [
+            'customer_phone' => $sale['customer_phone'] ?? null,
+            'due_date' => $sale['due_date'] ?? null,
+            'collection_notes' => $sale['collection_notes'] ?? null,
+        ];
+        $changes = [
+            'customer_phone' => $phone !== '' ? $phone : null,
+            'due_date' => $dueDate !== '' ? $dueDate : null,
+            'collection_notes' => $notes !== '' ? $notes : null,
+        ];
+
+        $this->saleModel->update($saleId, $changes);
+        AuditLogModel::log('sales', 'update_debt', $saleId, $before, $changes, null, "Gestión de deuda #{$saleId}");
+
+        return $this->respond([
+            'status' => 'success',
+            'message' => 'Datos de cobranza actualizados',
+            'sale' => $this->saleModel->find($saleId),
         ]);
+    }
 
-        // AUDIT LOG
-        AuditLogModel::log('sales', 'payment', $saleId, null, $json, ['amount' => $json->amount, 'amount_usd' => $json->amount_usd], "Pago a Venta #$saleId");
+    public function recordDebtReminder()
+    {
+        $payload = $this->request->getJSON(true) ?? [];
+        $saleId = (int) ($payload['sale_id'] ?? 0);
+        $sale = $this->saleModel->find($saleId);
+        if (!$sale || $sale['status'] !== 'partial') {
+            return $this->respond(['status' => 'error', 'message' => 'Deuda no encontrada.'], 404);
+        }
 
-        return $this->respond(['status' => 'success', 'message' => 'Pago registrado']);
+        $changes = [
+            'last_reminder_at' => date('Y-m-d H:i:s'),
+            'reminder_count' => (int) ($sale['reminder_count'] ?? 0) + 1,
+        ];
+        $this->saleModel->update($saleId, $changes);
+        AuditLogModel::log('sales', 'debt_reminder', $saleId, null, $changes, null, "Recordatorio de deuda #{$saleId}");
+
+        return $this->respond(['status' => 'success', 'data' => $changes]);
     }
     public function getSaleDetails($id)
     {
@@ -310,7 +474,14 @@ class SalesController extends BaseController
             ->get()->getResultArray();
 
         // Get Payments
-        $payments = $paymentModel->where('sale_id', $id)->orderBy('date', 'ASC')->findAll();
+        $payments = $db->table('sale_payments p')
+            ->select('p.*, a.name as account_name, a.currency as account_currency')
+            ->join('accounts a', 'a.id = p.account_id', 'left')
+            ->where('p.sale_id', $id)
+            ->orderBy('p.date', 'ASC')
+            ->orderBy('p.id', 'ASC')
+            ->get()
+            ->getResultArray();
 
         return $this->response->setJSON([
             'status' => 'success',

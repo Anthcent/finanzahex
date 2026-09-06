@@ -232,6 +232,17 @@
                     <span class="text-slate-400">Resta por cobrar:</span>
                     <span class="font-black text-rose-600 ml-1" x-text="formatMoney((totals.usd || 0) - (form.paid_amount_usd || 0), 'USD')"></span>
                 </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-4 border-t border-amber-100">
+                    <div>
+                        <label class="text-[10px] text-slate-500 font-black block mb-1">WhatsApp del cliente</label>
+                        <input type="tel" x-model="form.customer_phone" class="w-full h-11 bg-white border border-amber-200 rounded-xl px-3 text-xs font-bold outline-none focus:border-emerald-500" placeholder="0412 1234567">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-500 font-black block mb-1">Fecha límite de pago</label>
+                        <input type="date" x-model="form.due_date" class="w-full h-11 bg-white border border-amber-200 rounded-xl px-3 text-xs font-bold outline-none focus:border-emerald-500">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -298,7 +309,9 @@
                     items: [],
                     account_id: '',
                     category_id: '',
-                    owner: 'Negocio'
+                    owner: 'Negocio',
+                    customer_phone: '',
+                    due_date: ''
                 },
                 totals: { usd: 0, bs: 0 },
                 searchQuery: '',
@@ -375,7 +388,9 @@
                         items: [],
                         account_id: accId,
                         category_id: catId,
-                        owner: 'Negocio'
+                        owner: 'Negocio',
+                        customer_phone: '',
+                        due_date: ''
                     };
                     this.calculateTotal();
                 },
