@@ -1361,6 +1361,7 @@
                         <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{pendiente_bs}</span>
                         <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{negocio}</span>
                         <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{datos_pago}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{monto_bs}</span>
                         <span class="bg-white/80 px-1 py-0.5 rounded">{notas}</span>
                     </p>
                 </div>
@@ -2412,6 +2413,7 @@
                         template = this.debtConfig.print_wa_detailed || defaults.detailed;
                     }
 
+                    let rawBs = Number(this.orderRemainingBs(order) || 0).toFixed(2);
                     let text = template
                         .replace(/\{cliente\}/g, customer)
                         .replace(/\{orden\}/g, order.id)
@@ -2422,6 +2424,7 @@
                         .replace(/\{abonado\}/g, paidUsd)
                         .replace(/\{pendiente_usd\}/g, remUsd)
                         .replace(/\{pendiente_bs\}/g, remBs)
+                        .replace(/\{monto_bs\}/g, rawBs)
                         .replace(/\{negocio\}/g, negocio)
                         .replace(/\{notas\}/g, notasStr)
                         .replace(/\{datos_pago\}/g, datosPago);
@@ -2653,12 +2656,15 @@
                         let filename = 'ticket_deuda_orden_' + order.id + '.png';
                         let file = new File([blob], filename, { type: 'image/png' });
                         let phone = this.whatsappPhone(order.customer_phone);
-                        let caption = 'Comprobante de Deuda - Orden #' + order.id + ' (' + (order.customer_name || 'Cliente') + ') - Saldo Pendiente: $' + this.formatUsd(this.orderRemainingUsd(order));
+                        let remUsd = this.formatUsd(this.orderRemainingUsd(order));
+                        let remBs = this.formatBs(this.orderRemainingBs(order));
+                        let rawBs = Number(this.orderRemainingBs(order) || 0).toFixed(2);
+                        let caption = 'Saldo pendiente: $' + remUsd + ' (Bs. ' + remBs + ')\n\n```' + rawBs + '```';
 
                         if (navigator.canShare && navigator.canShare({ files: [file] })) {
                             await navigator.share({
                                 files: [file],
-                                title: 'Ticket Orden #' + order.id,
+                                title: 'Saldo pendiente: $' + remUsd + ' (Bs. ' + remBs + ')',
                                 text: caption,
                             });
                             this.message = '¡Comprobante compartido con éxito!';
