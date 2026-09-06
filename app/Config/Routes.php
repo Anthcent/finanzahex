@@ -62,6 +62,7 @@ $routes->get('metrics/export', 'MetricsController::export');
 
 // Routes for Printing Module
 $routes->get('printing', 'PrintingController::index');
+$routes->get('printing/products', 'PrintingController::getProducts');
 $routes->get('printing/settings', 'PrintingController::settings');
 $routes->post('printing/store', 'PrintingController::store');
 $routes->get('printing/history', 'PrintingController::getHistory');

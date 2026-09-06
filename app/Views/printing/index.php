@@ -107,33 +107,38 @@
             
             <!-- Products Section -->
             <div class="flex-1 min-w-0">
-                <!-- Search & Status Summary -->
-                <div class="flex items-center justify-between mb-4 bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-2xs border border-slate-200/80">
-                    <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <span class="text-xs font-bold text-slate-600">Catálogo de Servicios</span>
+                <!-- Fast product finder -->
+                <div class="mb-4 bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-2xs border border-slate-200/80 space-y-2.5">
+                    <div class="relative">
+                        <span class="material-icons absolute left-3 top-2.5 text-slate-400 text-lg">search</span>
+                        <input type="search" x-model="productSearch" placeholder="Buscar servicio..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
+                        <button x-show="productSearch" @click="productSearch = ''" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700" title="Limpiar búsqueda">
+                            <span class="material-icons text-lg">close</span>
+                        </button>
                     </div>
-                    <span class="text-[11px] font-bold text-slate-400"><?= count($products) ?> items listados</span>
+                    <div class="flex gap-2 overflow-x-auto no-scrollbar">
+                        <button @click="activeCategory = 'all'" :class="activeCategory === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="px-3 py-1.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-colors">Todos</button>
+                        <?php foreach (array_values(array_unique(array_column($products, 'category'))) as $category): ?>
+                        <button @click="activeCategory = <?= htmlspecialchars(json_encode($category)) ?>" :class="activeCategory === <?= htmlspecialchars(json_encode($category)) ?> ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'" class="px-3 py-1.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-colors"><?= esc($category) ?></button>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
 
                 <!-- Product Grid -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     <?php foreach ($products as $p): ?>
-                    <button @click="addToCart(<?= htmlspecialchars(json_encode($p)) ?>)" 
-                            class="bg-white hover:bg-emerald-50/30 p-3.5 rounded-2xl shadow-2xs hover:shadow-md border border-slate-200/70 hover:border-emerald-300 flex flex-col items-center justify-center gap-2 active:scale-95 transition-all group relative overflow-hidden h-32 text-center">
+                    <button x-show="matchesProduct(<?= htmlspecialchars(json_encode($p['name'])) ?>, <?= htmlspecialchars(json_encode($p['category'])) ?>)" @click="addToCart(<?= htmlspecialchars(json_encode($p)) ?>)"
+                            :class="cartQuantity(<?= (int) $p['id'] ?>) > 0 ? 'border-emerald-400 ring-2 ring-emerald-100 bg-emerald-50/40' : 'border-slate-200/70 bg-white'"
+                            class="hover:bg-emerald-50/30 p-3.5 rounded-2xl shadow-2xs hover:shadow-md border hover:border-emerald-300 flex flex-col items-center justify-center gap-2 active:scale-95 transition-all group relative overflow-hidden h-32 text-center">
+                        <span x-show="cartQuantity(<?= (int) $p['id'] ?>) > 0" x-text="cartQuantity(<?= (int) $p['id'] ?>)" class="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shadow-md"></span>
                         <div class="w-11 h-11 rounded-2xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors">
                             <span class="material-icons text-2xl group-hover:scale-110 transition-transform"><?= $p['icon'] ?? 'print' ?></span>
                         </div>
                         <div class="w-full">
                             <p class="font-bold text-xs leading-tight text-slate-800 line-clamp-1 group-hover:text-emerald-950 transition-colors"><?= $p['name'] ?></p>
                             <div class="text-[10px] font-black text-slate-500 mt-1">
-                                <?php if($p['price_bs'] > 0): ?>
-                                    <span class="text-emerald-700 font-extrabold">Bs. <?= number_format($p['price_bs'], 2) ?></span>
-                                    <span class="text-[9px] text-slate-400 font-bold ml-1">$<?= number_format($p['price_usd'], 2) ?></span>
-                                <?php else: ?>
-                                    <span class="text-emerald-700 font-extrabold">$<?= number_format($p['price_usd'], 2) ?></span>
-                                    <span class="text-[9px] text-slate-400 font-bold ml-1">Bs. <?= number_format($p['price_usd'] * 50, 2) ?></span>
-                                <?php endif; ?>
+                                <span class="text-emerald-700 font-extrabold" x-text="'Bs. ' + unitPriceBs(<?= (float) $p['price_bs'] ?>, <?= (float) $p['price_usd'] ?>).toFixed(2)"></span>
+                                <span class="text-[9px] text-slate-400 font-bold ml-1" x-text="'$' + formatUsd(unitPriceUsd(<?= (float) $p['price_bs'] ?>, <?= (float) $p['price_usd'] ?>))"></span>
                             </div>
                         </div>
                     </button>
@@ -200,10 +205,10 @@
                         </div>
                         <div class="flex justify-between items-baseline mb-4">
                             <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total USD</span>
-                            <span class="text-sm font-black text-emerald-800" x-text="'$ ' + totalUsd.toFixed(2)"></span>
+                            <span class="text-sm font-black text-emerald-800" x-text="'$ ' + formatUsd(totalUsd)"></span>
                         </div>
 
-                        <button @click="checkoutModal.open = true" 
+                        <button @click="openCheckout()"
                                 :disabled="cart.length === 0" 
                                 class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black py-3.5 rounded-2xl shadow-lg shadow-emerald-950/20 active:scale-98 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                             <span>Cobrar / Facturar</span>
@@ -225,13 +230,13 @@
                     </p>
                     <div class="flex items-baseline gap-2 mt-0.5">
                         <p class="text-lg font-black text-slate-900" x-text="'Bs. ' + totalBs.toFixed(2)"></p>
-                        <p class="text-xs font-bold text-emerald-700" x-text="'$' + totalUsd.toFixed(2)"></p>
+                        <p class="text-xs font-bold text-emerald-700" x-text="'$' + formatUsd(totalUsd)"></p>
                     </div>
                 </div>
                 <button @click="cartOpen = true" class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center active:scale-95" title="Ver carrito">
                     <span class="material-icons text-lg">keyboard_arrow_up</span>
                 </button>
-                <button @click="checkoutModal.open = true" class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-5 py-2.5 rounded-xl font-black text-sm shadow-md shadow-emerald-950/20 active:scale-95">
+                <button @click="openCheckout()" class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-5 py-2.5 rounded-xl font-black text-sm shadow-md shadow-emerald-950/20 active:scale-95">
                     Cobrar
                 </button>
             </div>
@@ -280,10 +285,10 @@
                             <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total a Pagar</span>
                             <div class="text-right">
                                 <p class="text-2xl font-black text-slate-900" x-text="'Bs. ' + totalBs.toFixed(2)"></p>
-                                <p class="text-xs font-bold text-emerald-700" x-text="'$ ' + totalUsd.toFixed(2)"></p>
+                                <p class="text-xs font-bold text-emerald-700" x-text="'$ ' + formatUsd(totalUsd)"></p>
                             </div>
                         </div>
-                        <button @click="cartOpen = false; checkoutModal.open = true" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-950/20 text-base active:scale-98">
+                        <button @click="cartOpen = false; openCheckout()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-950/20 text-base active:scale-98">
                             Confirmar y Cobrar
                         </button>
                     </div>
@@ -445,7 +450,7 @@
                     <h3 class="font-black text-lg text-slate-900">Confirmar Cobro</h3>
                     <div class="flex items-baseline gap-2 mt-0.5">
                         <span class="text-base font-black text-emerald-700" x-text="'Bs. ' + totalBs.toFixed(2)"></span>
-                        <span class="text-xs font-bold text-slate-400" x-text="'$ ' + totalUsd.toFixed(2)"></span>
+                        <span class="text-xs font-bold text-slate-400" x-text="'$ ' + formatUsd(totalUsd)"></span>
                     </div>
                 </div>
                 <button @click="checkoutModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center">
@@ -477,22 +482,29 @@
 
                 <!-- Payment Breakdown Card -->
                 <div class="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/80">
-                    <div class="flex justify-between items-center mb-3">
-                        <span class="text-[10px] font-black text-emerald-800 uppercase tracking-wider">Abono Inicial</span>
-                        <button @click="toggleDebt()" class="text-[10px] font-black px-2.5 py-1 rounded-xl transition-colors border" :class="(paidBs == 0 && paidUsd == 0) ? 'bg-white text-emerald-700 border-emerald-200 shadow-2xs' : 'text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100'">
-                            <span x-text="(paidBs == 0 && paidUsd == 0) ? 'Restaurar Pago' : 'Sin Pago (Deuda Total)'"></span>
-                        </button>
+                    <div class="mb-3">
+                        <span class="text-[10px] font-black text-emerald-800 uppercase tracking-wider">Forma de registro</span>
+                        <div class="grid grid-cols-3 gap-1.5 mt-2 bg-white/70 p-1.5 rounded-xl border border-emerald-100">
+                            <button @click="setPaymentMode('full')" :class="paymentMode === 'full' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:bg-emerald-50'" class="py-2 rounded-lg text-[10px] font-black transition-all">Pago total</button>
+                            <button @click="setPaymentMode('partial')" :class="paymentMode === 'partial' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-amber-50'" class="py-2 rounded-lg text-[10px] font-black transition-all">Abono</button>
+                            <button @click="setPaymentMode('debt')" :class="paymentMode === 'debt' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-500 hover:bg-rose-50'" class="py-2 rounded-lg text-[10px] font-black transition-all">Deuda</button>
+                        </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div class="grid grid-cols-2 gap-3 mb-3" x-show="paymentMode !== 'debt'">
                         <div>
                             <label class="text-[10px] font-bold text-slate-500 mb-1 block">Monto en Bs.</label>
-                            <input type="number" step="0.01" x-model.number="paidBs" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-black text-slate-800 outline-none focus:border-emerald-500">
+                            <input type="number" min="0" step="0.01" x-model.number="paidBs" @input="paymentMode = 'partial'" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-black text-slate-800 outline-none focus:border-emerald-500">
                         </div>
                         <div>
                             <label class="text-[10px] font-bold text-emerald-700 mb-1 block">Monto en USD</label>
-                            <input type="number" step="0.01" x-model.number="paidUsd" class="w-full bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-sm font-black text-emerald-700 outline-none focus:border-emerald-500">
+                            <input type="number" min="0" step="0.01" x-model.number="paidUsd" @input="paymentMode = 'partial'" class="w-full bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-sm font-black text-emerald-700 outline-none focus:border-emerald-500">
                         </div>
+                    </div>
+
+                    <div class="flex justify-between text-[11px] font-bold mb-3" x-show="paymentMode === 'partial'">
+                        <span class="text-slate-500">Saldo pendiente</span>
+                        <span class="text-rose-600" x-text="'Bs. ' + remainingBs.toFixed(2)"></span>
                     </div>
 
                     <div x-show="paidBs > 0 || paidUsd > 0">
@@ -503,10 +515,14 @@
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <?php if (empty($accounts)): ?>
+                    <p x-show="paymentMode !== 'debt'" class="mt-3 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">Debes crear una cuenta activa antes de registrar pagos.</p>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <button @click="checkout()" :disabled="loading" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black py-4 rounded-2xl shadow-lg shadow-emerald-950/20 active:scale-98 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <p x-show="checkoutError" x-text="checkoutError" class="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2"></p>
+            <button @click="checkout()" :disabled="loading || !canCheckout" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black py-4 rounded-2xl shadow-lg shadow-emerald-950/20 active:scale-98 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                 <span x-show="!loading" x-text="getButtonText()"></span>
                 <span x-show="loading" class="material-icons animate-spin text-sm">refresh</span>
             </button>
@@ -690,12 +706,13 @@
         function posApp() {
             return {
                 tab: 'pos', cartOpen: false, cart: [], orders: [], movements: [],
-                exchangeRate: 50, account_id: '<?= $defaultAccount ?? ($accounts[0]['id'] ?? 1) ?>',
+                exchangeRate: 50, account_id: '<?= !empty($defaultAccount) ? $defaultAccount : '' ?>',
                 customer_name: '', loading: false, message: '',
                 totalBs: 0, totalUsd: 0, paidBs: 0, paidUsd: 0,
+                productSearch: '', activeCategory: 'all', paymentMode: 'full', checkoutError: '',
                 
                 checkoutModal: { open: false },
-                payModal: { open: false, orderId: null, amount_bs: 0, amount_usd: 0, account_id: '<?= $accounts[0]['id'] ?? 1 ?>', customer: '', history: [] },
+                payModal: { open: false, orderId: null, amount_bs: 0, amount_usd: 0, account_id: '<?= $accounts[0]['id'] ?? '' ?>', customer: '', history: [] },
                 deleteModal: { open: false, orderId: null, revert: false },
                 transDeleteModal: { open: false, transId: null },
                 detailsModal: { open: false, order: null, items: [], transactions: [], loading: false },
@@ -704,7 +721,12 @@
                 customerSuggestions: { show: false, list: [] }, isFavorite: false,
                 searchQuery: '', historySearch: '', historyFilter: 'all',
 
-                init() { this.fetchRate(); this.fetchHistory(); this.updateTotals(); },
+                init() {
+                    this.restoreCart();
+                    this.fetchRate();
+                    this.fetchHistory();
+                    this.updateTotals();
+                },
                 async fetchRate() { 
                     try { 
                         let res = await fetch('<?= base_url('currency/get-rate') ?>'); 
@@ -737,6 +759,33 @@
                     } catch(e) { 
                         return [str]; 
                     } 
+                },
+
+                matchesProduct(name, category) {
+                    let query = this.productSearch.trim().toLowerCase();
+                    let matchesSearch = !query || name.toLowerCase().includes(query);
+                    let matchesCategory = this.activeCategory === 'all' || category === this.activeCategory;
+                    return matchesSearch && matchesCategory;
+                },
+
+                cartQuantity(productId) {
+                    let item = this.cart.find(row => Number(row.id) === Number(productId));
+                    return item ? parseInt(item.quantity || 0) : 0;
+                },
+
+                restoreCart() {
+                    try {
+                        let saved = JSON.parse(localStorage.getItem('fihex_printing_cart') || '[]');
+                        if (Array.isArray(saved)) this.cart = saved;
+                    } catch (e) {
+                        this.cart = [];
+                    }
+                },
+
+                persistCart() {
+                    try {
+                        localStorage.setItem('fihex_printing_cart', JSON.stringify(this.cart));
+                    } catch (e) {}
                 },
                 
                 addToCart(product) {
@@ -773,26 +822,69 @@
                     });
                     this.totalBs = bs; 
                     this.totalUsd = usd;
+                    this.persistCart();
                 },
                 getLineTotalBs(item) { 
                     let q = parseInt(item.quantity) || 0; 
                     return (item.price_bs > 0 ? item.price_bs * q : item.price_usd * q * this.exchangeRate).toFixed(2); 
                 },
-                getButtonText() { 
-                    return this.loading ? 'Procesando...' : ((this.paidBs > 0 || this.paidUsd > 0) ? 'Confirmar y Guardar' : 'Registrar como Deuda'); 
+                unitPriceBs(priceBs, priceUsd) {
+                    return Number(priceBs) > 0 ? Number(priceBs) : Number(priceUsd) * this.exchangeRate;
                 },
-                toggleDebt() { 
-                    if(this.paidBs == 0 && this.paidUsd == 0) { 
-                        this.paidBs = this.totalBs.toFixed(2); 
-                        this.paidUsd = 0; 
-                    } else { 
-                        this.paidBs = 0; 
-                        this.paidUsd = 0; 
-                    } 
+                unitPriceUsd(priceBs, priceUsd) {
+                    return Number(priceBs) > 0 ? Number(priceBs) / Math.max(this.exchangeRate, 1) : Number(priceUsd);
+                },
+                formatUsd(value) {
+                    let amount = Number(value || 0);
+                    return amount > 0 && amount < 0.01 ? amount.toFixed(4) : amount.toFixed(2);
+                },
+                getButtonText() { 
+                    if (this.loading) return 'Procesando...';
+                    if (this.paymentMode === 'debt') return 'Registrar deuda';
+                    return this.paymentMode === 'partial' ? 'Registrar venta y abono' : 'Cobrar y registrar';
+                },
+
+                openCheckout() {
+                    if (this.cart.length === 0) return;
+                    this.checkoutError = '';
+                    this.setPaymentMode('full');
+                    this.checkoutModal.open = true;
+                },
+
+                setPaymentMode(mode) {
+                    this.paymentMode = mode;
+                    this.checkoutError = '';
+                    if (mode === 'full') {
+                        this.paidBs = Number(this.totalBs.toFixed(2));
+                        this.paidUsd = 0;
+                    } else {
+                        this.paidBs = 0;
+                        this.paidUsd = 0;
+                    }
+                },
+
+                get remainingBs() {
+                    let paid = Number(this.paidBs || 0) + (Number(this.paidUsd || 0) * Number(this.exchangeRate || 0));
+                    return Math.max(0, this.totalBs - paid);
+                },
+
+                get canCheckout() {
+                    if (this.cart.length === 0 || this.exchangeRate <= 0) return false;
+                    let paidBs = Number(this.paidBs || 0);
+                    let paidUsd = Number(this.paidUsd || 0);
+                    if (paidBs < 0 || paidUsd < 0) return false;
+                    if ((paidBs + paidUsd * this.exchangeRate) > (this.totalBs + 0.05)) return false;
+                    if ((paidBs > 0 || paidUsd > 0) && (!this.account_id || this.account_id === '0')) return false;
+                    return true;
                 },
                 
                 async checkout() {
                     if (this.cart.length === 0) return;
+                    this.checkoutError = '';
+                    if (!this.canCheckout) {
+                        this.checkoutError = 'Revisa el pago, la tasa y la cuenta seleccionada.';
+                        return;
+                    }
                     this.loading = true;
                     try {
                         let res = await fetch('<?= base_url('printing/store') ?>', { 
@@ -813,17 +905,18 @@
                             this.customer_name = ''; 
                             this.paidBs = 0; 
                             this.paidUsd = 0; 
+                            this.paymentMode = 'full';
                             this.updateTotals(); 
                             this.checkoutModal.open = false; 
                             this.cartOpen = false; 
                             this.fetchHistory(); 
-                            this.message = '¡Venta registrada con éxito!'; 
+                            this.message = '¡Orden #' + data.order_id + ' registrada con éxito!';
                             setTimeout(() => this.message = '', 3000); 
                         } else { 
-                            alert('Error: ' + data.message); 
+                            this.checkoutError = data.message || 'No se pudo registrar la orden.';
                         }
                     } catch(e) { 
-                        alert('Error de conexión'); 
+                        this.checkoutError = 'No se pudo conectar con el servidor. Intenta nuevamente.';
                     } finally { 
                         this.loading = false; 
                     }

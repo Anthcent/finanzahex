@@ -77,11 +77,20 @@ request('sales/add-payment', {'sale_id': sale_id, 'amount': 25, 'amount_usd': 0.
                               'rate': 50, 'date': today, 'reference': tag})
 request('sales/get-details/' + str(sale_id))
 request('sales/history')
-request('printing/store', {'customer_name': tag, 'product_name': 'Copia B/N',
-                           'quantity': 2, 'price_bs': 2, 'price_usd': 0,
-                           'paid_bs': 4, 'paid_usd': 0, 'exchange_rate': 50,
-                           'account_id': account_id})
-request('printing/history')
+printing_products = request('printing/products')['data']
+copy_product = next(p for p in printing_products if p['name'] == 'Copia B/N')
+printing_order = request('printing/store', {
+    'customer_name': tag,
+    'items': [{'id': int(copy_product['id']), 'quantity': 2, 'note': tag}],
+    'paid_bs': 4,
+    'paid_usd': 0,
+    'exchange_rate': 50,
+    'account_id': account_id,
+})
+printing_history = request('printing/history')['data']
+saved_order = next(o for o in printing_history if int(o['id']) == int(printing_order['order_id']))
+assert float(saved_order['total_bs']) == 4
+assert json.loads(saved_order['details']) == [f'2x Copia B/N ({tag})']
 request('printing/toggle-favorite', {'name': tag, 'favorite': True})
 customers = request('printing/customers?term=' + urllib.parse.quote(tag))['data']
 assert any(c['name'] == tag and int(c['is_favorite']) == 1 for c in customers)

@@ -42,6 +42,16 @@ class PrintingController extends BaseController
         return view('printing/index', ['products' => $products, 'accounts' => $accounts, 'defaultAccount' => $defaultAccount]);
     }
 
+    public function getProducts()
+    {
+        $products = (new PrintProductModel())
+            ->orderBy('category', 'ASC')
+            ->orderBy('name', 'ASC')
+            ->findAll();
+
+        return $this->response->setJSON(['status' => 'success', 'data' => $products]);
+    }
+
     public function fixDb()
     {
         $this->ensureTablesExist();
@@ -266,143 +276,267 @@ class PrintingController extends BaseController
 
     public function store()
     {
-        $json = $this->request->getJSON();
-        
-        $db = \Config\Database::connect();
-        $transModel = new TransactionModel();
-        $accountModel = new AccountModel();
+        $payload = $this->request->getJSON(true);
+        if (!is_array($payload) || empty($payload['items']) || !is_array($payload['items'])) {
+            return $this->orderError('Agrega al menos un servicio a la orden.', 422);
+        }
 
-        $db->transStart();
+        $db = \Config\Database::connect();
+        $transactionStarted = false;
 
         try {
-            // 1. Calculate Single Item Totals
-            $qty = $json->quantity ?? 1;
-            $priceBs = $json->price_bs ?? 0;
-            $priceUsd = $json->price_usd ?? 0;
-            $rate = $json->exchange_rate ?? 50;
+            $rate = round((float) ($payload['exchange_rate'] ?? 0), 4);
+            $paidBs = round((float) ($payload['paid_bs'] ?? 0), 2);
+            $paidUsd = round((float) ($payload['paid_usd'] ?? 0), 2);
 
-            $totalBs = 0;
-            $totalUsd = 0;
-
-            // Priority Logic: Same as before
-            if ($priceBs > 0) {
-                 $totalBs = ($priceBs * $qty);
-                 $totalUsd = ($priceBs * $qty / $rate);
-            } else {
-                 $totalUsd = ($priceUsd * $qty);
-                 $totalBs = ($priceUsd * $qty * $rate);
+            if ($rate <= 0) {
+                throw new \InvalidArgumentException('La tasa de cambio debe ser mayor que cero.');
+            }
+            if ($paidBs < 0 || $paidUsd < 0) {
+                throw new \InvalidArgumentException('Los montos pagados no pueden ser negativos.');
             }
 
-            $note = isset($json->note) && !empty($json->note) ? " ({$json->note})" : "";
-            $details = ["{$qty}x {$json->product_name}{$note}"];
+            [$items, $totalBs, $totalUsd, $details, $summary] = $this->prepareOrderItems(
+                $db,
+                $payload['items'],
+                $rate
+            );
 
-            // 2. Prepare Payment Data
-            $paidBs = $json->paid_bs ?? 0;
-            $paidUsd = $json->paid_usd ?? 0;
-            
-            // Status Logic
+            $paidAsBs = $paidBs + ($paidUsd * $rate);
+            if ($paidAsBs > ($totalBs + 0.01)) {
+                throw new \InvalidArgumentException('El monto pagado supera el total de la orden.');
+            }
+
+            $accountId = (int) ($payload['account_id'] ?? 0);
+            $account = null;
+            $accountModel = new AccountModel();
+            if ($paidBs > 0 || $paidUsd > 0) {
+                if ($accountId <= 0) {
+                    throw new \InvalidArgumentException('Selecciona la cuenta donde ingresará el pago.');
+                }
+                $account = $accountModel->find($accountId);
+                if (!$account) {
+                    throw new \InvalidArgumentException('La cuenta seleccionada ya no está disponible.');
+                }
+            }
+
+            $customerName = trim((string) ($payload['customer_name'] ?? ''));
+            $customerName = $customerName !== '' ? mb_substr($customerName, 0, 255) : 'Cliente';
             $status = 'pending';
-            $totalAsUsd = $totalUsd; 
-            $paidAsUsd = $paidUsd + ($paidBs / ($rate ?? 1));
-            
-            if ($paidAsUsd >= ($totalAsUsd - 0.05)) {
+            if ($paidAsBs > 0 && $paidAsBs >= ($totalBs - 0.01)) {
                 $status = 'paid';
-            } elseif ($paidAsUsd > 0) {
+            } elseif ($paidAsBs > 0) {
                 $status = 'partial';
             }
 
-            // 3. Create Print Order
-            $builder = $db->table('print_orders');
+            $db->transBegin();
+            $transactionStarted = true;
+
             $orderData = [
-                'customer_name' => $json->customer_name ?: 'Cliente',
-                'details' => json_encode($details),
+                'customer_name' => $customerName,
+                'details' => json_encode($details, JSON_UNESCAPED_UNICODE),
                 'total_bs' => $totalBs,
                 'total_usd' => $totalUsd,
                 'paid_bs' => $paidBs,
                 'paid_usd' => $paidUsd,
                 'status' => $status,
-                'created_at' => date('Y-m-d H:i:s')
+                'created_at' => date('Y-m-d H:i:s'),
             ];
-            $builder->insert($orderData);
-            $orderId = $db->insertID();
-
-            if (!$orderId) {
-                $error = $db->error();
-                throw new \Exception('Error al crear orden: ' . ($error['message'] ?? 'Desconocido'));
+            if (!$db->table('print_orders')->insert($orderData)) {
+                throw new \RuntimeException('No se pudo crear la orden.');
+            }
+            $orderId = (int) $db->insertID();
+            if ($orderId <= 0) {
+                throw new \RuntimeException('No se pudo obtener el número de la orden.');
             }
 
-            // AUDIT LOG
-            AuditLogModel::log('printing', 'create_order', $orderId, null, $orderData, null, "Nueva Venta Rápida #$orderId");
+            $this->rememberCustomer($db, $customerName);
+            $transactionId = null;
+            if ($account) {
+                $categoryId = $this->getPrintingCategoryId($db);
+                $description = mb_substr(
+                    'Impresiones #' . $orderId . ' - ' . $customerName . ' - ' . implode(', ', $summary),
+                    0,
+                    255
+                );
+                $transactionId = (new TransactionModel())->insert([
+                    'account_id' => $accountId,
+                    'category_id' => $categoryId,
+                    'print_order_id' => $orderId,
+                    'amount' => $paidBs,
+                    'amount_usd' => $paidUsd,
+                    'exchange_rate' => $rate,
+                    'type' => 'income',
+                    'owner' => 'Negocio',
+                    'description' => $description,
+                    'created_at' => date('Y-m-d H:i:s'),
+                ], true);
+                if (!$transactionId) {
+                    throw new \RuntimeException('No se pudo registrar el ingreso de la orden.');
+                }
 
-            // 4. Register Transaction (If Money Entered)
-            if (($paidBs > 0 || $paidUsd > 0) && !empty($json->account_id)) {
-                 $account = $accountModel->find($json->account_id);
-                 if ($account) {
-                     $desc = "Venta #$orderId - " . ($json->customer_name ?: 'Cliente') . " - {$qty}x {$json->product_name}";
-                     
-                     // Get Category (Safe Fallback)
-                     $setting = $db->table('settings')->where('key', 'default_print_category')->get()->getRowArray();
-                     $catId = $setting ? $setting['value'] : 3;
-                     
-                     // Verify category exists
-                     $checkCat = $db->table('categories')->where('id', $catId)->countAllResults();
-                     if ($checkCat == 0) {
-                         $firstCat = $db->table('categories')->limit(1)->get()->getRowArray();
-                         $catId = $firstCat ? $firstCat['id'] : 0;
-                     }
-
-                     $transData = [
-                        'account_id' => $json->account_id,
-                        'category_id' => $catId, 
-                        'print_order_id' => $orderId,
-                        'amount' => $paidBs,
-                        'amount_usd' => $paidUsd,
-                        'exchange_rate' => $rate,
-                        'type' => 'income',
-                        'owner' => 'Negocio',
-                        'description' => $desc,
-                        'created_at' => date('Y-m-d H:i:s')
-                    ];
-
-                    $transModel->insert($transData);
-                    $transId = $transModel->getInsertID();
-
-                    // Link Transaction
-                    $db->table('print_orders')->where('id', $orderId)->update(['transaction_id' => $transId]);
-
-                    // Update Balance
-                    $amountToAdd = 0;
-                    $itemCurrency = $account['currency'] ?? 'Bs';
-                     if ($itemCurrency === 'USD') {
-                        $amountToAdd = $paidUsd + ($paidBs / $rate);
-                    } else {
-                        $amountToAdd = $paidBs + ($paidUsd * $rate);
-                    }
-                    $accountModel->update($json->account_id, ['balance' => $account['balance'] + $amountToAdd]);
-                 }
+                $db->table('print_orders')->where('id', $orderId)->update(['transaction_id' => $transactionId]);
+                $amountToAdd = ($account['currency'] ?? 'Bs') === 'USD'
+                    ? $paidUsd + ($paidBs / $rate)
+                    : $paidBs + ($paidUsd * $rate);
+                if (!$accountModel->update($accountId, [
+                    'balance' => round((float) $account['balance'] + $amountToAdd, 2),
+                ])) {
+                    throw new \RuntimeException('No se pudo actualizar el saldo de la cuenta.');
+                }
             }
-
-            $db->transComplete();
 
             if ($db->transStatus() === false) {
-                $error = $db->error();
-                $errMsg = $error['message'] ?? 'Error desconocido';
-                log_message('error', '[Printing::store] Transacción fallida: ' . $errMsg);
-                throw new \Exception('Error al confirmar la transacción: ' . $errMsg);
+                throw new \RuntimeException('La base de datos rechazó la operación.');
+            }
+            $db->transCommit();
+            $transactionStarted = false;
+
+            AuditLogModel::log('printing', 'create_order', $orderId, null, $orderData, [
+                'transaction_id' => $transactionId,
+                'items_count' => count($items),
+            ], "Nueva orden de impresión #{$orderId}");
+
+            return $this->response->setJSON([
+                'status' => 'success',
+                'message' => 'Orden registrada correctamente.',
+                'order_id' => $orderId,
+            ]);
+        } catch (\Throwable $e) {
+            if ($transactionStarted) {
+                $db->transRollback();
+            }
+            log_message('error', '[Printing::store] ' . $e->getMessage());
+            return $this->orderError(
+                $e->getMessage(),
+                $e instanceof \InvalidArgumentException ? 422 : 500
+            );
+        }
+    }
+
+    private function prepareOrderItems($db, array $requestedItems, float $rate): array
+    {
+        $items = [];
+        $productIds = [];
+        foreach ($requestedItems as $item) {
+            $productId = (int) ($item['id'] ?? 0);
+            $quantity = (int) ($item['quantity'] ?? 0);
+            if ($productId <= 0 || $quantity <= 0 || $quantity > 999) {
+                throw new \InvalidArgumentException('Hay un servicio o una cantidad no válida en la orden.');
+            }
+            $items[] = [
+                'id' => $productId,
+                'quantity' => $quantity,
+                'note' => mb_substr(trim((string) ($item['note'] ?? '')), 0, 180),
+            ];
+            $productIds[] = $productId;
+        }
+
+        $products = $db->table('print_products')
+            ->whereIn('id', array_values(array_unique($productIds)))
+            ->get()->getResultArray();
+        $productsById = [];
+        foreach ($products as $product) {
+            $productsById[(int) $product['id']] = $product;
+        }
+
+        $totalBs = 0.0;
+        $totalUsd = 0.0;
+        $details = [];
+        $summary = [];
+        foreach ($items as $item) {
+            if (!isset($productsById[$item['id']])) {
+                throw new \InvalidArgumentException('Uno de los servicios ya no existe. Actualiza la página e intenta nuevamente.');
+            }
+            $product = $productsById[$item['id']];
+            $priceBs = (float) $product['price_bs'];
+            $priceUsd = (float) $product['price_usd'];
+            if ($priceBs <= 0 && $priceUsd <= 0) {
+                throw new \InvalidArgumentException("El servicio {$product['name']} no tiene un precio válido.");
             }
 
-            return $this->response->setJSON(['status' => 'success', 'message' => 'Registrado']);
-
-        } catch (\Exception $e) {
-            log_message('error', '[Printing::store] Excepción: ' . $e->getMessage());
-            return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
+            if ($priceBs > 0) {
+                $lineBs = $priceBs * $item['quantity'];
+                $lineUsd = $lineBs / $rate;
+            } else {
+                $lineUsd = $priceUsd * $item['quantity'];
+                $lineBs = $lineUsd * $rate;
+            }
+            $totalBs += $lineBs;
+            $totalUsd += $lineUsd;
+            $note = $item['note'] !== '' ? " ({$item['note']})" : '';
+            $details[] = "{$item['quantity']}x {$product['name']}{$note}";
+            $summary[] = "{$item['quantity']}x {$product['name']}";
         }
+
+        return [$items, round($totalBs, 2), round($totalUsd, 2), $details, $summary];
+    }
+
+    private function rememberCustomer($db, string $customerName): void
+    {
+        if ($customerName === 'Cliente') {
+            return;
+        }
+        $customer = $db->table('customers')->where('name', $customerName)->get()->getRowArray();
+        if ($customer) {
+            $db->table('customers')->where('id', $customer['id'])->update(['updated_at' => date('Y-m-d H:i:s')]);
+            return;
+        }
+        $db->table('customers')->insert([
+            'name' => $customerName,
+            'is_favorite' => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    private function getPrintingCategoryId($db): int
+    {
+        $setting = $db->table('settings')->where('key', 'default_print_category')->get()->getRowArray();
+        $categoryId = (int) ($setting['value'] ?? 0);
+        if ($categoryId > 0 && $db->table('categories')->where('id', $categoryId)->countAllResults() > 0) {
+            return $categoryId;
+        }
+        $category = $db->table('categories')->select('id')->limit(1)->get()->getRowArray();
+        $categoryId = (int) ($category['id'] ?? 0);
+        if ($categoryId <= 0) {
+            throw new \RuntimeException('Configura una categoría para los ingresos de impresiones.');
+        }
+        return $categoryId;
+    }
+
+    private function orderError(string $message, int $statusCode)
+    {
+        return $this->response->setStatusCode($statusCode)->setJSON([
+            'status' => 'error',
+            'message' => $message,
+        ]);
     }
 
     public function getHistory() {
         $db = \Config\Database::connect();
-        $orders = $db->table('print_orders')->orderBy('created_at', 'DESC')->get()->getResultArray();
-        return $this->response->setJSON(['status' => 'success', 'data' => $orders]);
+        $openOrders = $db->table('print_orders')
+            ->whereIn('status', ['pending', 'partial'])
+            ->orderBy('created_at', 'DESC')
+            ->get()->getResultArray();
+        $recentPaidOrders = $db->table('print_orders')
+            ->where('status', 'paid')
+            ->orderBy('created_at', 'DESC')
+            ->limit(200)
+            ->get()->getResultArray();
+
+        $ordersById = [];
+        foreach (array_merge($openOrders, $recentPaidOrders) as $order) {
+            $ordersById[(int) $order['id']] = $order;
+        }
+        $orders = array_values($ordersById);
+        usort($orders, static fn ($left, $right) => strcmp($right['created_at'], $left['created_at']));
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'data' => $orders,
+            'meta' => ['paid_limit' => 200],
+        ]);
     }
 
     public function getMovements()
