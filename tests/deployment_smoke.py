@@ -93,7 +93,11 @@ assert float(saved_order['total_bs']) == 4
 assert json.loads(saved_order['details']) == [f'2x Copia B/N ({tag})']
 request('printing/toggle-favorite', {'name': tag, 'favorite': True})
 customers = request('printing/customers?term=' + urllib.parse.quote(tag))['data']
-assert any(c['name'] == tag and int(c['is_favorite']) == 1 for c in customers)
+saved_customer = next(c for c in customers if c['name'] == tag)
+assert int(saved_customer['is_favorite']) == 1
+assert int(saved_customer['order_count']) >= 1
+customer_orders = request('printing/customer-orders?name=' + urllib.parse.quote(tag))['data']
+assert any(int(order['id']) == int(printing_order['order_id']) for order in customer_orders)
 conversation = request('ai/save-conversation', {
     'title': tag, 'messages': [{'role': 'user', 'content': 'Deployment test'}]})
 request('ai/conversation/' + str(conversation['id']))

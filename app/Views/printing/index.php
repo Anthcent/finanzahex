@@ -461,22 +461,84 @@
             <div class="space-y-4">
                 <!-- Customer Name Autocomplete -->
                 <div>
-                    <label class="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Cliente / Nota</label>
-                    <div class="relative group">
-                        <input type="text" x-model="customer_name" @input="searchCustomers()" @focus="customerSuggestions.show = true" @click.away="customerSuggestions.show = false" class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-4 pr-10 py-3 font-bold text-slate-800 outline-none focus:border-emerald-500 text-sm" placeholder="Opcional (Ej. Juan Pérez)">
-                        <button @click="toggleFavorite()" class="absolute right-3 top-3 text-slate-300 hover:text-amber-400 transition-colors" :class="isFavorite ? 'text-amber-400' : ''" title="Marcar como frecuente">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-[11px] font-black text-slate-500 uppercase tracking-wider">Cliente</label>
+                        <button type="button" @click="$refs.customerInput.focus(); openCustomerPicker()" class="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors">
+                            <span class="material-icons text-sm">people</span>
+                            Buscar clientes
+                        </button>
+                    </div>
+                    <div class="relative group" @click.outside="customerSuggestions.show = false">
+                        <span class="material-icons absolute left-3.5 top-3 text-slate-400 text-lg">person_search</span>
+                        <input x-ref="customerInput" type="text" x-model="customer_name" @input="queueCustomerSearch()" @focus="openCustomerPicker()" @keydown.enter.prevent="chooseFirstCustomer()" @keydown.escape="customerSuggestions.show = false" autocomplete="off" class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-11 pr-11 py-3 font-bold text-slate-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-sm" placeholder="Escribe o selecciona un cliente">
+                        <button type="button" x-show="customer_name" @click="toggleFavorite()" class="absolute right-3 top-3 text-slate-300 hover:text-amber-400 transition-colors" :class="isFavorite ? 'text-amber-400' : ''" title="Guardar como cliente frecuente">
                             <span class="material-icons text-xl" x-text="isFavorite ? 'star' : 'star_border'"></span>
                         </button>
-                        
+
                         <!-- Suggestions Dropdown -->
-                        <div x-show="customerSuggestions.show && customerSuggestions.list.length > 0" class="absolute top-full left-0 right-0 bg-white shadow-xl rounded-2xl border border-slate-100 mt-1 max-h-40 overflow-y-auto z-50 customize-scrollbar">
-                            <template x-for="cust in customerSuggestions.list" :key="cust.id">
-                                <div @click="selectCustomer(cust)" class="px-4 py-2.5 hover:bg-emerald-50 cursor-pointer flex justify-between items-center transition-colors">
-                                    <span class="font-bold text-slate-700 text-xs" x-text="cust.name"></span>
-                                    <span x-show="cust.is_favorite == 1" class="material-icons text-xs text-amber-400">star</span>
-                                </div>
+                        <div x-show="customerSuggestions.show" x-cloak class="absolute top-full left-0 right-0 bg-white shadow-2xl rounded-2xl border border-slate-200 mt-1.5 max-h-72 overflow-y-auto z-50 customize-scrollbar">
+                            <div class="sticky top-0 bg-white/95 backdrop-blur-sm px-3.5 py-2 border-b border-slate-100 flex items-center justify-between">
+                                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400" x-text="customer_name.trim() ? 'Resultados' : 'Frecuentes y recientes'"></span>
+                                <span class="text-[10px] font-bold text-slate-400" x-show="!customerSuggestions.loading" x-text="customerSuggestions.list.length + ' clientes'"></span>
+                            </div>
+                            <div x-show="customerSuggestions.loading" class="px-4 py-5 text-center text-xs font-bold text-slate-400">
+                                <span class="material-icons animate-spin text-base align-middle mr-1">refresh</span> Buscando...
+                            </div>
+                            <template x-for="cust in customerSuggestions.list" :key="cust.key || cust.name">
+                                <button type="button" @click="selectCustomer(cust)" class="w-full px-3.5 py-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center gap-3 transition-colors border-b border-slate-50 last:border-0 text-left">
+                                    <div class="flex items-center gap-2.5 min-w-0">
+                                        <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-black text-xs shrink-0" x-text="customerInitials(cust.name)"></div>
+                                        <div class="min-w-0">
+                                            <div class="flex items-center gap-1">
+                                                <span class="font-black text-slate-800 text-xs truncate" x-text="cust.name"></span>
+                                                <span x-show="cust.is_favorite == 1" class="material-icons text-sm text-amber-400">star</span>
+                                            </div>
+                                            <p class="text-[10px] text-slate-400 font-bold mt-0.5" x-text="cust.last_order_at ? 'Última compra ' + formatCustomerDate(cust.last_order_at) : 'Cliente guardado'"></p>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col items-end gap-1 shrink-0">
+                                        <span x-show="cust.order_count > 0" class="text-[9px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg" x-text="cust.order_count + (cust.order_count == 1 ? ' orden' : ' órdenes')"></span>
+                                        <span x-show="cust.open_orders > 0" class="text-[9px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg" x-text="cust.open_orders + (cust.open_orders == 1 ? ' pendiente' : ' pendientes')"></span>
+                                    </div>
+                                </button>
                             </template>
+                            <div x-show="!customerSuggestions.loading && customerSuggestions.list.length === 0" class="px-5 py-6 text-center">
+                                <span class="material-icons text-2xl text-slate-300">person_add</span>
+                                <p class="text-xs font-black text-slate-500 mt-1">No encontramos ese nombre</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Puedes continuar y se guardará al registrar la orden.</p>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Compact customer history -->
+                    <div x-show="customerProfile.name" x-cloak class="mt-2.5 rounded-2xl border overflow-hidden" :class="customerOpenOrders > 0 ? 'bg-rose-50/40 border-rose-100' : 'bg-slate-50 border-slate-200'">
+                        <div class="px-3.5 py-2.5 flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Historial del cliente</p>
+                                <p class="text-xs font-black text-slate-800 truncate mt-0.5" x-text="customerProfile.name"></p>
+                            </div>
+                            <div x-show="customerProfile.loading" class="text-[10px] font-bold text-slate-400"><span class="material-icons animate-spin text-sm align-middle">refresh</span></div>
+                            <div x-show="!customerProfile.loading" class="text-right shrink-0">
+                                <p class="text-[10px] font-black text-slate-500" x-text="customerProfile.totalOrders + (customerProfile.totalOrders === 1 ? ' orden registrada' : ' órdenes registradas')"></p>
+                                <p x-show="customerOpenOrders > 0" class="text-[10px] font-black text-rose-600" x-text="'Pendiente: Bs. ' + customerDebtBs.toFixed(2)"></p>
+                            </div>
+                        </div>
+                        <div x-show="!customerProfile.loading && customerProfile.orders.length > 0" class="border-t border-slate-200/70 bg-white/70">
+                            <template x-for="order in customerPreviewOrders" :key="order.id">
+                                <button type="button" @click="openOrderDetails(order)" class="w-full px-3.5 py-2.5 flex items-center justify-between gap-3 text-left hover:bg-white transition-colors border-b border-slate-100 last:border-0">
+                                    <div class="min-w-0">
+                                        <p class="text-[10px] font-black text-slate-700" x-text="'Orden #' + order.id + ' · ' + formatCustomerDate(order.created_at)"></p>
+                                        <p class="text-[9px] text-slate-400 truncate mt-0.5" x-text="parseDetails(order.details).join(' · ')"></p>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <p class="text-[10px] font-black text-slate-800" x-text="'Bs. ' + Number(order.total_bs).toFixed(2)"></p>
+                                        <span class="text-[9px] font-black" :class="order.status === 'paid' ? 'text-emerald-600' : 'text-rose-600'" x-text="order.status === 'paid' ? 'Pagada' : 'Pendiente'"></span>
+                                    </div>
+                                </button>
+                            </template>
+                            <button type="button" x-show="customerProfile.orders.length > 3" @click="customerProfile.expanded = !customerProfile.expanded" class="w-full py-2 text-[10px] font-black text-emerald-700 hover:bg-emerald-50" x-text="customerProfile.expanded ? 'Mostrar menos' : 'Ver más órdenes'"></button>
+                        </div>
+                        <div x-show="!customerProfile.loading && customerProfile.orders.length === 0" class="px-3.5 pb-3 text-[10px] font-bold text-slate-400">Todavía no tiene órdenes registradas.</div>
                     </div>
                 </div>
 
@@ -718,7 +780,10 @@
                 detailsModal: { open: false, order: null, items: [], transactions: [], loading: false },
                 editModal: { open: false, id: null, customer_name: '', status: '' },
                 
-                customerSuggestions: { show: false, list: [] }, isFavorite: false,
+                customerSuggestions: { show: false, list: [], loading: false },
+                customerProfile: { name: '', orders: [], totalOrders: 0, loading: false, expanded: false },
+                customerSearchTimer: null, customerRequestId: 0, customerProfileRequestId: 0,
+                isFavorite: false,
                 searchQuery: '', historySearch: '', historyFilter: 'all',
 
                 init() {
@@ -903,6 +968,8 @@
                         if(data.status === 'success') { 
                             this.cart = []; 
                             this.customer_name = ''; 
+                            this.customerProfile = { name: '', orders: [], totalOrders: 0, loading: false, expanded: false };
+                            this.isFavorite = false;
                             this.paidBs = 0; 
                             this.paidUsd = 0; 
                             this.paymentMode = 'full';
@@ -1092,29 +1159,118 @@
                     return c === 'Bs' ? dBs.toFixed(2) : dUsd.toFixed(2); 
                 },
 
-                async searchCustomers() { 
-                    if(this.customer_name.length < 2) { 
-                        this.customerSuggestions.list = []; 
-                        return; 
-                    } 
-                    try { 
-                        let res = await fetch('<?= base_url('printing/customers') ?>?term=' + encodeURIComponent(this.customer_name)); 
-                        let data = await res.json(); 
-                        if(data.status === 'success') this.customerSuggestions.list = data.data; 
-                    } catch(e){} 
+                openCustomerPicker() {
+                    this.customerSuggestions.show = true;
+                    this.searchCustomers(this.customer_name);
                 },
-                selectCustomer(c) { 
-                    this.customer_name = c.name; 
-                    this.isFavorite = (c.is_favorite == 1); 
-                    this.customerSuggestions.show = false; 
+
+                queueCustomerSearch() {
+                    this.customerSuggestions.show = true;
+                    this.isFavorite = false;
+                    if (this.customerProfile.name !== this.customer_name.trim()) {
+                        this.customerProfile = { name: '', orders: [], totalOrders: 0, loading: false, expanded: false };
+                    }
+                    clearTimeout(this.customerSearchTimer);
+                    this.customerSuggestions.loading = true;
+                    this.customerSearchTimer = setTimeout(() => this.searchCustomers(this.customer_name), 220);
                 },
-                async toggleFavorite() { 
-                    this.isFavorite = !this.isFavorite; 
-                    if(this.customer_name) {
-                        await fetch('<?= base_url('printing/toggle-favorite') ?>', { 
-                            method: 'POST', 
-                            body: JSON.stringify({ name: this.customer_name, favorite: this.isFavorite }) 
-                        }); 
+
+                async searchCustomers(term = '') {
+                    let requestId = ++this.customerRequestId;
+                    this.customerSuggestions.loading = true;
+                    try {
+                        let res = await fetch('<?= base_url('printing/customers') ?>?term=' + encodeURIComponent(term.trim()));
+                        let data = await res.json();
+                        if (requestId === this.customerRequestId && data.status === 'success') {
+                            this.customerSuggestions.list = data.data;
+                        }
+                    } catch(e) {
+                        if (requestId === this.customerRequestId) this.customerSuggestions.list = [];
+                    } finally {
+                        if (requestId === this.customerRequestId) this.customerSuggestions.loading = false;
+                    }
+                },
+
+                selectCustomer(c) {
+                    this.customer_name = c.name;
+                    this.isFavorite = Number(c.is_favorite) === 1;
+                    this.customerSuggestions.show = false;
+                    this.loadCustomerHistory(c.name);
+                },
+
+                chooseFirstCustomer() {
+                    if (this.customerSuggestions.loading) return;
+                    let typedName = this.customer_name.trim().toLowerCase();
+                    let exactMatch = this.customerSuggestions.list.find(customer => customer.name.toLowerCase() === typedName);
+                    if (exactMatch) this.selectCustomer(exactMatch);
+                },
+
+                async loadCustomerHistory(name) {
+                    let customerName = (name || '').trim();
+                    if (!customerName) {
+                        this.customerProfile = { name: '', orders: [], totalOrders: 0, loading: false, expanded: false };
+                        return;
+                    }
+                    let requestId = ++this.customerProfileRequestId;
+                    this.customerProfile = { name: customerName, orders: [], totalOrders: 0, loading: true, expanded: false };
+                    try {
+                        let res = await fetch('<?= base_url('printing/customer-orders') ?>?name=' + encodeURIComponent(customerName));
+                        let data = await res.json();
+                        if (requestId === this.customerProfileRequestId && data.status === 'success') {
+                            this.customerProfile.orders = data.data;
+                            this.customerProfile.totalOrders = Number(data.meta?.order_count || data.data.length);
+                        }
+                    } catch (e) {
+                        if (requestId === this.customerProfileRequestId) this.customerProfile.orders = [];
+                    } finally {
+                        if (requestId === this.customerProfileRequestId) this.customerProfile.loading = false;
+                    }
+                },
+
+                customerInitials(name) {
+                    return (name || '').trim().split(/\s+/).slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase() || '?';
+                },
+
+                formatCustomerDate(value) {
+                    if (!value) return '';
+                    let date = value.toString().slice(0, 10).split('-');
+                    return date.length === 3 ? date[2] + '/' + date[1] + '/' + date[0].slice(2) : value;
+                },
+
+                get customerPreviewOrders() {
+                    return this.customerProfile.expanded ? this.customerProfile.orders : this.customerProfile.orders.slice(0, 3);
+                },
+
+                get customerOpenOrders() {
+                    return this.customerProfile.orders.filter(order => order.status !== 'paid').length;
+                },
+
+                get customerDebtBs() {
+                    return this.customerProfile.orders.reduce((total, order) => {
+                        return total + (order.status === 'paid' ? 0 : Number(this.calculateDebt(order, 'Bs')));
+                    }, 0);
+                },
+
+                async toggleFavorite() {
+                    let name = this.customer_name.trim();
+                    if (!name) return;
+                    let nextValue = !this.isFavorite;
+                    try {
+                        let res = await fetch('<?= base_url('printing/toggle-favorite') ?>', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name, favorite: nextValue })
+                        });
+                        let data = await res.json();
+                        if (data.status === 'success') {
+                            this.isFavorite = nextValue;
+                            let customer = this.customerSuggestions.list.find(item => item.name.toLowerCase() === name.toLowerCase());
+                            if (customer) customer.is_favorite = nextValue ? 1 : 0;
+                            this.message = nextValue ? 'Cliente guardado como frecuente' : 'Cliente removido de frecuentes';
+                            setTimeout(() => this.message = '', 2200);
+                        }
+                    } catch (e) {
+                        this.checkoutError = 'No se pudo actualizar el cliente frecuente.';
                     }
                 }
             }

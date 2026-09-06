@@ -67,34 +67,148 @@ class PrintingController extends BaseController
     public function getCustomers()
     {
         $db = \Config\Database::connect();
-        $term = $this->request->getVar('term');
-        
-        $builder = $db->table('customers');
-        if ($term) {
-            $builder->like('name', $term);
+        $term = trim((string) $this->request->getGet('term'));
+
+        $customerBuilder = $db->table('customers');
+        if ($term !== '') {
+            $customerBuilder->like('name', $term, 'both', null, true);
         }
-        
-        // Prioritize favorites
-        $customers = $builder->orderBy('is_favorite', 'DESC')
-                             ->orderBy('name', 'ASC')
-                             ->limit(20)
-                             ->get()->getResultArray();
-                             
-        return $this->response->setJSON(['status' => 'success', 'data' => $customers]);
+        $savedCustomers = $customerBuilder
+            ->orderBy('is_favorite', 'DESC')
+            ->orderBy('updated_at', 'DESC')
+            ->limit(30)
+            ->get()->getResultArray();
+
+        $historyBuilder = $db->table('print_orders')
+            ->select("customer_name AS name, COUNT(*) AS order_count, SUM(CASE WHEN status <> 'paid' THEN 1 ELSE 0 END) AS open_orders, MAX(created_at) AS last_order_at", false)
+            ->where('customer_name IS NOT NULL', null, false)
+            ->where('customer_name !=', '')
+            ->where('customer_name !=', 'Cliente');
+        if ($term !== '') {
+            $historyBuilder->like('customer_name', $term, 'both', null, true);
+        }
+        $historicalCustomers = $historyBuilder
+            ->groupBy('customer_name')
+            ->orderBy('last_order_at', 'DESC')
+            ->limit(30)
+            ->get()->getResultArray();
+
+        $customersByName = [];
+        foreach ($savedCustomers as $customer) {
+            $key = mb_strtolower(trim($customer['name']), 'UTF-8');
+            $customersByName[$key] = [
+                'key' => $key,
+                'id' => $customer['id'],
+                'name' => $customer['name'],
+                'is_favorite' => (int) $customer['is_favorite'],
+                'order_count' => 0,
+                'open_orders' => 0,
+                'last_order_at' => null,
+            ];
+        }
+        foreach ($historicalCustomers as $customer) {
+            $key = mb_strtolower(trim($customer['name']), 'UTF-8');
+            if (!isset($customersByName[$key])) {
+                $customersByName[$key] = [
+                    'key' => $key,
+                    'id' => null,
+                    'name' => $customer['name'],
+                    'is_favorite' => 0,
+                ];
+            }
+            $customersByName[$key]['order_count'] = (int) $customer['order_count'];
+            $customersByName[$key]['open_orders'] = (int) $customer['open_orders'];
+            $customersByName[$key]['last_order_at'] = $customer['last_order_at'];
+        }
+
+        $normalizedTerm = mb_strtolower($term, 'UTF-8');
+        $customers = array_values($customersByName);
+        usort($customers, static function ($left, $right) use ($normalizedTerm) {
+            if ($normalizedTerm !== '') {
+                $leftName = mb_strtolower($left['name'], 'UTF-8');
+                $rightName = mb_strtolower($right['name'], 'UTF-8');
+                $leftRank = $leftName === $normalizedTerm ? 0 : (strpos($leftName, $normalizedTerm) === 0 ? 1 : 2);
+                $rightRank = $rightName === $normalizedTerm ? 0 : (strpos($rightName, $normalizedTerm) === 0 ? 1 : 2);
+                if ($leftRank !== $rightRank) {
+                    return $leftRank <=> $rightRank;
+                }
+            }
+            if ($left['is_favorite'] !== $right['is_favorite']) {
+                return $right['is_favorite'] <=> $left['is_favorite'];
+            }
+            if ($left['open_orders'] !== $right['open_orders']) {
+                return $right['open_orders'] <=> $left['open_orders'];
+            }
+            return strcmp((string) $right['last_order_at'], (string) $left['last_order_at']);
+        });
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'data' => array_slice($customers, 0, 20),
+        ]);
+    }
+
+    public function getCustomerOrders()
+    {
+        $name = trim((string) $this->request->getGet('name'));
+        if ($name === '') {
+            return $this->orderError('Selecciona un cliente para consultar sus órdenes.', 422);
+        }
+
+        $db = \Config\Database::connect();
+        $columns = 'id, customer_name, details, total_bs, total_usd, paid_bs, paid_usd, status, created_at ';
+        $openOrders = $db->query(
+            'SELECT ' . $columns . 'FROM print_orders WHERE LOWER(customer_name) = LOWER(?) '
+            . "AND status <> 'paid' ORDER BY created_at DESC",
+            [mb_substr($name, 0, 255)]
+        )->getResultArray();
+        $recentPaidOrders = $db->query(
+            'SELECT ' . $columns . 'FROM print_orders WHERE LOWER(customer_name) = LOWER(?) '
+            . "AND status = 'paid' ORDER BY created_at DESC LIMIT 12",
+            [mb_substr($name, 0, 255)]
+        )->getResultArray();
+
+        $ordersById = [];
+        foreach (array_merge($openOrders, $recentPaidOrders) as $order) {
+            $ordersById[(int) $order['id']] = $order;
+        }
+        $orders = array_values($ordersById);
+        usort($orders, static fn ($left, $right) => strcmp($right['created_at'], $left['created_at']));
+
+        $stats = $db->query(
+            "SELECT COUNT(*) AS order_count, SUM(CASE WHEN status <> 'paid' THEN 1 ELSE 0 END) AS open_orders "
+            . 'FROM print_orders WHERE LOWER(customer_name) = LOWER(?)',
+            [mb_substr($name, 0, 255)]
+        )->getRowArray();
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'data' => $orders,
+            'meta' => [
+                'customer_name' => $name,
+                'order_count' => (int) ($stats['order_count'] ?? 0),
+                'open_orders' => (int) ($stats['open_orders'] ?? 0),
+            ],
+        ]);
     }
 
     public function toggleFavorite()
     {
-        $json = $this->request->getJSON();
-        $name = trim($json->name);
-        $favorite = $json->favorite ? 1 : 0;
-        
+        $payload = $this->request->getJSON(true);
+        $name = mb_substr(trim((string) ($payload['name'] ?? '')), 0, 255);
+        if ($name === '') {
+            return $this->orderError('Escribe o selecciona un cliente.', 422);
+        }
+        $favorite = !empty($payload['favorite']) ? 1 : 0;
+
         $db = \Config\Database::connect();
-        // Check if exists
-        $exists = $db->table('customers')->where('name', $name)->get()->getRow();
-        
+        $exists = $this->findCustomerByName($db, $name);
+
         if ($exists) {
-            $db->table('customers')->where('id', $exists->id)->update(['is_favorite' => $favorite, 'updated_at' => date('Y-m-d H:i:s')]);
+            $db->table('customers')->where('id', $exists['id'])->update([
+                'is_favorite' => $favorite,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
         } else {
             $db->table('customers')->insert([
                 'name' => $name,
@@ -106,15 +220,6 @@ class PrintingController extends BaseController
         
         return $this->response->setJSON(['status' => 'success']);
     }
-
-    // ... (settings, store methods need Update to sync customers table - done below implicitly or need explicit hook?)
-    // Actually, let's update `store` to save customer name too logic is better in `store`.
-    // I will assume `store` remains as is for now, but I should add the logic to "Upsert" customer there too if needed,
-    // or rely on the frontend calling `toggleFavorite` explicitly. 
-    // BUT the user wants "Suggestions", so populate table on Store is good practice.
-    
-    // I'll stick to replacing the END of the file for now to add the new Delete Transaction logic 
-    // and rely on a separate call or check for customer saving for now to be safe.
 
     public function deleteTransaction($id)
     {
@@ -477,7 +582,7 @@ class PrintingController extends BaseController
         if ($customerName === 'Cliente') {
             return;
         }
-        $customer = $db->table('customers')->where('name', $customerName)->get()->getRowArray();
+        $customer = $this->findCustomerByName($db, $customerName);
         if ($customer) {
             $db->table('customers')->where('id', $customer['id'])->update(['updated_at' => date('Y-m-d H:i:s')]);
             return;
@@ -488,6 +593,16 @@ class PrintingController extends BaseController
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
+    }
+
+    private function findCustomerByName($db, string $name): ?array
+    {
+        $customer = $db->query(
+            'SELECT * FROM customers WHERE LOWER(name) = LOWER(?) ORDER BY id ASC LIMIT 1',
+            [$name]
+        )->getRowArray();
+
+        return $customer ?: null;
     }
 
     private function getPrintingCategoryId($db): int
