@@ -21,6 +21,12 @@
         .customize-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
         [x-cloak] { display: none !important; }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 1rem); }
+        @media print {
+            body * { visibility: hidden; }
+            #debt-printable-ticket, #debt-printable-ticket * { visibility: visible; }
+            #debt-printable-ticket { position: fixed; left: 0; top: 0; width: 100%; max-width: 80mm; margin: 0 auto; padding: 10px; background: white; color: black; box-shadow: none; border: none; }
+            .no-print { display: none !important; }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-emerald-50/60 via-slate-50 to-teal-50/40 min-h-screen text-slate-800 antialiased selection:bg-emerald-500 selection:text-white" x-data="posApp()">
@@ -297,74 +303,252 @@
         </div>
 
         <!-- Debts Tab -->
-        <div x-show="tab === 'debts'">
-            <!-- Search Bar -->
-            <div class="mb-4 sticky top-18 z-30 bg-slate-50/90 backdrop-blur-md py-2">
-                <div class="relative">
-                    <span class="material-icons absolute left-3.5 top-3 text-slate-400 text-lg">search</span>
-                    <input type="text" x-model="searchQuery" placeholder="Buscar por cliente, detalle o número..." class="w-full bg-white border border-slate-200/90 rounded-2xl pl-10 pr-10 py-3 text-xs sm:text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 shadow-2xs">
-                    <button x-show="searchQuery" @click="searchQuery = ''" class="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600">
-                        <span class="material-icons text-sm">close</span>
+        <div x-show="tab === 'debts'" class="space-y-4">
+            <!-- Metrics Cards Header -->
+            <section class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                <div class="col-span-2 sm:col-span-1 bg-gradient-to-br from-rose-600 to-orange-500 text-white rounded-2xl p-3.5 shadow-sm">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-rose-100">Total por cobrar</p>
+                    <p class="text-xl sm:text-2xl font-black mt-1" x-text="'$' + formatUsd(debtMetrics.totalUsd)"></p>
+                    <p class="text-[10px] font-bold text-rose-100 mt-0.5" x-text="'Bs. ' + formatBs(debtMetrics.totalBs) + ' ref.'"></p>
+                </div>
+                <div class="bg-white rounded-2xl p-3 sm:p-3.5 border border-slate-200/80 shadow-2xs">
+                    <div class="flex items-center justify-between">
+                        <span class="material-icons text-amber-500 text-lg">receipt_long</span>
+                        <span class="text-[9px] font-black text-slate-400 uppercase">ÓRDENES</span>
+                    </div>
+                    <p class="text-xl sm:text-2xl font-black text-slate-900 mt-1" x-text="debtMetrics.count"></p>
+                    <p class="text-[10px] font-bold text-slate-400">créditos activos</p>
+                </div>
+                <div class="bg-white rounded-2xl p-3 sm:p-3.5 border border-slate-200/80 shadow-2xs">
+                    <div class="flex items-center justify-between">
+                        <span class="material-icons text-sky-600 text-lg">groups</span>
+                        <span class="text-[9px] font-black text-slate-400 uppercase">CLIENTES</span>
+                    </div>
+                    <p class="text-xl sm:text-2xl font-black text-slate-900 mt-1" x-text="debtMetrics.customers"></p>
+                    <p class="text-[10px] font-bold text-slate-400">con saldo abierto</p>
+                </div>
+                <div class="bg-white rounded-2xl p-3 sm:p-3.5 border shadow-2xs" :class="debtMetrics.overdue ? 'border-rose-200' : 'border-slate-200/80'">
+                    <div class="flex items-center justify-between">
+                        <span class="material-icons text-lg" :class="debtMetrics.overdue ? 'text-rose-600' : 'text-emerald-600'" x-text="debtMetrics.overdue ? 'notification_important' : 'event_available'"></span>
+                        <span class="text-[9px] font-black text-slate-400 uppercase">VENCIDAS</span>
+                    </div>
+                    <p class="text-xl sm:text-2xl font-black mt-1" :class="debtMetrics.overdue ? 'text-rose-600' : 'text-slate-900'" x-text="debtMetrics.overdue"></p>
+                    <p class="text-[10px] font-bold text-slate-400">plazo superado</p>
+                </div>
+            </section>
+
+            <!-- Search & Filters Toolbar -->
+            <section class="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-3.5 shadow-2xs space-y-3">
+                <div class="flex flex-col md:flex-row gap-2.5">
+                    <div class="relative flex-1 min-w-0">
+                        <span class="material-icons absolute left-3.5 top-2.5 text-slate-400 text-lg">search</span>
+                        <input x-ref="debtSearchInput" type="search" x-model="debtFilters.search" placeholder="Buscar cliente, servicio, teléfono, notas o # orden..." class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-9 text-xs sm:text-sm font-bold outline-none focus:bg-white focus:border-emerald-500">
+                        <button type="button" x-show="debtFilters.search" @click="debtFilters.search = ''" class="absolute right-2 top-2 w-6 h-6 rounded-lg text-slate-400 hover:bg-slate-200 flex items-center justify-center" title="Limpiar"><span class="material-icons text-sm">close</span></button>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 md:w-auto">
+                        <select x-model="debtFilters.age" class="h-10 bg-slate-50 border border-slate-200 rounded-xl px-2.5 text-[11px] font-black outline-none focus:border-emerald-500">
+                            <option value="all">Toda antigüedad</option>
+                            <option value="overdue">Vencidas</option>
+                            <option value="today">Vence hoy</option>
+                            <option value="due_soon">Vencen en 7 días</option>
+                            <option value="old">Más de 30 días</option>
+                            <option value="no_due">Sin fecha límite</option>
+                        </select>
+                        <select x-model="debtFilters.payment" class="h-10 bg-slate-50 border border-slate-200 rounded-xl px-2.5 text-[11px] font-black outline-none focus:border-emerald-500">
+                            <option value="all">Todos los pagos</option>
+                            <option value="none">Sin abonos</option>
+                            <option value="partial">Con abonos</option>
+                        </select>
+                        <select x-model="debtFilters.sort" class="col-span-2 sm:col-span-1 h-10 bg-slate-50 border border-slate-200 rounded-xl px-2.5 text-[11px] font-black outline-none focus:border-emerald-500">
+                            <option value="priority">Prioridad de cobro</option>
+                            <option value="amount_desc">Mayor deuda</option>
+                            <option value="oldest">Más antiguas</option>
+                            <option value="recent">Más recientes</option>
+                            <option value="customer">Por cliente (A-Z)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Quick Filter Pills -->
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 pt-0.5">
+                    <button type="button" @click="setDebtPill('all')" :class="isDebtPillActive('all') ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="h-7 px-2.5 rounded-lg text-[10px] font-black shrink-0 transition-all flex items-center gap-1.5">
+                        <span>Todas</span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded-full" :class="isDebtPillActive('all') ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'" x-text="orders.filter(o => o.status !== 'paid').length"></span>
                     </button>
+                    <button type="button" @click="setDebtPill('overdue')" :class="isDebtPillActive('overdue') ? 'bg-rose-600 text-white shadow-xs' : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/60'" class="h-7 px-2.5 rounded-lg text-[10px] font-black shrink-0 transition-all flex items-center gap-1">
+                        <span class="material-icons text-xs">warning</span>
+                        <span>Vencidas</span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded-full" :class="isDebtPillActive('overdue') ? 'bg-white/20 text-white' : 'bg-rose-200 text-rose-800'" x-text="debtPillCounts.overdue"></span>
+                    </button>
+                    <button type="button" @click="setDebtPill('today')" :class="isDebtPillActive('today') ? 'bg-orange-500 text-white shadow-xs' : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200/60'" class="h-7 px-2.5 rounded-lg text-[10px] font-black shrink-0 transition-all flex items-center gap-1">
+                        <span class="material-icons text-xs">bolt</span>
+                        <span>Vence Hoy</span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded-full" :class="isDebtPillActive('today') ? 'bg-white/20 text-white' : 'bg-orange-200 text-orange-800'" x-text="debtPillCounts.today"></span>
+                    </button>
+                    <button type="button" @click="setDebtPill('due_soon')" :class="isDebtPillActive('due_soon') ? 'bg-amber-500 text-white shadow-xs' : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200/60'" class="h-7 px-2.5 rounded-lg text-[10px] font-black shrink-0 transition-all flex items-center gap-1">
+                        <span class="material-icons text-xs">schedule</span>
+                        <span>Próx. 7 días</span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded-full" :class="isDebtPillActive('due_soon') ? 'bg-white/20 text-white' : 'bg-amber-200 text-amber-900'" x-text="debtPillCounts.due_soon"></span>
+                    </button>
+                    <button type="button" @click="setDebtPill('old')" :class="isDebtPillActive('old') ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200/60'" class="h-7 px-2.5 rounded-lg text-[10px] font-black shrink-0 transition-all flex items-center gap-1">
+                        <span class="material-icons text-xs">history</span>
+                        <span>+30 días</span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded-full" :class="isDebtPillActive('old') ? 'bg-white/20 text-white' : 'bg-purple-200 text-purple-900'" x-text="debtPillCounts.old"></span>
+                    </button>
+                    <button type="button" @click="setDebtPill('none_paid')" :class="isDebtPillActive('none_paid') ? 'bg-slate-700 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="h-7 px-2.5 rounded-lg text-[10px] font-black shrink-0 transition-all flex items-center gap-1">
+                        <span>Sin abonos</span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded-full" :class="isDebtPillActive('none_paid') ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'" x-text="debtPillCounts.none_paid"></span>
+                    </button>
+                    <button type="button" @click="setDebtPill('partial_paid')" :class="isDebtPillActive('partial_paid') ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60'" class="h-7 px-2.5 rounded-lg text-[10px] font-black shrink-0 transition-all flex items-center gap-1">
+                        <span>Con abonos</span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded-full" :class="isDebtPillActive('partial_paid') ? 'bg-white/20 text-white' : 'bg-emerald-200 text-emerald-800'" x-text="debtPillCounts.partial_paid"></span>
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                    <div class="flex bg-slate-100 rounded-xl p-1">
+                        <button type="button" @click="debtViewMode = 'debts'" :class="debtViewMode === 'debts' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'" class="h-8 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 transition-all"><span class="material-icons text-sm">view_agenda</span>Deudas</button>
+                        <button type="button" @click="debtViewMode = 'customers'" :class="debtViewMode === 'customers' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'" class="h-8 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 transition-all"><span class="material-icons text-sm">group</span>Clientes</button>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" @click="copyCollectionReport()" class="h-8 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black flex items-center gap-1 transition-all" title="Copiar resumen general de cobranzas">
+                            <span class="material-icons text-xs">content_copy</span>
+                            <span class="hidden sm:inline">Copiar reporte</span>
+                        </button>
+                        <span class="text-[11px] font-bold text-slate-400" x-text="filteredDebtsList.length + (filteredDebtsList.length === 1 ? ' resultado' : ' resultados')"></span>
+                        <button type="button" x-show="hasDebtFilters" @click="resetDebtFilters()" class="h-8 px-2.5 rounded-xl bg-slate-100 text-slate-600 text-[10px] font-black hover:bg-slate-200">Limpiar filtros</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Mode 1: Individual Debts List -->
+            <div x-show="debtViewMode === 'debts'" class="grid md:grid-cols-2 gap-3 sm:gap-4 pb-24">
+                <template x-for="order in filteredDebtsList" :key="order.id">
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                        <div class="h-1.5" :class="debtAccent(order)"></div>
+                        <div class="p-4 sm:p-4.5 flex-1 flex flex-col justify-between gap-3">
+                            <div>
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                                            <span class="text-[9px] font-black uppercase tracking-wider text-slate-400" x-text="'Orden #' + order.id"></span>
+                                            <span class="text-[9px] font-black px-2 py-0.5 rounded-md" :class="dueBadge(order).class" x-text="dueBadge(order).label"></span>
+                                            <span x-show="order.reminder_count > 0" class="text-[9px] font-bold bg-sky-50 text-sky-700 border border-sky-100 px-1.5 py-0.5 rounded-md" x-text="order.reminder_count + ' aviso(s)'"></span>
+                                        </div>
+                                        <h3 class="font-black text-slate-900 text-sm leading-tight truncate cursor-pointer hover:text-emerald-700" @click="focusCustomer(order.customer_name)" x-text="order.customer_name || 'Cliente sin nombre'"></h3>
+                                        <div class="text-[11px] text-slate-500 mt-1 leading-snug">
+                                            <template x-for="detail in parseDetails(order.details)">
+                                                <span class="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg mr-1 mb-1 font-medium text-[10px]" x-text="detail"></span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <p class="text-lg font-black text-rose-600" x-text="'$' + formatUsd(orderRemainingUsd(order))"></p>
+                                        <p class="text-[10px] font-bold text-slate-400" x-text="'Bs. ' + formatBs(orderRemainingBs(order))"></p>
+                                    </div>
+                                </div>
+
+                                <!-- Progress bar -->
+                                <div class="mt-3">
+                                    <div class="flex justify-between text-[10px] font-black mb-1">
+                                        <span class="text-emerald-700" x-text="'$' + formatUsd(orderPaidUsd(order)) + ' abonado'"></span>
+                                        <span class="text-slate-400" x-text="Math.round(orderPaidPercent(order)) + '%'"></span>
+                                    </div>
+                                    <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                        <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all" :style="'width:' + orderPaidPercent(order) + '%'"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Date tags -->
+                                <div class="grid grid-cols-2 gap-2 mt-3 text-[10px]">
+                                    <div class="bg-slate-50 rounded-xl px-2.5 py-1.5 border border-slate-100">
+                                        <p class="font-bold text-slate-400 text-[9px]">Fecha de orden</p>
+                                        <p class="font-black text-slate-700 mt-0.5 truncate" x-text="formatDateStr(order.created_at) + ' · ' + daysOld(order.created_at) + 'd'"></p>
+                                    </div>
+                                    <div class="bg-slate-50 rounded-xl px-2.5 py-1.5 border border-slate-100">
+                                        <p class="font-bold text-slate-400 text-[9px]">Último aviso</p>
+                                        <p class="font-black text-slate-700 mt-0.5 truncate" x-text="order.last_reminder_at ? formatDateStr(order.last_reminder_at) : 'Sin recordatorios'"></p>
+                                    </div>
+                                </div>
+
+                                <!-- Notes preview -->
+                                <div x-show="order.collection_notes" class="mt-2.5 text-[10px] font-semibold text-slate-600 bg-amber-50/70 border border-amber-100 rounded-xl px-2.5 py-1.5 line-clamp-2" x-text="order.collection_notes"></div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="grid grid-cols-[auto_1fr_1fr_1.1fr] gap-1.5 pt-1">
+                                <button type="button" @click="openDebtPrintModal(order)" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black flex items-center justify-center transition-all active:scale-95 shrink-0" title="Imprimir ticket / comprobante de deuda">
+                                    <span class="material-icons text-sm">print</span>
+                                </button>
+                                <button type="button" @click="openWhatsAppModal(order)" class="h-9 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center gap-1 transition-all active:scale-95" title="Enviar cobranza por WhatsApp">
+                                    <span class="material-icons text-sm">chat</span>
+                                    <span>WhatsApp</span>
+                                </button>
+                                <button type="button" @click="openDebtDetails(order)" class="h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] flex items-center justify-center gap-1 transition-all active:scale-95" title="Ver detalle y cobranza">
+                                    <span class="material-icons text-sm">visibility</span>
+                                    <span>Detalle</span>
+                                </button>
+                                <button type="button" @click="openPayModal(order)" class="h-9 rounded-xl bg-slate-900 hover:bg-emerald-700 text-white font-black text-[10px] flex items-center justify-center gap-1 transition-all active:scale-95 shadow-xs" title="Registrar abono">
+                                    <span class="material-icons text-sm">payments</span>
+                                    <span>Abonar</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <div x-show="filteredDebtsList.length === 0" class="col-span-full text-center py-16 bg-white/70 rounded-3xl border border-dashed border-slate-200">
+                    <span class="material-icons text-4xl text-emerald-400 mb-2">check_circle</span>
+                    <p class="font-black text-slate-800 text-sm" x-text="orders.filter(o => o.status !== 'paid').length ? 'No encontramos coincidencias' : '¡Todo al día! No hay deudas pendientes'"></p>
+                    <p class="text-xs font-bold text-slate-400 mt-1" x-text="orders.filter(o => o.status !== 'paid').length ? 'Prueba cambiando los filtros o búsqueda.' : 'Excelente control de cuentas.'"></p>
+                    <button type="button" x-show="orders.filter(o => o.status !== 'paid').length" @click="resetDebtFilters()" class="mt-3 h-8 px-4 rounded-xl bg-slate-900 text-white text-[11px] font-black">Mostrar todas</button>
                 </div>
             </div>
 
-            <!-- Debts Cards List -->
-            <div class="space-y-3 pb-24">
-                <template x-for="order in filteredOrders" :key="order.id">
-                    <div class="bg-white p-4 rounded-2xl shadow-2xs hover:shadow-md border border-slate-200/80 flex flex-col gap-3 relative overflow-hidden transition-all">
-                        <div class="flex justify-between items-start gap-2">
-                            <div>
-                                <h3 class="font-black text-slate-900 text-sm leading-tight" x-text="order.customer_name || 'Cliente sin nombre'"></h3>
-                                <div class="text-[11px] text-slate-500 mt-1 leading-snug">
-                                    <template x-for="detail in parseDetails(order.details)">
-                                        <span class="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg mr-1 mb-1 font-medium" x-text="detail"></span>
-                                    </template>
+            <!-- Mode 2: Customers Grouped View -->
+            <div x-show="debtViewMode === 'customers'" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 pb-24">
+                <template x-for="cust in debtCustomerGroups" :key="cust.key">
+                    <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs hover:border-emerald-300 hover:shadow-md transition-all flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-100 flex items-center justify-center font-black text-xs shrink-0" x-text="initials(cust.name)"></div>
+                                    <div class="min-w-0">
+                                        <h4 class="font-black text-sm text-slate-900 truncate" x-text="cust.name"></h4>
+                                        <p class="text-[10px] font-bold text-slate-400 mt-0.5" x-text="cust.count + (cust.count === 1 ? ' orden pendiente' : ' órdenes pendientes')"></p>
+                                    </div>
                                 </div>
-                                <p class="text-[10px] font-bold text-slate-400 mt-0.5" x-text="order.created_at"></p>
                             </div>
-                            <span class="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border shrink-0" 
-                                  :class="{
-                                      'bg-emerald-50 text-emerald-700 border-emerald-200': order.status === 'paid', 
-                                      'bg-amber-50 text-amber-700 border-amber-200': order.status === 'partial', 
-                                      'bg-rose-50 text-rose-600 border-rose-200': order.status === 'pending'
-                                  }" 
-                                  x-text="order.status === 'paid' ? 'Pagado' : (order.status === 'partial' ? 'Parcial' : 'Pendiente')">
-                            </span>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3 bg-slate-50/80 rounded-xl p-2.5 border border-slate-100">
-                            <div>
-                                <p class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total Orden</p>
-                                <div class="font-black text-slate-800 text-sm" x-text="'Bs. ' + parseFloat(order.total_bs).toFixed(2)"></div>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-[9px] uppercase font-black text-rose-500 tracking-wider">Deuda Pendiente</p>
-                                <div class="font-black text-rose-600 text-sm" x-text="'Bs. ' + calculateDebt(order, 'Bs')"></div>
-                                <div class="text-[10px] font-bold text-rose-500/80" x-text="'$ ' + calculateDebt(order, 'USD')"></div>
+                            <div class="flex justify-between items-end mt-3.5 pt-3 border-t border-slate-100">
+                                <div>
+                                    <p class="text-[9px] font-black uppercase tracking-wider text-slate-400">Total adeudado</p>
+                                    <p class="text-base font-black text-rose-600 mt-0.5" x-text="'$' + formatUsd(cust.totalUsd)"></p>
+                                    <p class="text-[10px] font-bold text-slate-400" x-text="'Bs. ' + formatBs(cust.totalUsd * exchangeRate)"></p>
+                                </div>
+                                <div class="text-right text-[10px] font-bold">
+                                    <p class="text-rose-600 font-black" x-show="cust.overdue > 0" x-text="cust.overdue + ' vencida(s)'"></p>
+                                    <p class="text-slate-400" x-text="'Más antigua: ' + cust.oldestDays + 'd'"></p>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="flex items-center gap-2 pt-1">
-                            <button x-show="order.status !== 'paid'" 
-                                    @click="openPayModal(order)" 
-                                    class="flex-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white py-2.5 rounded-xl font-bold shadow-xs text-xs flex items-center justify-center gap-1.5 active:scale-98 transition-all">
-                                <span class="material-icons text-sm">payments</span>
-                                <span>Abonar Pago</span>
+                        <!-- Customer Action Buttons -->
+                        <div class="grid grid-cols-2 gap-2 mt-3.5 pt-3 border-t border-slate-100">
+                            <button type="button" @click="openCustomerStatement(cust)" class="h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center gap-1 transition-all active:scale-95">
+                                <span class="material-icons text-xs">receipt</span>
+                                <span>Estado de cuenta</span>
                             </button>
-                            <button @click="openEditModal(order)" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 flex items-center justify-center transition-colors border border-slate-200/60" title="Editar orden">
-                                <span class="material-icons text-base">edit</span>
-                            </button>
-                            <button @click="confirmDelete(order.id)" class="w-10 h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-colors border border-rose-200/60" title="Eliminar orden">
-                                <span class="material-icons text-base">delete</span>
+                            <button type="button" @click="focusCustomer(cust.name)" class="h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] flex items-center justify-center gap-1 transition-all active:scale-95">
+                                <span class="material-icons text-xs">list</span>
+                                <span>Ver órdenes</span>
                             </button>
                         </div>
                     </div>
                 </template>
-                
-                <div x-show="filteredOrders.length === 0" class="text-center py-16 bg-white/60 rounded-3xl border border-dashed border-slate-200">
-                    <span class="material-icons text-4xl text-emerald-400 mb-2">check_circle</span>
-                    <p class="font-bold text-slate-600 text-sm">¡Al día! No hay deudas pendientes</p>
+
+                <div x-show="debtCustomerGroups.length === 0" class="col-span-full text-center py-16 bg-white/70 rounded-3xl border border-dashed border-slate-200">
+                    <span class="material-icons text-4xl text-emerald-400 mb-2">groups</span>
+                    <p class="font-black text-slate-800 text-sm">No hay clientes con saldo pendiente</p>
                 </div>
             </div>
         </div>
@@ -569,6 +753,24 @@
                         <span class="text-rose-600" x-text="'Bs. ' + remainingBs.toFixed(2)"></span>
                     </div>
 
+                    <!-- Optional debt follow-up fields for POS -->
+                    <div x-show="paymentMode !== 'full'" class="pt-2 pb-1 border-t border-emerald-100 space-y-2">
+                        <p class="text-[10px] font-black uppercase text-emerald-800 tracking-wider">Datos de cobro (opcional)</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Teléfono / WhatsApp</label>
+                                <input type="tel" x-model="checkoutCollection.customer_phone" placeholder="Ej. 0412 1234567" class="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500">
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-500 block mb-0.5">Fecha límite</label>
+                                <input type="date" x-model="checkoutCollection.due_date" class="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500">
+                            </div>
+                        </div>
+                        <div>
+                            <input type="text" x-model="checkoutCollection.collection_notes" maxlength="255" placeholder="Notas de cobranza u observación..." class="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+
                     <div x-show="paidBs > 0 || paidUsd > 0">
                         <label class="text-[10px] font-bold text-slate-500 mb-1 block">Cuenta de Destino</label>
                         <select x-model="account_id" class="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-emerald-500">
@@ -608,16 +810,24 @@
             <div class="bg-rose-50/60 p-4 rounded-2xl border border-rose-100 text-center">
                 <p class="text-[10px] font-black uppercase tracking-wider text-rose-500">Deuda Pendiente</p>
                 <p class="text-2xl font-black text-rose-600 mt-0.5" x-text="'Bs. ' + calculateDebt(payModal.order || {}, 'Bs')"></p>
+                <div class="flex items-center justify-center gap-2 mt-1">
+                    <span class="text-xs font-bold text-slate-400" x-text="'$ ' + calculateDebt(payModal.order || {}, 'USD')"></span>
+                </div>
+                <div class="flex items-center justify-center gap-1.5 mt-2.5">
+                    <button type="button" @click="setPaymentPercentage(100)" class="text-[10px] font-black text-rose-700 bg-rose-100/90 hover:bg-rose-200 px-2.5 py-1 rounded-lg active:scale-95 transition-all">100% Total</button>
+                    <button type="button" @click="setPaymentPercentage(50)" class="text-[10px] font-black text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 px-2.5 py-1 rounded-lg active:scale-95 transition-all">50% Mitad</button>
+                    <button type="button" @click="setPaymentPercentage(25)" class="text-[10px] font-black text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 px-2.5 py-1 rounded-lg active:scale-95 transition-all">25% Cuarto</button>
+                </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="text-[10px] font-bold text-slate-500 mb-1 block">Abono Bs.</label>
-                    <input type="number" step="0.01" x-model.number="payModal.amount_bs" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 font-black text-sm text-slate-800 outline-none focus:border-emerald-500">
+                    <input type="number" step="0.01" min="0" x-model.number="payModal.amount_bs" @input="syncPayModal('bs')" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 font-black text-sm text-slate-800 outline-none focus:border-emerald-500">
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-emerald-700 mb-1 block">Abono USD</label>
-                    <input type="number" step="0.01" x-model.number="payModal.amount_usd" class="w-full bg-white border border-emerald-200 rounded-xl px-3 py-2.5 font-black text-sm text-emerald-700 outline-none focus:border-emerald-500">
+                    <input type="number" step="0.01" min="0" x-model.number="payModal.amount_usd" @input="syncPayModal('usd')" class="w-full bg-white border border-emerald-200 rounded-xl px-3 py-2.5 font-black text-sm text-emerald-700 outline-none focus:border-emerald-500">
                 </div>
             </div>
 
@@ -637,15 +847,383 @@
                     <template x-for="p in payModal.history" :key="p.id">
                         <div class="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-xl text-xs font-bold text-slate-700">
                             <span class="text-[10px] text-slate-400" x-text="p.created_at"></span>
-                            <span class="text-emerald-700" x-text="(p.amount > 0 ? 'Bs. ' + p.amount : '') + (p.amount_usd > 0 ? ' $' + p.amount_usd : '')"></span>
+                            <span class="text-emerald-700 font-black" x-text="(p.amount > 0 ? 'Bs. ' + p.amount : '') + (p.amount_usd > 0 ? ' $' + p.amount_usd : '')"></span>
                         </div>
                     </template>
                 </div>
             </div>
 
-            <button @click="submitPayment()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black py-3.5 rounded-2xl shadow-lg shadow-emerald-950/20 active:scale-98 transition-all">
-                Registrar Abono
+            <button @click="submitPayment()" :disabled="loading" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black py-3.5 rounded-2xl shadow-lg shadow-emerald-950/20 active:scale-98 transition-all disabled:opacity-50">
+                <span x-text="loading ? 'Registrando...' : 'Registrar Abono'"></span>
             </button>
+        </div>
+    </div>
+
+    <!-- Debt Detail & Collection Management Modal -->
+    <div x-show="debtDetailModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" @click="debtDetailModal.open = false"></div>
+        <div class="bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl w-full sm:max-w-lg relative z-10 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto customize-scrollbar animate-slide-up safe-bottom">
+            <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+                <div class="min-w-0">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-emerald-600">Gestión de Cobranza</p>
+                    <h3 class="font-black text-lg text-slate-900 truncate" x-text="debtDetailModal.order?.customer_name || 'Cliente'"></h3>
+                    <p class="text-[10px] font-bold text-slate-400" x-text="debtDetailModal.order ? 'Orden #' + debtDetailModal.order.id + ' · ' + formatDateStr(debtDetailModal.order.created_at) : ''"></p>
+                </div>
+                <button @click="debtDetailModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center shrink-0">
+                    <span class="material-icons text-base">close</span>
+                </button>
+            </div>
+
+            <!-- Balances -->
+            <div class="grid grid-cols-3 gap-2">
+                <div class="col-span-3 sm:col-span-1 rounded-2xl bg-rose-50 border border-rose-100 p-3">
+                    <p class="text-[9px] font-black uppercase text-rose-500">Saldo pendiente</p>
+                    <p class="text-xl font-black text-rose-600 mt-0.5" x-text="'$' + formatUsd(orderRemainingUsd(debtDetailModal.order))"></p>
+                    <p class="text-[10px] font-bold text-rose-400" x-text="'Bs. ' + formatBs(orderRemainingBs(debtDetailModal.order))"></p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 border border-slate-200 p-3">
+                    <p class="text-[9px] font-black uppercase text-slate-400">Total</p>
+                    <p class="text-sm font-black text-slate-800 mt-0.5" x-text="'$' + formatUsd(orderTotalUsd(debtDetailModal.order))"></p>
+                    <p class="text-[10px] font-bold text-slate-400" x-text="'Bs. ' + parseFloat(debtDetailModal.order?.total_bs || 0).toFixed(2)"></p>
+                </div>
+                <div class="rounded-2xl bg-emerald-50 border border-emerald-100 p-3">
+                    <p class="text-[9px] font-black uppercase text-emerald-600">Abonado</p>
+                    <p class="text-sm font-black text-emerald-700 mt-0.5" x-text="'$' + formatUsd(orderPaidUsd(debtDetailModal.order))"></p>
+                    <p class="text-[10px] font-bold text-emerald-600/80" x-text="'Bs. ' + parseFloat(debtDetailModal.order?.paid_bs || 0).toFixed(2)"></p>
+                </div>
+            </div>
+
+            <!-- Items -->
+            <div>
+                <h4 class="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Servicios de la orden</h4>
+                <div class="space-y-1.5 max-h-36 overflow-y-auto customize-scrollbar border border-slate-100 rounded-xl p-2 bg-slate-50/60">
+                    <template x-for="item in debtDetailModal.items" :key="item">
+                        <p class="text-xs font-bold text-slate-700 bg-white p-2 rounded-lg border border-slate-100 shadow-2xs" x-text="item"></p>
+                    </template>
+                    <p x-show="debtDetailModal.items.length === 0" class="text-xs font-bold text-slate-400 p-2">Sin detalles de servicios.</p>
+                </div>
+            </div>
+
+            <!-- Payments History -->
+            <div>
+                <h4 class="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1.5">Historial de abonos</h4>
+                <div class="space-y-1.5 max-h-32 overflow-y-auto customize-scrollbar">
+                    <template x-for="p in debtDetailModal.payments" :key="p.id">
+                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                            <div>
+                                <p class="font-black text-slate-800" x-text="formatDateStr(p.created_at)"></p>
+                                <p class="text-[10px] text-slate-400" x-text="p.account_name || 'Caja'"></p>
+                            </div>
+                            <span class="text-emerald-700 font-black" x-text="(p.amount > 0 ? 'Bs. ' + p.amount : '') + (p.amount_usd > 0 ? ' $' + p.amount_usd : '')"></span>
+                        </div>
+                    </template>
+                    <p x-show="debtDetailModal.payments.length === 0" class="text-xs font-bold text-slate-400 bg-slate-50 p-3 rounded-xl">No se han registrado abonos previos.</p>
+                </div>
+            </div>
+
+            <!-- Collection Form -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3">
+                <div class="flex items-center gap-1.5">
+                    <span class="material-icons text-slate-500 text-sm">edit_note</span>
+                    <h4 class="text-xs font-black text-slate-800">Seguimiento y cobranza</h4>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-500 block mb-1">Teléfono / WhatsApp</label>
+                        <input type="tel" x-model="collectionForm.customer_phone" placeholder="Ej. 0412 1234567" class="w-full h-10 bg-white border border-slate-200 rounded-xl px-3 text-xs font-bold outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-500 block mb-1">Fecha límite</label>
+                        <input type="date" x-model="collectionForm.due_date" class="w-full h-10 bg-white border border-slate-200 rounded-xl px-3 text-xs font-bold outline-none focus:border-emerald-500">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="text-[10px] font-black text-slate-500 block mb-1">Notas de cobranza</label>
+                        <textarea x-model="collectionForm.collection_notes" rows="2" maxlength="2000" placeholder="Acuerdos, promesa de pago, comentarios..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold outline-none resize-none focus:border-emerald-500"></textarea>
+                    </div>
+                </div>
+                <p x-show="debtDetailModal.error" x-text="debtDetailModal.error" class="text-xs font-bold text-rose-600"></p>
+                <button type="button" @click="saveDebtCollection()" :disabled="debtDetailModal.saving" class="w-full h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs disabled:opacity-50 transition-all flex items-center justify-center gap-1.5">
+                    <span class="material-icons text-sm" x-show="!debtDetailModal.saving">save</span>
+                    <span x-text="debtDetailModal.saving ? 'Guardando...' : 'Guardar datos de cobranza'"></span>
+                </button>
+            </div>
+
+            <!-- Footer actions -->
+            <div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-1.5 pt-1 border-t border-slate-100">
+                <button type="button" @click="openDebtPrintModal(debtDetailModal.order)" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black flex items-center justify-center shrink-0" title="Imprimir ticket / comprobante de deuda">
+                    <span class="material-icons text-base">print</span>
+                </button>
+                <button type="button" @click="copyDebtInvoice(debtDetailModal.order)" class="h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center gap-1">
+                    <span class="material-icons text-sm">content_copy</span>
+                    <span>Copiar</span>
+                </button>
+                <button type="button" @click="openWhatsAppModal(debtDetailModal.order)" class="h-10 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center gap-1">
+                    <span class="material-icons text-sm">chat</span>
+                    <span>WhatsApp</span>
+                </button>
+                <button type="button" @click="debtDetailModal.open = false; openPayModal(debtDetailModal.order)" class="h-10 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs font-black flex items-center justify-center gap-1 shadow-xs">
+                    <span class="material-icons text-sm">payments</span>
+                    <span>Abonar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Statement Modal (Estado de Cuenta Consolidado) -->
+    <div x-show="customerStatementModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" @click="customerStatementModal.open = false"></div>
+        <div class="bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl w-full sm:max-w-xl relative z-10 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto customize-scrollbar animate-slide-up safe-bottom">
+            <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+                <div class="min-w-0">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-emerald-600">Estado de Cuenta Consolidado</p>
+                    <h3 class="font-black text-lg text-slate-900 truncate" x-text="customerStatementModal.customer?.name || 'Cliente'"></h3>
+                    <p class="text-[10px] font-bold text-slate-400" x-text="(customerStatementModal.orders.length) + ' orden(es) pendiente(s)'"></p>
+                </div>
+                <button @click="customerStatementModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center shrink-0">
+                    <span class="material-icons text-base">close</span>
+                </button>
+            </div>
+
+            <!-- Balances -->
+            <div class="grid grid-cols-3 gap-2">
+                <div class="col-span-3 sm:col-span-1 rounded-2xl bg-rose-50 border border-rose-100 p-3">
+                    <p class="text-[9px] font-black uppercase text-rose-500">Saldo pendiente</p>
+                    <p class="text-xl font-black text-rose-600 mt-0.5" x-text="'$' + formatUsd(customerStatementModal.totalUsd)"></p>
+                    <p class="text-[10px] font-bold text-rose-400" x-text="'Bs. ' + formatBs(customerStatementModal.totalBs)"></p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 border border-slate-200 p-3">
+                    <p class="text-[9px] font-black uppercase text-slate-400">Total facturado</p>
+                    <p class="text-sm font-black text-slate-800 mt-0.5" x-text="'$' + formatUsd(customerStatementModal.totalInvoiceUsd)"></p>
+                    <p class="text-[10px] font-bold text-slate-400" x-text="'Bs. ' + formatBs(customerStatementModal.totalInvoiceBs)"></p>
+                </div>
+                <div class="rounded-2xl bg-emerald-50 border border-emerald-100 p-3">
+                    <p class="text-[9px] font-black uppercase text-emerald-600">Total abonado</p>
+                    <p class="text-sm font-black text-emerald-700 mt-0.5" x-text="'$' + formatUsd(customerStatementModal.totalPaidUsd)"></p>
+                    <p class="text-[10px] font-bold text-emerald-600/80" x-text="'Bs. ' + formatBs(customerStatementModal.totalPaidBs)"></p>
+                </div>
+            </div>
+
+            <!-- Phone & Actions -->
+            <div class="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="material-icons text-emerald-600 text-lg shrink-0">phone</span>
+                    <div class="min-w-0">
+                        <p class="text-[9px] font-black text-slate-400 uppercase">Teléfono de contacto</p>
+                        <p class="text-xs font-black text-slate-800 truncate" x-text="customerStatementModal.phone || 'No registrado'"></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" @click="sendCustomerStatementWhatsApp()" class="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95">
+                        <span class="material-icons text-sm">chat</span>
+                        <span>WhatsApp Consolidado</span>
+                    </button>
+                    <button type="button" @click="copyCustomerStatementText()" class="h-8 px-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs flex items-center gap-1 transition-all active:scale-95" title="Copiar estado de cuenta">
+                        <span class="material-icons text-sm">content_copy</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Open orders list -->
+            <div class="space-y-2">
+                <h4 class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Órdenes pendientes de este cliente</h4>
+                <div class="space-y-2 max-h-60 overflow-y-auto customize-scrollbar">
+                    <template x-for="ord in customerStatementModal.orders" :key="ord.id">
+                        <div class="bg-white border border-slate-200 rounded-2xl p-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-black text-slate-900" x-text="'Orden #' + ord.id"></span>
+                                    <span class="text-[9px] font-black px-2 py-0.5 rounded-md" :class="dueBadge(ord).class" x-text="dueBadge(ord).label"></span>
+                                    <span class="text-[10px] font-bold text-slate-400" x-text="formatDateStr(ord.created_at)"></span>
+                                </div>
+                                <div class="text-[11px] text-slate-500 mt-1 truncate">
+                                    <template x-for="detail in parseDetails(ord.details)">
+                                        <span class="inline-block bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded mr-1 text-[10px]" x-text="detail"></span>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                                <div class="text-right">
+                                    <p class="text-sm font-black text-rose-600" x-text="'$' + formatUsd(orderRemainingUsd(ord))"></p>
+                                    <p class="text-[9px] font-bold text-slate-400" x-text="'Bs. ' + formatBs(orderRemainingBs(ord))"></p>
+                                </div>
+                                <button type="button" @click="customerStatementModal.open = false; openPayModal(ord)" class="h-8 px-3 rounded-xl bg-slate-900 hover:bg-emerald-700 text-white text-[10px] font-black transition-all shadow-xs">
+                                    Abonar
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex justify-end">
+                <button type="button" @click="customerStatementModal.open = false" class="h-10 px-5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WhatsApp Message Modal with Template Picker -->
+    <div x-show="whatsappModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" @click="whatsappModal.open = false"></div>
+        <div class="bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl w-full sm:max-w-lg relative z-10 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto customize-scrollbar animate-slide-up safe-bottom">
+            <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                        <span class="material-icons text-xl">chat</span>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="font-black text-base text-slate-900 truncate">Enviar Factura por WhatsApp</h3>
+                        <p class="text-[10px] font-bold text-slate-400 truncate" x-text="'Orden #' + (whatsappModal.order?.id || '') + ' · ' + (whatsappModal.order?.customer_name || 'Cliente')"></p>
+                    </div>
+                </div>
+                <button @click="whatsappModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center shrink-0">
+                    <span class="material-icons text-base">close</span>
+                </button>
+            </div>
+
+            <!-- Phone input -->
+            <div>
+                <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Número de WhatsApp</label>
+                <div class="relative">
+                    <span class="material-icons absolute left-3 top-2.5 text-slate-400 text-lg">phone</span>
+                    <input type="tel" x-model="whatsappModal.phone" placeholder="Ej. 0412 1234567 o +584121234567" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-500">
+                </div>
+            </div>
+
+            <!-- Template Selector Buttons -->
+            <div>
+                <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5">Plantilla de Mensaje</label>
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button type="button" @click="setWhatsAppTemplate('friendly')" :class="whatsappModal.template === 'friendly' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'" class="py-2 px-2 rounded-xl text-[10px] font-black text-center transition-all">
+                        😊 Amistoso
+                    </button>
+                    <button type="button" @click="setWhatsAppTemplate('detailed')" :class="whatsappModal.template === 'detailed' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'" class="py-2 px-2 rounded-xl text-[10px] font-black text-center transition-all">
+                        📄 Factura Ítems
+                    </button>
+                    <button type="button" @click="setWhatsAppTemplate('urgent')" :class="whatsappModal.template === 'urgent' ? 'bg-rose-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'" class="py-2 px-2 rounded-xl text-[10px] font-black text-center transition-all">
+                        🚨 Urgente
+                    </button>
+                </div>
+            </div>
+
+            <!-- Message Preview & Edit -->
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Vista previa / Personalizar texto</label>
+                    <span class="text-[9px] font-bold text-slate-400">Editable antes de enviar</span>
+                </div>
+                <textarea x-model="whatsappModal.message" rows="7" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-mono font-medium outline-none resize-none focus:bg-white focus:border-emerald-500"></textarea>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                <button type="button" @click="copyWhatsAppModalText()" class="h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center gap-1.5 transition-all active:scale-95">
+                    <span class="material-icons text-base">content_copy</span>
+                    <span>Copiar mensaje</span>
+                </button>
+                <button type="button" @click="sendWhatsAppModal()" class="h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-950/20 active:scale-95">
+                    <span class="material-icons text-base">chat</span>
+                    <span>Abrir WhatsApp</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Printable Debt Ticket / Receipt Modal -->
+    <div x-show="debtPrintModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" @click="debtPrintModal.open = false"></div>
+        <div class="bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl w-full sm:max-w-md relative z-10 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto customize-scrollbar animate-slide-up safe-bottom">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 no-print">
+                <div>
+                    <h3 class="font-black text-base text-slate-900">Comprobante de Deuda</h3>
+                    <p class="text-[10px] font-bold text-slate-400">Formato ticket para imprimir o entregar</p>
+                </div>
+                <button @click="debtPrintModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center">
+                    <span class="material-icons text-base">close</span>
+                </button>
+            </div>
+
+            <!-- Ticket Card to Print -->
+            <div id="debt-printable-ticket" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-slate-900 text-xs font-mono space-y-3">
+                <div class="text-center pb-2 border-b border-dashed border-slate-300">
+                    <p class="font-black text-sm tracking-wider uppercase">FINANZAHEX</p>
+                    <p class="text-[10px] text-slate-500 font-sans">Servicios de Impresión & POS</p>
+                    <p class="text-[10px] text-slate-500 font-sans mt-0.5">COMPROBANTE DE CUENTA POR COBRAR</p>
+                </div>
+
+                <div class="space-y-1 text-[11px]">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500 font-sans">Orden #:</span>
+                        <span class="font-bold" x-text="debtPrintModal.order?.id"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500 font-sans">Fecha emisión:</span>
+                        <span class="font-bold" x-text="formatDateStr(debtPrintModal.order?.created_at)"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500 font-sans">Cliente:</span>
+                        <span class="font-bold" x-text="debtPrintModal.order?.customer_name || 'Sin nombre'"></span>
+                    </div>
+                    <div class="flex justify-between" x-show="debtPrintModal.order?.customer_phone">
+                        <span class="text-slate-500 font-sans">Teléfono:</span>
+                        <span class="font-bold" x-text="debtPrintModal.order?.customer_phone"></span>
+                    </div>
+                    <div class="flex justify-between" x-show="debtPrintModal.order?.due_date">
+                        <span class="text-slate-500 font-sans">Fecha límite:</span>
+                        <span class="font-bold text-rose-600" x-text="formatDateStr(debtPrintModal.order?.due_date)"></span>
+                    </div>
+                </div>
+
+                <div class="border-t border-dashed border-slate-300 pt-2">
+                    <p class="text-[10px] uppercase font-bold text-slate-400 font-sans mb-1">Servicios:</p>
+                    <div class="space-y-1">
+                        <template x-for="item in parseDetails(debtPrintModal.order?.details)">
+                            <div class="text-[10px] text-slate-700" x-text="'• ' + item"></div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="border-t border-dashed border-slate-300 pt-2 space-y-1 text-xs">
+                    <div class="flex justify-between">
+                        <span class="font-sans text-slate-500">Total Orden:</span>
+                        <span class="font-bold" x-text="'$' + formatUsd(orderTotalUsd(debtPrintModal.order)) + ' (Bs. ' + parseFloat(debtPrintModal.order?.total_bs || 0).toFixed(2) + ')'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-sans text-slate-500">Abonado:</span>
+                        <span class="font-bold text-emerald-700" x-text="'$' + formatUsd(orderPaidUsd(debtPrintModal.order)) + ' (Bs. ' + parseFloat(debtPrintModal.order?.paid_bs || 0).toFixed(2) + ')'"></span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm font-black pt-1 border-t border-slate-300">
+                        <span class="uppercase">SALDO PENDIENTE:</span>
+                        <span class="text-rose-600" x-text="'$' + formatUsd(orderRemainingUsd(debtPrintModal.order))"></span>
+                    </div>
+                    <div class="text-right text-[10px] font-bold text-slate-500">
+                        <span x-text="'Equiv. Bs. ' + formatBs(orderRemainingBs(debtPrintModal.order)) + ' (Tasa: Bs. ' + Number(exchangeRate).toFixed(2) + ')'"></span>
+                    </div>
+                </div>
+
+                <div x-show="debtPrintModal.order?.collection_notes" class="border-t border-dashed border-slate-300 pt-2">
+                    <p class="text-[9px] uppercase font-bold text-slate-400 font-sans">Notas / Acuerdo:</p>
+                    <p class="text-[10px] font-sans text-slate-600 mt-0.5" x-text="debtPrintModal.order?.collection_notes"></p>
+                </div>
+
+                <div class="border-t border-dashed border-slate-300 pt-3 text-center text-[9px] text-slate-500 font-sans space-y-1">
+                    <p>Por favor conserve este comprobante para su control.</p>
+                    <p>¡Gracias por su preferencia!</p>
+                    <div class="pt-6 border-b border-slate-400 w-3/4 mx-auto"></div>
+                    <p class="text-[8px] text-slate-400 uppercase">Firma de Conformidad</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 no-print">
+                <button type="button" @click="debtPrintModal.open = false" class="h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black">
+                    Cerrar
+                </button>
+                <button type="button" @click="printDebtTicket()" class="h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md">
+                    <span class="material-icons text-sm">print</span>
+                    <span>Imprimir Ticket</span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -767,18 +1345,27 @@
     <script>
         function posApp() {
             return {
-                tab: 'pos', cartOpen: false, cart: [], orders: [], movements: [],
+                tab: new URLSearchParams(window.location.search).get('tab') || '<?= $initialTab ?? 'pos' ?>', 
+                cartOpen: false, cart: [], orders: [], movements: [],
                 exchangeRate: 50, account_id: '<?= !empty($defaultAccount) ? $defaultAccount : '' ?>',
                 customer_name: '', loading: false, message: '',
                 totalBs: 0, totalUsd: 0, paidBs: 0, paidUsd: 0,
                 productSearch: '', activeCategory: 'all', paymentMode: 'full', checkoutError: '',
+                checkoutCollection: { customer_phone: '', due_date: '', collection_notes: '' },
                 
                 checkoutModal: { open: false },
-                payModal: { open: false, orderId: null, amount_bs: 0, amount_usd: 0, account_id: '<?= $accounts[0]['id'] ?? '' ?>', customer: '', history: [] },
+                payModal: { open: false, orderId: null, order: null, amount_bs: 0, amount_usd: 0, account_id: '<?= $accounts[0]['id'] ?? '' ?>', customer: '', history: [] },
                 deleteModal: { open: false, orderId: null, revert: false },
                 transDeleteModal: { open: false, transId: null },
                 detailsModal: { open: false, order: null, items: [], transactions: [], loading: false },
                 editModal: { open: false, id: null, customer_name: '', status: '' },
+                debtDetailModal: { open: false, order: null, items: [], payments: [], loading: false, saving: false, error: '' },
+                collectionForm: { customer_phone: '', due_date: '', collection_notes: '' },
+                debtFilters: { search: '', age: 'all', payment: 'all', sort: 'priority' },
+                debtViewMode: 'debts',
+                whatsappModal: { open: false, order: null, phone: '', template: 'detailed', message: '' },
+                customerStatementModal: { open: false, customer: null, orders: [], phone: '', totalUsd: 0, totalBs: 0, totalPaidUsd: 0, totalPaidBs: 0, totalInvoiceUsd: 0, totalInvoiceBs: 0 },
+                debtPrintModal: { open: false, order: null },
                 
                 customerSuggestions: { show: false, list: [], loading: false },
                 customerProfile: { name: '', orders: [], totalOrders: 0, loading: false, expanded: false },
@@ -961,7 +1548,10 @@
                                 account_id: this.account_id, 
                                 exchange_rate: this.exchangeRate, 
                                 paid_bs: parseFloat(this.paidBs || 0), 
-                                paid_usd: parseFloat(this.paidUsd || 0) 
+                                paid_usd: parseFloat(this.paidUsd || 0),
+                                customer_phone: this.checkoutCollection?.customer_phone || '',
+                                due_date: this.checkoutCollection?.due_date || '',
+                                collection_notes: this.checkoutCollection?.collection_notes || ''
                             }) 
                         });
                         let data = await res.json();
@@ -969,6 +1559,7 @@
                             this.cart = []; 
                             this.customer_name = ''; 
                             this.customerProfile = { name: '', orders: [], totalOrders: 0, loading: false, expanded: false };
+                            this.checkoutCollection = { customer_phone: '', due_date: '', collection_notes: '' };
                             this.isFavorite = false;
                             this.paidBs = 0; 
                             this.paidUsd = 0; 
@@ -1271,6 +1862,531 @@
                         }
                     } catch (e) {
                         this.checkoutError = 'No se pudo actualizar el cliente frecuente.';
+                    }
+                },
+
+                // Debt management calculations and methods
+                orderRemainingUsd(o) {
+                    if (!o) return 0;
+                    let total = Number(o.total_usd || 0);
+                    let paid = Number(o.paid_usd || 0) + (Number(o.paid_bs || 0) / Math.max(this.exchangeRate, 1));
+                    return Math.max(0, total - paid);
+                },
+                orderRemainingBs(o) {
+                    if (!o) return 0;
+                    let total = Number(o.total_bs || 0);
+                    let paid = Number(o.paid_bs || 0) + (Number(o.paid_usd || 0) * this.exchangeRate);
+                    return Math.max(0, total - paid);
+                },
+                orderTotalUsd(o) {
+                    return Number(o?.total_usd || 0);
+                },
+                orderPaidUsd(o) {
+                    if (!o) return 0;
+                    return Number(o.paid_usd || 0) + (Number(o.paid_bs || 0) / Math.max(this.exchangeRate, 1));
+                },
+                orderPaidPercent(o) {
+                    let total = this.orderTotalUsd(o);
+                    if (total <= 0) return 0;
+                    return Math.min(100, (this.orderPaidUsd(o) / total) * 100);
+                },
+                parseDate(value) {
+                    if (!value) return null;
+                    let s = String(value).trim();
+                    let normalized = s.length === 10 ? s + 'T00:00:00' : s.replace(' ', 'T');
+                    let d = new Date(normalized);
+                    return Number.isNaN(d.getTime()) ? null : d;
+                },
+                daysOld(dateVal) {
+                    let d = this.parseDate(dateVal);
+                    if (!d) return 0;
+                    return Math.max(0, Math.floor((new Date().setHours(0,0,0,0) - d.setHours(0,0,0,0)) / 86400000));
+                },
+                dueInfo(o) {
+                    if (!o?.due_date) return { state: 'none', days: null };
+                    let due = this.parseDate(o.due_date);
+                    if (!due) return { state: 'none', days: null };
+                    let today = new Date(); today.setHours(0,0,0,0); due.setHours(0,0,0,0);
+                    let days = Math.ceil((due - today) / 86400000);
+                    if (days < 0) return { state: 'overdue', days };
+                    if (days === 0) return { state: 'today', days };
+                    if (days <= 7) return { state: 'soon', days };
+                    return { state: 'future', days };
+                },
+                dueBadge(o) {
+                    let info = this.dueInfo(o);
+                    if (info.state === 'overdue') return { label: 'Vencida ' + Math.abs(info.days) + 'd', class: 'bg-rose-100 text-rose-700' };
+                    if (info.state === 'today') return { label: 'Vence hoy', class: 'bg-orange-100 text-orange-700' };
+                    if (info.state === 'soon') return { label: 'Vence en ' + info.days + 'd', class: 'bg-amber-100 text-amber-700' };
+                    if (info.state === 'future') return { label: 'Límite ' + this.formatDateStr(o.due_date), class: 'bg-sky-100 text-sky-700' };
+                    return { label: this.daysOld(o?.created_at) + ' días abierta', class: 'bg-slate-100 text-slate-600' };
+                },
+                debtAccent(o) {
+                    let state = this.dueInfo(o).state;
+                    if (state === 'overdue') return 'bg-rose-500';
+                    if (state === 'today' || state === 'soon') return 'bg-amber-500';
+                    return this.orderPaidUsd(o) > 0 ? 'bg-emerald-500' : 'bg-slate-300';
+                },
+                formatDateStr(value) {
+                    let d = this.parseDate(value);
+                    return d ? d.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                },
+                formatBs(val) {
+                    return new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(val || 0));
+                },
+                initials(name) {
+                    return String(name || '?').split(/\s+/).slice(0,2).map(p => p[0]).join('').toUpperCase();
+                },
+
+                get debtMetrics() {
+                    let open = this.orders.filter(o => o.status !== 'paid');
+                    return {
+                        totalUsd: open.reduce((sum, o) => sum + this.orderRemainingUsd(o), 0),
+                        totalBs: open.reduce((sum, o) => sum + this.orderRemainingBs(o), 0),
+                        count: open.length,
+                        customers: new Set(open.map(o => String(o.customer_name || 'Sin nombre').trim().toLowerCase())).size,
+                        overdue: open.filter(o => this.dueInfo(o).state === 'overdue').length,
+                    };
+                },
+                get hasDebtFilters() {
+                    return this.debtFilters.search || this.debtFilters.age !== 'all' || this.debtFilters.payment !== 'all' || this.debtFilters.sort !== 'priority';
+                },
+                resetDebtFilters() {
+                    this.debtFilters = { search: '', age: 'all', payment: 'all', sort: 'priority' };
+                },
+                setDebtPill(pill) {
+                    if (pill === 'all') {
+                        this.debtFilters.age = 'all';
+                        this.debtFilters.payment = 'all';
+                    } else if (pill === 'overdue') {
+                        this.debtFilters.age = 'overdue';
+                        this.debtFilters.payment = 'all';
+                    } else if (pill === 'today') {
+                        this.debtFilters.age = 'today';
+                        this.debtFilters.payment = 'all';
+                    } else if (pill === 'due_soon') {
+                        this.debtFilters.age = 'due_soon';
+                        this.debtFilters.payment = 'all';
+                    } else if (pill === 'old') {
+                        this.debtFilters.age = 'old';
+                        this.debtFilters.payment = 'all';
+                    } else if (pill === 'none_paid') {
+                        this.debtFilters.age = 'all';
+                        this.debtFilters.payment = 'none';
+                    } else if (pill === 'partial_paid') {
+                        this.debtFilters.age = 'all';
+                        this.debtFilters.payment = 'partial';
+                    }
+                },
+                isDebtPillActive(pill) {
+                    if (pill === 'all') return this.debtFilters.age === 'all' && this.debtFilters.payment === 'all';
+                    if (pill === 'overdue') return this.debtFilters.age === 'overdue';
+                    if (pill === 'today') return this.debtFilters.age === 'today';
+                    if (pill === 'due_soon') return this.debtFilters.age === 'due_soon';
+                    if (pill === 'old') return this.debtFilters.age === 'old';
+                    if (pill === 'none_paid') return this.debtFilters.payment === 'none';
+                    if (pill === 'partial_paid') return this.debtFilters.payment === 'partial';
+                    return false;
+                },
+                get debtPillCounts() {
+                    let open = this.orders.filter(o => o.status !== 'paid');
+                    return {
+                        all: open.length,
+                        overdue: open.filter(o => this.dueInfo(o).state === 'overdue').length,
+                        today: open.filter(o => this.dueInfo(o).state === 'today').length,
+                        due_soon: open.filter(o => ['today', 'soon'].includes(this.dueInfo(o).state)).length,
+                        old: open.filter(o => this.daysOld(o.created_at) > 30).length,
+                        none_paid: open.filter(o => this.orderPaidUsd(o) <= 0).length,
+                        partial_paid: open.filter(o => this.orderPaidUsd(o) > 0).length,
+                    };
+                },
+                focusCustomer(name) {
+                    this.debtFilters.search = name;
+                    this.debtViewMode = 'debts';
+                    this.$nextTick(() => this.$refs.debtSearchInput?.focus());
+                },
+                get debtCustomerGroups() {
+                    let groups = {};
+                    this.filteredDebtsList.forEach(o => {
+                        let name = String(o.customer_name || 'Cliente sin nombre').trim();
+                        let key = name.toLowerCase();
+                        if (!groups[key]) groups[key] = { key, name, count: 0, totalUsd: 0, overdue: 0, oldestDays: 0 };
+                        groups[key].count++;
+                        groups[key].totalUsd += this.orderRemainingUsd(o);
+                        groups[key].overdue += this.dueInfo(o).state === 'overdue' ? 1 : 0;
+                        groups[key].oldestDays = Math.max(groups[key].oldestDays, this.daysOld(o.created_at));
+                    });
+                    return Object.values(groups).sort((a, b) => b.totalUsd - a.totalUsd);
+                },
+                get filteredDebtsList() {
+                    let query = this.debtFilters.search.trim().toLowerCase();
+                    let open = this.orders.filter(o => o.status !== 'paid');
+                    let list = open.filter(o => {
+                        let haystack = [o.id, o.customer_name, JSON.stringify(o.details || ''), o.customer_phone || '', o.collection_notes || ''].join(' ').toLowerCase();
+                        let searchMatch = !query || haystack.includes(query);
+                        let due = this.dueInfo(o);
+                        let ageMatch = true;
+                        if (this.debtFilters.age === 'overdue') ageMatch = due.state === 'overdue';
+                        if (this.debtFilters.age === 'today') ageMatch = due.state === 'today';
+                        if (this.debtFilters.age === 'due_soon') ageMatch = ['today', 'soon'].includes(due.state);
+                        if (this.debtFilters.age === 'old') ageMatch = this.daysOld(o.created_at) > 30;
+                        if (this.debtFilters.age === 'no_due') ageMatch = due.state === 'none';
+                        let paymentMatch = this.debtFilters.payment === 'all' || (this.debtFilters.payment === 'none' ? this.orderPaidUsd(o) <= 0 : this.orderPaidUsd(o) > 0);
+                        return searchMatch && ageMatch && paymentMatch;
+                    });
+                    return list.sort((a, b) => {
+                        if (this.debtFilters.sort === 'amount_desc') return this.orderRemainingUsd(b) - this.orderRemainingUsd(a);
+                        if (this.debtFilters.sort === 'oldest') return String(a.created_at).localeCompare(String(b.created_at));
+                        if (this.debtFilters.sort === 'recent') return String(b.created_at).localeCompare(String(a.created_at));
+                        if (this.debtFilters.sort === 'customer') return String(a.customer_name || '').localeCompare(String(b.customer_name || ''), 'es');
+                        const priority = order => ({ overdue: 0, today: 1, soon: 2, future: 3, none: 4 })[this.dueInfo(order).state];
+                        return priority(a) - priority(b) || this.orderRemainingUsd(b) - this.orderRemainingUsd(a);
+                    });
+                },
+
+                async openDebtDetails(order) {
+                    if (!order) return;
+                    this.debtDetailModal.order = order;
+                    this.debtDetailModal.items = this.parseDetails(order.details);
+                    this.debtDetailModal.payments = [];
+                    this.debtDetailModal.error = '';
+                    this.debtDetailModal.open = true;
+                    this.collectionForm = {
+                        customer_phone: order.customer_phone || '',
+                        due_date: order.due_date || '',
+                        collection_notes: order.collection_notes || '',
+                    };
+                    try {
+                        let res = await fetch('<?= base_url('printing/payments') ?>/' + order.id);
+                        let data = await res.json();
+                        if (data.status === 'success') {
+                            this.debtDetailModal.payments = data.data || [];
+                        }
+                    } catch(e) {}
+                },
+                async saveDebtCollection() {
+                    if (!this.debtDetailModal.order) return;
+                    this.debtDetailModal.saving = true;
+                    this.debtDetailModal.error = '';
+                    try {
+                        let res = await fetch('<?= base_url('printing/update-debt') ?>', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                order_id: this.debtDetailModal.order.id,
+                                ...this.collectionForm
+                            })
+                        });
+                        let data = await res.json();
+                        if (!res.ok || data.status !== 'success') {
+                            throw new Error(data.message || 'No se pudo guardar la cobranza');
+                        }
+                        if (data.order) {
+                            let idx = this.orders.findIndex(o => o.id == data.order.id);
+                            if (idx !== -1) this.orders[idx] = data.order;
+                            this.debtDetailModal.order = data.order;
+                        }
+                        this.message = 'Datos de cobranza actualizados';
+                        setTimeout(() => this.message = '', 3000);
+                    } catch(e) {
+                        this.debtDetailModal.error = e.message;
+                    } finally {
+                        this.debtDetailModal.saving = false;
+                    }
+                },
+                syncPayModal(source) {
+                    if (this.exchangeRate <= 0) return;
+                    if (source === 'usd') {
+                        this.payModal.amount_bs = this.payModal.amount_usd === '' ? '' : Number((Number(this.payModal.amount_usd) * this.exchangeRate).toFixed(2));
+                    } else if (source === 'bs') {
+                        this.payModal.amount_usd = this.payModal.amount_bs === '' ? '' : Number((Number(this.payModal.amount_bs) / this.exchangeRate).toFixed(2));
+                    }
+                },
+                setPaymentPercentage(percentage) {
+                    if (!this.payModal.order) return;
+                    let remUsd = this.orderRemainingUsd(this.payModal.order);
+                    let targetUsd = Number(((remUsd * percentage) / 100).toFixed(2));
+                    this.payModal.amount_usd = targetUsd;
+                    this.payModal.amount_bs = Number((targetUsd * this.exchangeRate).toFixed(2));
+                },
+                useFullDebtBalance() {
+                    this.setPaymentPercentage(100);
+                },
+                debtInvoiceText(order) {
+                    return this.buildWhatsAppText(order, 'detailed');
+                },
+                whatsappPhone(phone) {
+                    let digits = String(phone || '').replace(/\D/g, '');
+                    if (digits.startsWith('0')) digits = '58' + digits.slice(1);
+                    if (digits.length === 10 && !digits.startsWith('58')) digits = '58' + digits;
+                    return digits;
+                },
+                openWhatsAppModal(order, defaultTemplate = 'detailed') {
+                    if (!order) return;
+                    this.whatsappModal.order = order;
+                    this.whatsappModal.phone = order.customer_phone || '';
+                    this.whatsappModal.template = defaultTemplate;
+                    this.whatsappModal.message = this.buildWhatsAppText(order, defaultTemplate);
+                    this.whatsappModal.open = true;
+                },
+                setWhatsAppTemplate(key) {
+                    this.whatsappModal.template = key;
+                    this.whatsappModal.message = this.buildWhatsAppText(this.whatsappModal.order, key);
+                },
+                buildWhatsAppText(order, templateKey) {
+                    if (!order) return '';
+                    let customer = order.customer_name || 'Estimado(a) cliente';
+                    let remUsd = '$' + this.formatUsd(this.orderRemainingUsd(order));
+                    let remBs = 'Bs. ' + this.formatBs(this.orderRemainingBs(order));
+                    let totUsd = '$' + this.formatUsd(this.orderTotalUsd(order));
+                    let totBs = 'Bs. ' + parseFloat(order.total_bs || 0).toFixed(2);
+                    let paidUsd = '$' + this.formatUsd(this.orderPaidUsd(order));
+                    let dateStr = this.formatDateStr(order.created_at);
+                    let dueStr = order.due_date ? this.formatDateStr(order.due_date) : '';
+                    let details = this.parseDetails(order.details);
+
+                    if (templateKey === 'friendly') {
+                        let lines = [
+                            '¡Hola, ' + customer + '! 👋',
+                            '',
+                            'Esperamos que estés muy bien. Te saludamos de parte del equipo de Impresiones.',
+                            'Te escribimos con un cordial recordatorio sobre tu orden *#' + order.id + '* del ' + dateStr + '.',
+                            '',
+                            'Saldo pendiente: *' + remUsd + '* (' + remBs + ')',
+                        ];
+                        if (dueStr) lines.push('Fecha convenida: ' + dueStr);
+                        lines.push(
+                            '',
+                            'Puedes realizar tu pago cuando gustes. Al transferir, por favor compártenos el comprobante por este medio.',
+                            '',
+                            '¡Que tengas un excelente día!'
+                        );
+                        return lines.join('\n');
+                    }
+
+                    if (templateKey === 'urgent') {
+                        let lines = [
+                            '⚠️ *AVISO DE COBRANZA - VENCIMIENTO*',
+                            '',
+                            'Estimado(a) *' + customer + '*,',
+                            'Le notificamos que la orden *#' + order.id + '* presenta saldo vencido pendiente de pago.',
+                            '',
+                            '*Monto adeudado:* ' + remUsd + ' (' + remBs + ')',
+                            '*Fecha de orden:* ' + dateStr,
+                        ];
+                        if (dueStr) lines.push('*Fecha límite original:* ' + dueStr);
+                        lines.push(
+                            '',
+                            'Le solicitamos comunicarse a la brevedad posible para concretar su pago o coordinar un acuerdo.',
+                            'Agradecemos su pronta atención.'
+                        );
+                        return lines.join('\n');
+                    }
+
+                    // Default: Factura Detallada
+                    let lines = [
+                        '📄 *FACTURA DE DEUDA - IMPRESIONES*',
+                        '',
+                        'Cliente: *' + customer + '*',
+                        'Orden: *#' + order.id + '*',
+                        'Fecha: ' + dateStr,
+                    ];
+                    if (dueStr) lines.push('Vencimiento: ' + dueStr);
+                    if (details.length) {
+                        lines.push('', '*Servicios de la orden:*');
+                        details.forEach(d => lines.push('• ' + d));
+                    }
+                    lines.push(
+                        '',
+                        'Total orden: ' + totUsd + ' (' + totBs + ')',
+                        'Total abonado: ' + paidUsd,
+                        '*SALDO PENDIENTE:* ' + remUsd + ' (' + remBs + ')'
+                    );
+                    if (order.collection_notes) {
+                        lines.push('', '*Nota:* ' + order.collection_notes);
+                    }
+                    lines.push(
+                        '',
+                        'Al efectuar el pago, por favor remítenos el comprobante por este chat. ¡Muchas gracias por tu preferencia!'
+                    );
+                    return lines.join('\n');
+                },
+                async sendWhatsAppModal() {
+                    if (!this.whatsappModal.order) return;
+                    let order = this.whatsappModal.order;
+                    let phone = this.whatsappPhone(this.whatsappModal.phone || order.customer_phone);
+                    let text = this.whatsappModal.message || this.buildWhatsAppText(order, this.whatsappModal.template);
+                    let url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text);
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                    this.whatsappModal.open = false;
+
+                    try {
+                        let res = await fetch('<?= base_url('printing/record-reminder') ?>', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ order_id: order.id })
+                        });
+                        let data = await res.json();
+                        if (data.status === 'success' && data.data) {
+                            order.reminder_count = data.data.reminder_count;
+                            order.last_reminder_at = data.data.last_reminder_at;
+                            let idx = this.orders.findIndex(o => o.id == order.id);
+                            if (idx !== -1) this.orders[idx] = { ...this.orders[idx], ...data.data };
+                        }
+                    } catch(e) {}
+                },
+                async copyWhatsAppModalText() {
+                    let text = this.whatsappModal.message;
+                    if (!text) return;
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        this.message = 'Mensaje copiado al portapapeles';
+                        setTimeout(() => this.message = '', 3000);
+                    } catch(e) {
+                        alert('No se pudo copiar');
+                    }
+                },
+                shareWhatsAppDebt(order) {
+                    this.openWhatsAppModal(order, 'detailed');
+                },
+                async copyDebtInvoice(order) {
+                    if (!order) return;
+                    try {
+                        await navigator.clipboard.writeText(this.buildWhatsAppText(order, 'detailed'));
+                        this.message = 'Detalle de cobro copiado';
+                        setTimeout(() => this.message = '', 3000);
+                    } catch(e) {
+                        alert('No se pudo copiar el texto');
+                    }
+                },
+                openCustomerStatement(cust) {
+                    if (!cust) return;
+                    let openOrders = this.orders.filter(o => o.status !== 'paid' && String(o.customer_name || 'Cliente sin nombre').trim().toLowerCase() === cust.key);
+                    let phone = '';
+                    for (let o of openOrders) {
+                        if (o.customer_phone) { phone = o.customer_phone; break; }
+                    }
+                    let totalUsd = openOrders.reduce((sum, o) => sum + this.orderRemainingUsd(o), 0);
+                    let totalBs = openOrders.reduce((sum, o) => sum + this.orderRemainingBs(o), 0);
+                    let totalPaidUsd = openOrders.reduce((sum, o) => sum + this.orderPaidUsd(o), 0);
+                    let totalPaidBs = openOrders.reduce((sum, o) => sum + (parseFloat(o.paid_bs || 0)), 0);
+                    let totalInvoiceUsd = openOrders.reduce((sum, o) => sum + this.orderTotalUsd(o), 0);
+                    let totalInvoiceBs = openOrders.reduce((sum, o) => sum + (parseFloat(o.total_bs || 0)), 0);
+
+                    this.customerStatementModal = {
+                        open: true,
+                        customer: cust,
+                        orders: openOrders,
+                        phone: phone,
+                        totalUsd: totalUsd,
+                        totalBs: totalBs,
+                        totalPaidUsd: totalPaidUsd,
+                        totalPaidBs: totalPaidBs,
+                        totalInvoiceUsd: totalInvoiceUsd,
+                        totalInvoiceBs: totalInvoiceBs,
+                    };
+                },
+                buildCustomerStatementWhatsApp() {
+                    let m = this.customerStatementModal;
+                    if (!m.customer) return '';
+                    let lines = [
+                        '📋 *ESTADO DE CUENTA CONSOLIDADO - IMPRESIONES*',
+                        '',
+                        'Estimado(a) *' + m.customer.name + '*,',
+                        'le enviamos el resumen de sus órdenes pendientes a la fecha:',
+                        ''
+                    ];
+                    m.orders.forEach((ord, i) => {
+                        let details = this.parseDetails(ord.details);
+                        let detailText = details.length ? ' (' + details.slice(0, 2).join(', ') + (details.length > 2 ? '...' : '') + ')' : '';
+                        lines.push((i + 1) + '. *Orden #' + ord.id + '* (' + this.formatDateStr(ord.created_at) + ')');
+                        lines.push('   Saldo: *$' + this.formatUsd(this.orderRemainingUsd(ord)) + '* · Bs. ' + this.formatBs(this.orderRemainingBs(ord)) + detailText);
+                    });
+                    lines.push(
+                        '',
+                        '--------------------------------',
+                        '*TOTAL ACUMULADO:* *$' + this.formatUsd(m.totalUsd) + '*',
+                        '*Equivalente en Bs:* Bs. ' + this.formatBs(m.totalBs),
+                        '--------------------------------',
+                        '',
+                        'Por favor confirmar su pago enviando el comprobante por esta vía.',
+                        '¡Agradecemos su preferencia!'
+                    );
+                    return lines.join('\n');
+                },
+                async sendCustomerStatementWhatsApp() {
+                    let m = this.customerStatementModal;
+                    if (!m.customer || !m.orders.length) return;
+                    let phone = this.whatsappPhone(m.phone);
+                    let text = this.buildCustomerStatementWhatsApp();
+                    let url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text);
+                    window.open(url, '_blank', 'noopener,noreferrer');
+
+                    let orderIds = m.orders.map(o => o.id);
+                    try {
+                        let res = await fetch('<?= base_url('printing/record-reminder') ?>', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ order_ids: orderIds })
+                        });
+                        let data = await res.json();
+                        if (data.status === 'success' && data.updated) {
+                            Object.entries(data.updated).forEach(([id, ch]) => {
+                                let idx = this.orders.findIndex(o => o.id == id);
+                                if (idx !== -1) this.orders[idx] = { ...this.orders[idx], ...ch };
+                            });
+                        }
+                    } catch(e) {}
+                },
+                async copyCustomerStatementText() {
+                    let text = this.buildCustomerStatementWhatsApp();
+                    if (!text) return;
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        this.message = 'Estado de cuenta copiado al portapapeles';
+                        setTimeout(() => this.message = '', 3000);
+                    } catch(e) {
+                        alert('No se pudo copiar');
+                    }
+                },
+                openDebtPrintModal(order) {
+                    if (!order) return;
+                    this.debtPrintModal.order = order;
+                    this.debtPrintModal.open = true;
+                },
+                printDebtTicket() {
+                    window.print();
+                },
+                async copyCollectionReport() {
+                    let open = this.orders.filter(o => o.status !== 'paid');
+                    let totalUsd = open.reduce((sum, o) => sum + this.orderRemainingUsd(o), 0);
+                    let totalBs = open.reduce((sum, o) => sum + this.orderRemainingBs(o), 0);
+                    let overdue = open.filter(o => this.dueInfo(o).state === 'overdue');
+                    let groups = this.debtCustomerGroups.slice(0, 5);
+
+                    let lines = [
+                        '📊 *REPORTE DE CUENTAS POR COBRAR - IMPRESIONES*',
+                        'Fecha: ' + new Date().toLocaleDateString('es-VE'),
+                        '',
+                        '*Total por cobrar:* $' + this.formatUsd(totalUsd) + ' (Bs. ' + this.formatBs(totalBs) + ')',
+                        '*Órdenes pendientes:* ' + open.length,
+                        '*Clientes con saldo:* ' + this.debtCustomerGroups.length,
+                        '*Órdenes vencidas:* ' + overdue.length,
+                    ];
+
+                    if (groups.length) {
+                        lines.push('', '*Top clientes con mayor saldo:*');
+                        groups.forEach((c, i) => {
+                            lines.push((i + 1) + '. ' + c.name + ': $' + this.formatUsd(c.totalUsd) + ' (' + c.count + ' ord.)');
+                        });
+                    }
+
+                    try {
+                        await navigator.clipboard.writeText(lines.join('\n'));
+                        this.message = 'Resumen de cobranza copiado al portapapeles';
+                        setTimeout(() => this.message = '', 3000);
+                    } catch(e) {
+                        alert('No se pudo copiar el reporte');
                     }
                 }
             }

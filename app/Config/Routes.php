@@ -78,6 +78,9 @@ $routes->get('printing/customer-orders', 'PrintingController::getCustomerOrders'
 $routes->post('printing/toggle-favorite', 'PrintingController::toggleFavorite');
 $routes->post('printing/delete-transaction/(:num)', 'PrintingController::deleteTransaction/$1');
 $routes->get('printing/debug-payments', 'PrintingController::debugPayments');
+$routes->get('printing/debts', 'PrintingController::debts');
+$routes->post('printing/update-debt', 'PrintingController::updateDebt');
+$routes->post('printing/record-reminder', 'PrintingController::recordDebtReminder');
 
 $routes->get('printing/fix-db', 'PrintingController::fixDb');
 

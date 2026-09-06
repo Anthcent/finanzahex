@@ -29,7 +29,7 @@ def request(path, data=None):
     return result
 
 for path in ['', 'accounts', 'history', 'metrics', 'config', 'printing',
-             'sales', 'sales/create', 'sales/debts', 'inventory',
+             'printing/debts', 'sales', 'sales/create', 'sales/debts', 'inventory',
              'inventory/items', 'inventory/movements', 'audit', 'ai',
              'transaction/stats', 'sales/get-statuses', 'sales/get-active-orders']:
     request(path)
@@ -116,6 +116,36 @@ assert int(saved_customer['is_favorite']) == 1
 assert int(saved_customer['order_count']) >= 1
 customer_orders = request('printing/customer-orders?name=' + urllib.parse.quote(tag))['data']
 assert any(int(order['id']) == int(printing_order['order_id']) for order in customer_orders)
+printing_debt_order = request('printing/store', {
+    'customer_name': tag + ' debt',
+    'customer_phone': '04121234567',
+    'due_date': today,
+    'collection_notes': tag,
+    'items': [{'id': int(copy_product['id']), 'quantity': 2, 'note': tag}],
+    'paid_bs': 0,
+    'paid_usd': 0,
+    'exchange_rate': 50,
+})
+printing_debt_id = int(printing_debt_order['order_id'])
+request('printing/update-debt', {
+    'order_id': printing_debt_id,
+    'customer_phone': '0412-7654321',
+    'due_date': today,
+    'collection_notes': tag + ' updated',
+})
+request('printing/record-reminder', {'order_id': printing_debt_id})
+request('printing/record-reminder', {'order_ids': [printing_debt_id]})
+printing_history = request('printing/history')['data']
+debt_order_check = next(o for o in printing_history if int(o['id']) == printing_debt_id)
+assert debt_order_check['customer_phone'] == '0412-7654321'
+assert int(debt_order_check['reminder_count']) == 2
+request('printing/add-payment', {
+    'order_id': printing_debt_id,
+    'amount_bs': 4,
+    'amount_usd': 0,
+    'account_id': account_id,
+    'rate': 50,
+})
 conversation = request('ai/save-conversation', {
     'title': tag, 'messages': [{'role': 'user', 'content': 'Deployment test'}]})
 request('ai/conversation/' + str(conversation['id']))

@@ -39,7 +39,45 @@ class PrintingController extends BaseController
             $defaultAccount = 0; // Or handle as "No Account"
         }
 
-        return view('printing/index', ['products' => $products, 'accounts' => $accounts, 'defaultAccount' => $defaultAccount]);
+        return view('printing/index', [
+            'products' => $products,
+            'accounts' => $accounts,
+            'defaultAccount' => $defaultAccount,
+            'initialTab' => $this->request->getGet('tab') ?: 'pos',
+        ]);
+    }
+
+    public function debts()
+    {
+        $this->ensureTablesExist();
+
+        $db = \Config\Database::connect();
+        $model = new PrintProductModel();
+        $accountModel = new AccountModel();
+
+        $products = $model->orderBy('category', 'ASC')->orderBy('name', 'ASC')->findAll();
+        $accounts = $accountModel->where('status', 'active')->findAll();
+
+        try {
+            $setting = $db->table('settings')->where('key', 'default_print_account')->get()->getRowArray();
+        } catch (\Exception $e) {
+            $setting = null;
+        }
+
+        if ($setting && isset($setting['value'])) {
+            $defaultAccount = $setting['value'];
+        } elseif (!empty($accounts)) {
+            $defaultAccount = $accounts[0]['id'];
+        } else {
+            $defaultAccount = 0;
+        }
+
+        return view('printing/index', [
+            'products' => $products,
+            'accounts' => $accounts,
+            'defaultAccount' => $defaultAccount,
+            'initialTab' => 'debts',
+        ]);
     }
 
     public function getProducts()
@@ -437,6 +475,10 @@ class PrintingController extends BaseController
             $db->transBegin();
             $transactionStarted = true;
 
+            $phone = trim((string) ($payload['customer_phone'] ?? ''));
+            $dueDate = trim((string) ($payload['due_date'] ?? ''));
+            $notes = trim((string) ($payload['collection_notes'] ?? ''));
+
             $orderData = [
                 'customer_name' => $customerName,
                 'details' => json_encode($details, JSON_UNESCAPED_UNICODE),
@@ -445,6 +487,9 @@ class PrintingController extends BaseController
                 'paid_bs' => $paidBs,
                 'paid_usd' => $paidUsd,
                 'status' => $status,
+                'customer_phone' => $phone !== '' ? $phone : null,
+                'due_date' => $dueDate !== '' ? $dueDate : null,
+                'collection_notes' => $notes !== '' ? $notes : null,
                 'created_at' => date('Y-m-d H:i:s'),
             ];
             if (!$db->table('print_orders')->insert($orderData)) {
@@ -935,5 +980,117 @@ class PrintingController extends BaseController
                        ->get()->getResultArray();
                        
         return $this->response->setJSON(['status' => 'success', 'data' => $payments]);
+    }
+
+    public function updateDebt()
+    {
+        $payload = $this->request->getJSON(true) ?? [];
+        $orderId = (int) ($payload['order_id'] ?? 0);
+        $db = \Config\Database::connect();
+        $order = $db->table('print_orders')->where('id', $orderId)->get()->getRowArray();
+        if (!$order || $order['status'] === 'paid') {
+            return $this->response->setStatusCode(404)->setJSON([
+                'status' => 'error',
+                'message' => 'La orden no existe o ya fue pagada.',
+            ]);
+        }
+
+        $dueDate = trim((string) ($payload['due_date'] ?? ''));
+        if ($dueDate !== '') {
+            $parsedDate = \DateTime::createFromFormat('Y-m-d', $dueDate);
+            if (!$parsedDate || $parsedDate->format('Y-m-d') !== $dueDate) {
+                return $this->response->setStatusCode(422)->setJSON([
+                    'status' => 'error',
+                    'message' => 'La fecha límite no es válida.',
+                ]);
+            }
+        }
+
+        $phone = trim((string) ($payload['customer_phone'] ?? ''));
+        if ($phone !== '' && !preg_match('/^[+0-9()\-\s]{7,32}$/', $phone)) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'status' => 'error',
+                'message' => 'El teléfono sólo puede contener números, espacios, +, guiones y paréntesis.',
+            ]);
+        }
+
+        $notes = trim((string) ($payload['collection_notes'] ?? ''));
+        if (mb_strlen($notes) > 2000) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'status' => 'error',
+                'message' => 'Las notas no pueden superar 2.000 caracteres.',
+            ]);
+        }
+
+        $before = [
+            'customer_phone' => $order['customer_phone'] ?? null,
+            'due_date' => $order['due_date'] ?? null,
+            'collection_notes' => $order['collection_notes'] ?? null,
+        ];
+        $changes = [
+            'customer_phone' => $phone !== '' ? $phone : null,
+            'due_date' => $dueDate !== '' ? $dueDate : null,
+            'collection_notes' => $notes !== '' ? $notes : null,
+        ];
+
+        $db->table('print_orders')->where('id', $orderId)->update($changes);
+        AuditLogModel::log('printing', 'update_debt', $orderId, $before, $changes, null, "Gestión de cobranza orden #{$orderId}");
+
+        $updatedOrder = $db->table('print_orders')->where('id', $orderId)->get()->getRowArray();
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'message' => 'Datos de cobranza actualizados',
+            'order' => $updatedOrder,
+        ]);
+    }
+
+    public function recordDebtReminder()
+    {
+        $payload = $this->request->getJSON(true) ?? [];
+        $orderIds = [];
+        if (!empty($payload['order_ids']) && is_array($payload['order_ids'])) {
+            $orderIds = array_map('intval', $payload['order_ids']);
+        } elseif (!empty($payload['order_id'])) {
+            $orderIds = [(int) $payload['order_id']];
+        }
+
+        if (empty($orderIds)) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => 'error',
+                'message' => 'No se especificó ninguna orden.',
+            ]);
+        }
+
+        $db = \Config\Database::connect();
+        $now = date('Y-m-d H:i:s');
+        $updatedOrders = [];
+
+        foreach ($orderIds as $orderId) {
+            $order = $db->table('print_orders')->where('id', $orderId)->get()->getRowArray();
+            if (!$order || $order['status'] === 'paid') {
+                continue;
+            }
+            $changes = [
+                'last_reminder_at' => $now,
+                'reminder_count' => (int) ($order['reminder_count'] ?? 0) + 1,
+            ];
+            $db->table('print_orders')->where('id', $orderId)->update($changes);
+            AuditLogModel::log('printing', 'debt_reminder', $orderId, null, $changes, null, "Recordatorio de cobranza orden #{$orderId}");
+            $updatedOrders[$orderId] = $changes;
+        }
+
+        if (empty($updatedOrders)) {
+            return $this->response->setStatusCode(404)->setJSON([
+                'status' => 'error',
+                'message' => 'Órdenes no encontradas o ya pagadas.',
+            ]);
+        }
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'data' => count($orderIds) === 1 && isset($updatedOrders[$orderIds[0]]) ? $updatedOrders[$orderIds[0]] : null,
+            'updated' => $updatedOrders,
+        ]);
     }
 }
