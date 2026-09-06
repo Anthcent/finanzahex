@@ -97,7 +97,7 @@
                 <span>Deudas</span>
                 <span x-show="debtsCount > 0" x-text="debtsCount" class="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full min-w-[18px] text-center ml-0.5"></span>
             </button>
-            <button @click="tab = 'history'; fetchMovements()" 
+            <button @click="tab = 'history'; fetchHistory(); fetchMovements(); fetchDirectoryCustomers()" 
                     :class="tab === 'history' ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-950/20' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'" 
                     class="flex-1 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 active:scale-98">
                 <span class="material-icons text-base">history</span>
@@ -559,71 +559,611 @@
         </div>
 
         <!-- History Tab -->
-        <div x-show="tab === 'history'">
-            <!-- Metrics & Filters -->
-            <div class="mb-5 sticky top-18 z-30 bg-slate-50/90 backdrop-blur-md py-2 space-y-3">
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cobrado (Hoy)</p>
-                        <p class="text-xl font-black text-emerald-600 mt-0.5" x-text="'Bs. ' + historyMetrics.today_bs.toFixed(2)"></p>
-                    </div>
-                    <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Deuda Total</p>
-                        <p class="text-xl font-black text-rose-600 mt-0.5" x-text="'Bs. ' + historyMetrics.debt_bs.toFixed(2)"></p>
-                    </div>
-                </div>
+        <div x-show="tab === 'history'" class="space-y-4">
+            
+            <!-- Sub-Navigation for History Tab (Segmented Controls) -->
+            <div class="bg-white/95 backdrop-blur-md rounded-2xl p-1.5 shadow-2xs border border-slate-200/80 flex gap-1 sm:gap-1.5 sticky top-18 z-30">
+                <button type="button" @click="historyView = 'orders'"
+                        :class="historyView === 'orders' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'"
+                        class="flex-1 py-2 sm:py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 active:scale-98">
+                    <span class="material-icons text-base">receipt_long</span>
+                    <span>Órdenes</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-black"
+                          :class="historyView === 'orders' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'"
+                          x-text="filteredHistoryOrders.length"></span>
+                </button>
 
-                <div class="flex gap-2.5">
-                    <div class="relative flex-1">
-                        <span class="material-icons absolute left-3.5 top-3 text-slate-400 text-base">search</span>
-                        <input type="text" x-model="historySearch" placeholder="Buscar en historial..." class="w-full bg-white border border-slate-200/90 rounded-2xl pl-10 pr-3 py-2.5 text-xs sm:text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 shadow-2xs">
-                    </div>
-                    <select x-model="historyFilter" class="bg-white border border-slate-200/90 rounded-2xl px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs outline-none">
-                        <option value="all">Todos</option>
-                        <option value="pending">Deudas</option>
-                        <option value="partial">Parcial</option>
-                        <option value="paid">Pagados</option>
-                    </select>
-                </div>
+                <button type="button" @click="historyView = 'customers'; fetchDirectoryCustomers()"
+                        :class="historyView === 'customers' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'"
+                        class="flex-1 py-2 sm:py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 active:scale-98">
+                    <span class="material-icons text-base">people_alt</span>
+                    <span>Clientes</span>
+                    <span class="hidden sm:inline">Registrados</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-black"
+                          :class="historyView === 'customers' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'"
+                          x-text="registeredCustomers.length"></span>
+                </button>
+
+                <button type="button" @click="historyView = 'movements'; fetchMovements()"
+                        :class="historyView === 'movements' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'"
+                        class="flex-1 py-2 sm:py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 active:scale-98">
+                    <span class="material-icons text-base">payments</span>
+                    <span>Movimientos</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-black"
+                          :class="historyView === 'movements' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'"
+                          x-text="filteredMovements.length"></span>
+                </button>
             </div>
 
-            <!-- History List -->
-            <div class="space-y-3 pb-24">
-                <template x-for="order in filteredHistory" :key="order.id">
-                    <div class="bg-white p-4 rounded-2xl shadow-2xs border border-slate-200/80 hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer" @click="openOrderDetails(order)">
-                        <div class="flex justify-between items-start mb-2">
-                            <div>
-                                <h3 class="font-black text-slate-900 text-sm leading-tight" x-text="order.customer_name || 'Sin Nombre'"></h3>
-                                <p class="text-[10px] font-bold text-slate-400 mt-0.5" x-text="order.created_at"></p>
-                            </div>
-                            <span class="px-2.5 py-0.5 rounded-xl text-[10px] font-black uppercase tracking-wider border shrink-0" 
-                                  :class="{
-                                      'bg-emerald-50 text-emerald-700 border-emerald-200': order.status === 'paid', 
-                                      'bg-amber-50 text-amber-700 border-amber-200': order.status === 'partial', 
-                                      'bg-rose-50 text-rose-600 border-rose-200': order.status === 'pending'
-                                  }" 
-                                  x-text="order.status === 'paid' ? 'Pagado' : (order.status === 'partial' ? 'Parcial' : 'Pendiente')">
-                            </span>
+            <!-- ==================== SUBVIEW 1: ÓRDENES ==================== -->
+            <div x-show="historyView === 'orders'" class="space-y-4">
+                
+                <!-- Financial KPI Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+                    <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-slate-400">Facturado</span>
+                            <span class="material-icons text-slate-400 text-sm">request_quote</span>
                         </div>
-                        <div class="flex justify-between items-end pt-1">
-                            <div class="text-[11px] text-slate-500 max-w-[65%] truncate">
-                                <template x-for="detail in parseDetails(order.details)">
-                                    <span x-text="detail + ' '" class="inline-block truncate"></span>
+                        <p class="text-lg sm:text-xl font-black text-slate-900 mt-1" x-text="'$' + formatUsd(historyFinancialMetrics.totalInvoicedUsd)"></p>
+                        <p class="text-[10.5px] font-bold text-slate-400" x-text="'Bs. ' + formatBs(historyFinancialMetrics.totalInvoicedBs)"></p>
+                    </div>
+
+                    <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-emerald-600">Cobrado</span>
+                            <span class="material-icons text-emerald-500 text-sm">check_circle</span>
+                        </div>
+                        <p class="text-lg sm:text-xl font-black text-emerald-600 mt-1" x-text="'$' + formatUsd(historyFinancialMetrics.totalPaidUsd)"></p>
+                        <p class="text-[10.5px] font-bold text-emerald-700/80" x-text="'Bs. ' + formatBs(historyFinancialMetrics.totalPaidBs)"></p>
+                    </div>
+
+                    <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-rose-600">Por Cobrar</span>
+                            <span class="material-icons text-rose-500 text-sm">pending_actions</span>
+                        </div>
+                        <p class="text-lg sm:text-xl font-black text-rose-600 mt-1" x-text="'$' + formatUsd(historyFinancialMetrics.totalDebtUsd)"></p>
+                        <p class="text-[10.5px] font-bold text-rose-500/80" x-text="'Bs. ' + formatBs(historyFinancialMetrics.totalDebtBs)"></p>
+                    </div>
+
+                    <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-indigo-600">Efectividad</span>
+                            <span class="material-icons text-indigo-500 text-sm">insights</span>
+                        </div>
+                        <p class="text-lg sm:text-xl font-black text-indigo-700 mt-1" x-text="historyFinancialMetrics.effectiveness + '%'"></p>
+                        <p class="text-[10.5px] font-bold text-indigo-500/80" x-text="historyFinancialMetrics.count + ' órdenes visibles'"></p>
+                    </div>
+                </div>
+
+                <!-- Date Range Filters Bar -->
+                <div class="bg-white p-2.5 rounded-2xl shadow-2xs border border-slate-200/80 space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                            <span class="material-icons text-xs">date_range</span>
+                            <span>Período:</span>
+                        </span>
+                        <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                            <button type="button" @click="historyDateFilter = 'all'" 
+                                    :class="historyDateFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2.5 py-1 rounded-xl text-[11px] font-black transition-all">Todo</button>
+                            <button type="button" @click="historyDateFilter = 'today'" 
+                                    :class="historyDateFilter === 'today' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2.5 py-1 rounded-xl text-[11px] font-black transition-all">Hoy</button>
+                            <button type="button" @click="historyDateFilter = 'yesterday'" 
+                                    :class="historyDateFilter === 'yesterday' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2.5 py-1 rounded-xl text-[11px] font-black transition-all">Ayer</button>
+                            <button type="button" @click="historyDateFilter = 'week'" 
+                                    :class="historyDateFilter === 'week' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2.5 py-1 rounded-xl text-[11px] font-black transition-all">7 días</button>
+                            <button type="button" @click="historyDateFilter = 'month'" 
+                                    :class="historyDateFilter === 'month' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2.5 py-1 rounded-xl text-[11px] font-black transition-all">Este mes</button>
+                            <button type="button" @click="historyDateFilter = 'custom'" 
+                                    :class="historyDateFilter === 'custom' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2.5 py-1 rounded-xl text-[11px] font-black transition-all">Rango</button>
+                        </div>
+                    </div>
+
+                    <!-- Custom Date Range Row -->
+                    <div x-show="historyDateFilter === 'custom'" class="flex items-center gap-2 pt-2 border-t border-slate-100 flex-wrap" x-cloak>
+                        <div class="flex items-center gap-1 text-xs">
+                            <span class="text-[10px] font-bold text-slate-400">Desde:</span>
+                            <input type="date" x-model="historyCustomStart" class="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500">
+                        </div>
+                        <div class="flex items-center gap-1 text-xs">
+                            <span class="text-[10px] font-bold text-slate-400">Hasta:</span>
+                            <input type="date" x-model="historyCustomEnd" class="bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500">
+                        </div>
+                        <button type="button" @click="historyCustomStart = ''; historyCustomEnd = ''" class="text-[10px] font-bold text-slate-400 hover:text-slate-600 ml-auto">Limpiar fechas</button>
+                    </div>
+                </div>
+
+                <!-- Search, Filter & Actions Toolbar -->
+                <div class="bg-white p-3 rounded-2xl shadow-2xs border border-slate-200/80 space-y-2.5">
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <!-- Search input -->
+                        <div class="relative flex-1">
+                            <span class="material-icons absolute left-3.5 top-2.5 text-slate-400 text-base">search</span>
+                            <input type="text" x-model="historySearch" placeholder="Buscar por #ID, cliente, servicio, teléfono..." 
+                                   class="w-full bg-slate-50 border border-slate-200/90 rounded-2xl pl-10 pr-9 py-2 text-xs sm:text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                            <button type="button" x-show="historySearch" @click="historySearch = ''" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                                <span class="material-icons text-base">close</span>
+                            </button>
+                        </div>
+
+                        <!-- Status selector -->
+                        <select x-model="historyFilter" class="bg-slate-50 border border-slate-200/90 rounded-2xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500">
+                            <option value="all">Todos los estados</option>
+                            <option value="paid">✅ Solo Pagados</option>
+                            <option value="partial">🟡 Abonos Parciales</option>
+                            <option value="pending">🔴 Solo Deudas</option>
+                        </select>
+
+                        <!-- Sort selector -->
+                        <select x-model="historySort" class="bg-slate-50 border border-slate-200/90 rounded-2xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500">
+                            <option value="recent">🕒 Más recientes</option>
+                            <option value="oldest">⏳ Más antiguas</option>
+                            <option value="amount_desc">💲 Mayor monto</option>
+                            <option value="amount_asc">📉 Menor monto</option>
+                            <option value="customer">👤 Por cliente (A-Z)</option>
+                        </select>
+                    </div>
+
+                    <!-- Quick buttons: Copy report & Refresh -->
+                    <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="copyHistoryReport()" 
+                                    class="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors active:scale-95">
+                                <span class="material-icons text-sm text-slate-500">content_copy</span>
+                                <span>Copiar Reporte</span>
+                            </button>
+                            <span class="text-[11px] font-bold text-slate-400" x-text="filteredHistoryOrders.length + ' órdenes encontradas'"></span>
+                        </div>
+
+                        <button type="button" @click="fetchHistory(); fetchMovements()" 
+                                class="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors active:scale-95"
+                                :class="{ 'opacity-50 pointer-events-none': historyRefreshing }">
+                            <span class="material-icons text-sm" :class="{ 'animate-spin text-emerald-600': historyRefreshing }">sync</span>
+                            <span x-text="historyRefreshing ? 'Actualizando...' : 'Recargar'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Orders List -->
+                <div class="space-y-3 pb-24">
+                    <template x-for="order in filteredHistoryOrders" :key="order.id">
+                        <div class="bg-white p-4 rounded-2xl shadow-2xs border border-slate-200/80 hover:shadow-md hover:border-emerald-200 transition-all space-y-3">
+                            
+                            <!-- Card Header: ID, Date, Status -->
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2">
+                                    <button type="button" @click="copyOrderId(order.id)" 
+                                            class="px-2.5 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-black text-xs transition-colors flex items-center gap-1"
+                                            title="Copiar ID de orden">
+                                        <span x-text="'#' + order.id"></span>
+                                        <span class="material-icons text-[11px] text-slate-400">content_copy</span>
+                                    </button>
+                                    <span class="text-[11px] font-bold text-slate-400" x-text="formatDateStr(order.created_at) + (order.created_at ? ' · ' + order.created_at.slice(11, 16) : '')"></span>
+                                </div>
+
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <span class="px-2.5 py-0.5 rounded-xl text-[10px] font-black uppercase tracking-wider border shrink-0" 
+                                          :class="{
+                                              'bg-emerald-50 text-emerald-700 border-emerald-200': order.status === 'paid', 
+                                              'bg-amber-50 text-amber-700 border-amber-200': order.status === 'partial', 
+                                              'bg-rose-50 text-rose-600 border-rose-200': order.status === 'pending'
+                                          }" 
+                                          x-text="order.status === 'paid' ? 'Pagado' : (order.status === 'partial' ? 'Parcial (' + orderPaidPercent(order).toFixed(0) + '%)' : 'Pendiente')">
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Customer & Contact Info -->
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-700 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs"
+                                         x-text="initials(order.customer_name)"></div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <button type="button" @click="openCustomerStatement(order.customer_name)" 
+                                                    class="font-black text-slate-900 text-sm hover:text-emerald-600 transition-colors truncate text-left"
+                                                    title="Ver estado de cuenta de este cliente"
+                                                    x-text="order.customer_name || 'Cliente sin nombre'"></button>
+                                        </div>
+                                        <div class="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5 flex-wrap">
+                                            <template x-if="order.customer_phone">
+                                                <button type="button" @click="openWhatsAppModal(order)" class="font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+                                                    <span class="material-icons text-[12px]">chat</span>
+                                                    <span x-text="order.customer_phone"></span>
+                                                </button>
+                                            </template>
+                                            <template x-if="order.due_date && order.status !== 'paid'">
+                                                <span class="px-1.5 py-0.2 rounded text-[10px] font-bold" :class="dueBadge(order).class" x-text="dueBadge(order).label"></span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Financial Totals for Card -->
+                                <div class="text-right shrink-0">
+                                    <p class="text-base font-black text-slate-900" x-text="'$' + formatUsd(orderTotalUsd(order))"></p>
+                                    <p class="text-[10px] font-bold text-slate-400" x-text="'Bs. ' + formatBs(order.total_bs)"></p>
+                                    <template x-if="order.status !== 'paid'">
+                                        <p class="text-[10.5px] font-black text-rose-600 mt-0.5" x-text="'Resta: $' + formatUsd(orderRemainingUsd(order))"></p>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Services / Products Details Pills -->
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                <template x-for="(detail, i) in parseDetails(order.details)" :key="i">
+                                    <span class="px-2.5 py-1 rounded-xl bg-slate-100/90 text-slate-700 text-[11px] font-bold border border-slate-200/60 max-w-full truncate" x-text="detail"></span>
                                 </template>
                             </div>
-                            <div class="text-right shrink-0">
-                                <p class="text-sm font-black text-slate-900" x-text="'Bs. ' + parseFloat(order.total_bs).toFixed(2)"></p>
-                                <p class="text-[10px] font-bold text-rose-500" x-show="order.status !== 'paid'" x-text="'Debe: Bs. ' + calculateDebt(order, 'Bs')"></p>
+
+                            <!-- Action Buttons Bar -->
+                            <div class="flex items-center justify-between gap-1 pt-2 border-t border-slate-100 flex-wrap">
+                                <div class="flex items-center gap-1 flex-wrap">
+                                    <button type="button" @click="openOrderDetails(order)" 
+                                            class="h-7 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-black transition-all flex items-center gap-1">
+                                        <span class="material-icons text-xs text-slate-500">visibility</span>
+                                        <span>Detalle</span>
+                                    </button>
+                                    <button type="button" @click="openDebtPrintModal(order)" 
+                                            class="h-7 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-black transition-all flex items-center gap-1"
+                                            title="Imprimir o compartir comprobante térmico">
+                                        <span class="material-icons text-xs text-slate-500">print</span>
+                                        <span>Ticket</span>
+                                    </button>
+                                    <button type="button" @click="openWhatsAppModal(order)" 
+                                            class="h-7 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-black transition-all flex items-center gap-1"
+                                            title="Enviar mensaje de WhatsApp">
+                                        <span class="material-icons text-xs text-emerald-600">chat</span>
+                                        <span>WhatsApp</span>
+                                    </button>
+                                    <template x-if="order.status !== 'paid'">
+                                        <button type="button" @click="openPayModal(order)" 
+                                                class="h-7 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black transition-all flex items-center gap-1 shadow-2xs">
+                                            <span class="material-icons text-xs">attach_money</span>
+                                            <span>Abonar</span>
+                                        </button>
+                                    </template>
+                                </div>
+
+                                <div class="flex items-center gap-1 ml-auto">
+                                    <button type="button" @click="openEditModal(order)" 
+                                            class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-all flex items-center justify-center"
+                                            title="Editar orden">
+                                        <span class="material-icons text-xs">edit</span>
+                                    </button>
+                                    <button type="button" @click="confirmDelete(order.id)" 
+                                            class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-700 transition-all flex items-center justify-center"
+                                            title="Eliminar orden">
+                                        <span class="material-icons text-xs">delete_outline</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </template>
+                    </template>
 
-                <div x-show="filteredHistory.length === 0" class="text-center py-16 bg-white/60 rounded-3xl border border-dashed border-slate-200">
-                    <span class="material-icons text-4xl text-slate-300 mb-2">receipt_long</span>
-                    <p class="font-bold text-slate-500 text-sm">No hay registros con ese criterio</p>
+                    <div x-show="filteredHistoryOrders.length === 0" class="text-center py-16 bg-white/60 rounded-3xl border border-dashed border-slate-200">
+                        <span class="material-icons text-4xl text-slate-300 mb-2">receipt_long</span>
+                        <p class="font-bold text-slate-500 text-sm">No hay órdenes que coincidan con los filtros</p>
+                        <button type="button" @click="historySearch = ''; historyFilter = 'all'; historyDateFilter = 'all'" 
+                                class="mt-3 text-xs font-bold text-emerald-600 hover:underline">Limpiar todos los filtros</button>
+                    </div>
                 </div>
             </div>
+
+            <!-- ==================== SUBVIEW 2: CLIENTES REGISTRADOS ==================== -->
+            <div x-show="historyView === 'customers'" class="space-y-4">
+                
+                <!-- Customers KPI Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+                    <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-slate-400">Total Clientes</span>
+                            <span class="material-icons text-slate-400 text-sm">groups</span>
+                        </div>
+                        <p class="text-lg sm:text-xl font-black text-slate-900 mt-1" x-text="customerDirectoryMetrics.total"></p>
+                        <p class="text-[10.5px] font-bold text-slate-400">En base de datos</p>
+                    </div>
+
+                    <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-amber-600">Frecuentes</span>
+                            <span class="material-icons text-amber-500 text-sm">star</span>
+                        </div>
+                        <p class="text-lg sm:text-xl font-black text-amber-600 mt-1" x-text="customerDirectoryMetrics.favorites"></p>
+                        <p class="text-[10.5px] font-bold text-amber-600/80">Clientes favoritos</p>
+                    </div>
+
+                    <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-rose-600">Con Deuda</span>
+                            <span class="material-icons text-rose-500 text-sm">warning</span>
+                        </div>
+                        <p class="text-lg sm:text-xl font-black text-rose-600 mt-1" x-text="customerDirectoryMetrics.withDebt"></p>
+                        <p class="text-[10.5px] font-bold text-rose-500" x-text="'$' + formatUsd(customerDirectoryMetrics.totalDebtUsd) + ' por cobrar'"></p>
+                    </div>
+
+                    <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-emerald-600">Solventes</span>
+                            <span class="material-icons text-emerald-500 text-sm">verified</span>
+                        </div>
+                        <p class="text-lg sm:text-xl font-black text-emerald-600 mt-1" x-text="customerDirectoryMetrics.solvent"></p>
+                        <p class="text-[10.5px] font-bold text-emerald-600/80">Cuentas al día</p>
+                    </div>
+                </div>
+
+                <!-- Customer Search & Filters Toolbar -->
+                <div class="bg-white p-3 rounded-2xl shadow-2xs border border-slate-200/80 space-y-2.5">
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <!-- Search input -->
+                        <div class="relative flex-1">
+                            <span class="material-icons absolute left-3.5 top-2.5 text-slate-400 text-base">search</span>
+                            <input type="text" x-model="customerDirSearch" placeholder="Buscar cliente por nombre o teléfono..." 
+                                   class="w-full bg-slate-50 border border-slate-200/90 rounded-2xl pl-10 pr-9 py-2 text-xs sm:text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                            <button type="button" x-show="customerDirSearch" @click="customerDirSearch = ''" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                                <span class="material-icons text-base">close</span>
+                            </button>
+                        </div>
+
+                        <!-- Sort selector -->
+                        <select x-model="customerDirSort" class="bg-slate-50 border border-slate-200/90 rounded-2xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500">
+                            <option value="spent">💲 Mayor consumo ($)</option>
+                            <option value="orders">📦 Más órdenes</option>
+                            <option value="debt">⚠️ Mayor deuda</option>
+                            <option value="recent">🕒 Última compra</option>
+                            <option value="name">🔤 Nombre (A-Z)</option>
+                        </select>
+                    </div>
+
+                    <!-- Category Pills & Actions -->
+                    <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 flex-wrap">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <button type="button" @click="customerDirFilter = 'all'" 
+                                    :class="customerDirFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2.5 py-1 rounded-xl text-[11px] font-black transition-all">Todos</button>
+                            <button type="button" @click="customerDirFilter = 'favorites'" 
+                                    :class="customerDirFilter === 'favorites' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2.5 py-1 rounded-xl text-[11px] font-black transition-all flex items-center gap-1">
+                                <span class="material-icons text-[12px]">star</span>
+                                <span>Favoritos</span>
+                            </button>
+                            <button type="button" @click="customerDirFilter = 'debt'" 
+                                    :class="customerDirFilter === 'debt' ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2.5 py-1 rounded-xl text-[11px] font-black transition-all flex items-center gap-1">
+                                <span class="material-icons text-[12px]">warning</span>
+                                <span>Con Deuda</span>
+                            </button>
+                            <button type="button" @click="customerDirFilter = 'solvent'" 
+                                    :class="customerDirFilter === 'solvent' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2.5 py-1 rounded-xl text-[11px] font-black transition-all">Al Día</button>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="copyCustomerDirectoryReport()" 
+                                    class="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors active:scale-95">
+                                <span class="material-icons text-sm text-slate-500">content_copy</span>
+                                <span>Copiar Directorio</span>
+                            </button>
+                            <button type="button" @click="fetchDirectoryCustomers()" 
+                                    class="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors active:scale-95"
+                                    :class="{ 'opacity-50 pointer-events-none': directoryLoading }">
+                                <span class="material-icons text-sm" :class="{ 'animate-spin text-emerald-600': directoryLoading }">sync</span>
+                                <span x-text="directoryLoading ? 'Cargando...' : 'Recargar'"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer Directory Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pb-24">
+                    <template x-for="c in filteredDirectoryCustomers" :key="c.name">
+                        <div class="bg-white p-4 rounded-2xl shadow-2xs border border-slate-200/80 hover:shadow-md hover:border-emerald-200 transition-all space-y-3">
+                            
+                            <!-- Customer Card Header -->
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-700 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs"
+                                         x-text="initials(c.name)"></div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-1.5">
+                                            <h3 class="font-black text-slate-900 text-sm truncate" x-text="c.name"></h3>
+                                        </div>
+                                        <div class="flex items-center gap-2 mt-0.5">
+                                            <template x-if="c.open_orders > 0 || c.debt_usd > 0.01">
+                                                <span class="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-black uppercase tracking-wider">
+                                                    Debe $<span x-text="formatUsd(c.debt_usd)"></span>
+                                                </span>
+                                            </template>
+                                            <template x-if="c.open_orders === 0 && c.debt_usd <= 0.01">
+                                                <span class="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase tracking-wider">
+                                                    Solvente
+                                                </span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Favorite toggle star -->
+                                <button type="button" @click="toggleFavoriteCustomer(c.name)" 
+                                        class="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0"
+                                        :class="c.is_favorite ? 'text-amber-500 bg-amber-50 hover:bg-amber-100' : 'text-slate-300 hover:text-amber-500 bg-slate-50 hover:bg-amber-50'"
+                                        :title="c.is_favorite ? 'Remover de favoritos' : 'Marcar como frecuente'">
+                                    <span class="material-icons text-base" x-text="c.is_favorite ? 'star' : 'star_border'"></span>
+                                </button>
+                            </div>
+
+                            <!-- Phone & Last Order Info -->
+                            <div class="flex items-center justify-between gap-2 text-xs bg-slate-50/80 p-2.5 rounded-xl border border-slate-100">
+                                <div class="flex items-center gap-1.5 text-slate-600 truncate">
+                                    <span class="material-icons text-xs text-slate-400">call</span>
+                                    <template x-if="c.phone">
+                                        <a :href="'https://wa.me/' + whatsappPhone(c.phone)" target="_blank" class="font-black text-emerald-600 hover:underline flex items-center gap-1 truncate">
+                                            <span x-text="c.phone"></span>
+                                            <span class="material-icons text-[11px]">open_in_new</span>
+                                        </a>
+                                    </template>
+                                    <template x-if="!c.phone">
+                                        <span class="text-slate-400 font-bold text-[11px]">Sin teléfono</span>
+                                    </template>
+                                </div>
+
+                                <div class="text-right text-[11px] text-slate-500 shrink-0 font-bold">
+                                    <span>Última: </span>
+                                    <span class="text-slate-700" x-text="c.last_order_at ? formatDateStr(c.last_order_at) : 'N/A'"></span>
+                                </div>
+                            </div>
+
+                            <!-- Metrics Stats Grid -->
+                            <div class="grid grid-cols-3 gap-2 text-center pt-0.5">
+                                <div class="bg-slate-50/60 p-2 rounded-xl border border-slate-100">
+                                    <p class="text-[9px] font-black uppercase text-slate-400">Consumo Total</p>
+                                    <p class="text-xs font-black text-slate-900 mt-0.5" x-text="'$' + formatUsd(c.total_usd)"></p>
+                                    <p class="text-[9px] font-bold text-slate-400 truncate" x-text="'Bs. ' + formatBs(c.total_bs)"></p>
+                                </div>
+
+                                <div class="bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/60">
+                                    <p class="text-[9px] font-black uppercase text-emerald-600">Total Pagado</p>
+                                    <p class="text-xs font-black text-emerald-700 mt-0.5" x-text="'$' + formatUsd(c.paid_usd)"></p>
+                                    <p class="text-[9px] font-bold text-emerald-600/80 truncate" x-text="'Bs. ' + formatBs(c.paid_bs)"></p>
+                                </div>
+
+                                <div class="bg-slate-50/60 p-2 rounded-xl border border-slate-100">
+                                    <p class="text-[9px] font-black uppercase text-slate-400">Órdenes</p>
+                                    <p class="text-xs font-black text-slate-900 mt-0.5" x-text="c.order_count"></p>
+                                    <p class="text-[9px] font-bold text-rose-500 truncate" x-text="c.open_orders > 0 ? c.open_orders + ' pend.' : 'Solvente'"></p>
+                                </div>
+                            </div>
+
+                            <!-- Customer Action Buttons -->
+                            <div class="flex items-center gap-1.5 pt-2 border-t border-slate-100">
+                                <button type="button" @click="openCustomerStatement(c)" 
+                                        class="flex-1 h-8 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black transition-all flex items-center justify-center gap-1 active:scale-95"
+                                        title="Ver estado de cuenta y órdenes pendientes">
+                                    <span class="material-icons text-xs text-slate-500">receipt</span>
+                                    <span>Estado Cuenta</span>
+                                </button>
+
+                                <button type="button" @click="filterOrdersByCustomer(c.name)" 
+                                        class="flex-1 h-8 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black transition-all flex items-center justify-center gap-1 active:scale-95"
+                                        title="Ver todas las órdenes de este cliente en historial">
+                                    <span class="material-icons text-xs text-slate-500">list_alt</span>
+                                    <span>Ver Órdenes</span>
+                                </button>
+
+                                <button type="button" @click="startSaleForCustomer(c.name)" 
+                                        class="h-8 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center justify-center gap-1 active:scale-95 shadow-2xs"
+                                        title="Iniciar una nueva orden en caja para este cliente">
+                                    <span class="material-icons text-xs">add_shopping_cart</span>
+                                    <span class="hidden sm:inline">Venta</span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div x-show="filteredDirectoryCustomers.length === 0" class="col-span-full text-center py-16 bg-white/60 rounded-3xl border border-dashed border-slate-200">
+                        <span class="material-icons text-4xl text-slate-300 mb-2">groups</span>
+                        <p class="font-bold text-slate-500 text-sm">No se encontraron clientes con esos filtros</p>
+                        <button type="button" @click="customerDirSearch = ''; customerDirFilter = 'all'" 
+                                class="mt-3 text-xs font-bold text-emerald-600 hover:underline">Restablecer filtros</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== SUBVIEW 3: MOVIMIENTOS DE CAJA ==================== -->
+            <div x-show="historyView === 'movements'" class="space-y-4">
+                
+                <!-- Movements KPI & Filters -->
+                <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80 space-y-3">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-slate-400">Total Movimientos</span>
+                            <p class="text-lg font-black text-slate-900 mt-0.5" x-text="filteredMovements.length"></p>
+                        </div>
+                        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-emerald-600">Total Recaudado (Bs)</span>
+                            <p class="text-lg font-black text-emerald-700 mt-0.5" x-text="'Bs. ' + formatBs(movementMetrics.totalBs)"></p>
+                        </div>
+                        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100 col-span-2 sm:col-span-1">
+                            <span class="text-[9.5px] font-black uppercase tracking-wider text-emerald-600">Total Recaudado ($)</span>
+                            <p class="text-lg font-black text-emerald-700 mt-0.5" x-text="'$' + formatUsd(movementMetrics.totalUsd)"></p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-2 pt-1 border-t border-slate-100">
+                        <div class="relative flex-1">
+                            <span class="material-icons absolute left-3.5 top-2.5 text-slate-400 text-base">search</span>
+                            <input type="text" x-model="movementSearch" placeholder="Buscar por concepto, orden #, cliente o cuenta..." 
+                                   class="w-full bg-slate-50 border border-slate-200/90 rounded-2xl pl-10 pr-9 py-2 text-xs sm:text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                            <button type="button" x-show="movementSearch" @click="movementSearch = ''" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                                <span class="material-icons text-base">close</span>
+                            </button>
+                        </div>
+
+                        <select x-model="movementAccountFilter" class="bg-slate-50 border border-slate-200/90 rounded-2xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500">
+                            <option value="all">Todas las cuentas</option>
+                            <template x-for="acc in (accounts || [])" :key="acc.id">
+                                <option :value="acc.id" x-text="acc.name"></option>
+                            </template>
+                        </select>
+
+                        <button type="button" @click="fetchMovements()" 
+                                class="h-9 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors active:scale-95 shrink-0">
+                            <span class="material-icons text-sm">sync</span>
+                            <span>Recargar</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Movements List -->
+                <div class="space-y-2.5 pb-24">
+                    <template x-for="m in filteredMovements" :key="m.id">
+                        <div class="bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80 hover:shadow-xs transition-all flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                    <span class="material-icons text-base">arrow_downward</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <p class="font-black text-slate-900 text-xs sm:text-sm truncate" x-text="m.description || 'Ingreso Impresiones'"></p>
+                                        <span class="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-bold text-[10px]" x-text="m.account_name || 'Caja'"></span>
+                                        <template x-if="m.order_id">
+                                            <span class="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 font-mono font-bold text-[10px]" x-text="'#' + m.order_id"></span>
+                                        </template>
+                                    </div>
+                                    <p class="text-[10px] font-bold text-slate-400 mt-0.5" x-text="m.created_at"></p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-3 shrink-0">
+                                <div class="text-right">
+                                    <p class="text-xs sm:text-sm font-black text-emerald-600" x-text="'+ Bs. ' + formatBs(m.amount)"></p>
+                                    <template x-if="parseFloat(m.amount_usd) > 0">
+                                        <p class="text-[10px] font-bold text-emerald-700/80" x-text="'+ $' + formatUsd(m.amount_usd)"></p>
+                                    </template>
+                                </div>
+                                <button type="button" @click="confirmTransDelete(m.id)" 
+                                        class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-700 transition-colors flex items-center justify-center"
+                                        title="Revertir / Eliminar movimiento de caja">
+                                    <span class="material-icons text-sm">delete_outline</span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div x-show="filteredMovements.length === 0" class="text-center py-16 bg-white/60 rounded-3xl border border-dashed border-slate-200">
+                        <span class="material-icons text-4xl text-slate-300 mb-2">payments</span>
+                        <p class="font-bold text-slate-500 text-sm">No hay movimientos registrados</p>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
     </main>
@@ -1605,6 +2145,7 @@
             return {
                 tab: new URLSearchParams(window.location.search).get('tab') || '<?= $initialTab ?? 'pos' ?>', 
                 cartOpen: false, cart: [], orders: [], movements: [],
+                accounts: <?= json_encode($accounts ?? []) ?>,
                 exchangeRate: 50, account_id: '<?= !empty($defaultAccount) ? $defaultAccount : '' ?>',
                 customer_name: '', loading: false, message: '',
                 totalBs: 0, totalUsd: 0, paidBs: 0, paidUsd: 0,
@@ -1651,12 +2192,35 @@
                 customerProfile: { name: '', orders: [], totalOrders: 0, loading: false, expanded: false },
                 customerSearchTimer: null, customerRequestId: 0, customerProfileRequestId: 0,
                 isFavorite: false,
-                searchQuery: '', historySearch: '', historyFilter: 'all',
+                searchQuery: '',
+
+                // History Tab State
+                historyView: 'orders', // 'orders' | 'customers' | 'movements'
+                historySearch: '', 
+                historyFilter: 'all', // 'all' | 'paid' | 'partial' | 'pending'
+                historyDateFilter: 'all', // 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom'
+                historyCustomStart: '',
+                historyCustomEnd: '',
+                historySort: 'recent', // 'recent' | 'oldest' | 'amount_desc' | 'amount_asc' | 'customer'
+                historyRefreshing: false,
+
+                // Customer Directory State
+                customerDirSearch: '',
+                customerDirFilter: 'all', // 'all' | 'favorites' | 'debt' | 'solvent'
+                customerDirSort: 'spent', // 'spent' | 'orders' | 'debt' | 'recent' | 'name'
+                directoryCustomers: [],
+                directoryLoading: false,
+
+                // Movements State
+                movementSearch: '',
+                movementAccountFilter: 'all',
 
                 init() {
                     this.restoreCart();
                     this.fetchRate();
                     this.fetchHistory();
+                    this.fetchMovements();
+                    this.fetchDirectoryCustomers();
                     this.updateTotals();
                 },
                 async fetchRate() { 
@@ -1670,12 +2234,32 @@
                     } catch(e){} 
                 },
                 async fetchHistory() { 
+                    this.historyRefreshing = true;
                     try { 
                         let res = await fetch('<?= base_url('printing/history') ?>?t=' + Date.now()); 
                         let data = await res.json(); 
                         if (data.status === 'success') this.orders = data.data; 
-                        if(this.tab === 'history') this.fetchMovements(); 
+                        if (this.tab === 'history') {
+                            this.fetchMovements();
+                            this.fetchDirectoryCustomers();
+                        }
                     } catch(e){} 
+                    finally {
+                        setTimeout(() => this.historyRefreshing = false, 400);
+                    }
+                },
+                async fetchDirectoryCustomers() {
+                    this.directoryLoading = true;
+                    try {
+                        let res = await fetch('<?= base_url('printing/customers') ?>?all=1&t=' + Date.now());
+                        let data = await res.json();
+                        if (data.status === 'success') {
+                            this.directoryCustomers = data.data;
+                        }
+                    } catch(e) {
+                    } finally {
+                        this.directoryLoading = false;
+                    }
                 },
                 async fetchMovements() { 
                     try { 
@@ -1998,26 +2582,412 @@
                     }
                 },
 
+                isOrderInDateFilter(order) {
+                    if (!order?.created_at) return true;
+                    let orderDateStr = order.created_at.slice(0, 10);
+                    let today = new Date().toISOString().slice(0, 10);
+                    
+                    if (this.historyDateFilter === 'all') return true;
+                    if (this.historyDateFilter === 'today') return orderDateStr === today;
+                    if (this.historyDateFilter === 'yesterday') {
+                        let y = new Date();
+                        y.setDate(y.getDate() - 1);
+                        return orderDateStr === y.toISOString().slice(0, 10);
+                    }
+                    if (this.historyDateFilter === 'week') {
+                        let d = new Date();
+                        d.setDate(d.getDate() - 7);
+                        let minDate = d.toISOString().slice(0, 10);
+                        return orderDateStr >= minDate && orderDateStr <= today;
+                    }
+                    if (this.historyDateFilter === 'month') {
+                        let ym = today.slice(0, 7);
+                        return orderDateStr.startsWith(ym);
+                    }
+                    if (this.historyDateFilter === 'custom') {
+                        if (this.historyCustomStart && orderDateStr < this.historyCustomStart) return false;
+                        if (this.historyCustomEnd && orderDateStr > this.historyCustomEnd) return false;
+                        return true;
+                    }
+                    return true;
+                },
+
                 get filteredOrders() { 
                     if(this.tab === 'debts') return this.orders.filter(o => o.status !== 'paid' && this.matchSearch(o, this.searchQuery)); 
                     return this.orders; 
                 },
-                get filteredHistory() { 
-                    let list = this.orders; 
-                    if(this.historyFilter !== 'all') list = list.filter(o => o.status === this.historyFilter); 
-                    if(this.historySearch) list = list.filter(o => this.matchSearch(o, this.historySearch)); 
-                    return list; 
+
+                get filteredHistoryOrders() {
+                    let list = this.orders || [];
+                    if (this.historyFilter !== 'all') {
+                        list = list.filter(o => o.status === this.historyFilter);
+                    }
+                    if (this.historyDateFilter !== 'all') {
+                        list = list.filter(o => this.isOrderInDateFilter(o));
+                    }
+                    if (this.historySearch) {
+                        let q = this.historySearch.toLowerCase().trim();
+                        list = list.filter(o => {
+                            let idMatch = String(o.id).includes(q) || ('#' + o.id).includes(q);
+                            let nameMatch = (o.customer_name || '').toLowerCase().includes(q);
+                            let phoneMatch = (o.customer_phone || '').toLowerCase().includes(q);
+                            let detailsMatch = JSON.stringify(o.details || '').toLowerCase().includes(q);
+                            let notesMatch = (o.collection_notes || '').toLowerCase().includes(q);
+                            return idMatch || nameMatch || phoneMatch || detailsMatch || notesMatch;
+                        });
+                    }
+
+                    return list.slice().sort((a, b) => {
+                        if (this.historySort === 'recent') {
+                            return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+                        }
+                        if (this.historySort === 'oldest') {
+                            return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+                        }
+                        if (this.historySort === 'amount_desc') {
+                            return this.orderTotalUsd(b) - this.orderTotalUsd(a);
+                        }
+                        if (this.historySort === 'amount_asc') {
+                            return this.orderTotalUsd(a) - this.orderTotalUsd(b);
+                        }
+                        if (this.historySort === 'customer') {
+                            return (a.customer_name || '').localeCompare(b.customer_name || '');
+                        }
+                        return 0;
+                    });
                 },
+
+                get filteredHistory() { 
+                    return this.filteredHistoryOrders; 
+                },
+
                 get debtsCount() { 
                     return this.orders.filter(o => o.status !== 'paid').length; 
                 },
+
+                get historyFinancialMetrics() {
+                    let list = this.filteredHistoryOrders;
+                    let totalInvoicedUsd = 0, totalInvoicedBs = 0;
+                    let totalPaidUsd = 0, totalPaidBs = 0;
+                    let totalDebtUsd = 0, totalDebtBs = 0;
+
+                    list.forEach(o => {
+                        totalInvoicedUsd += this.orderTotalUsd(o);
+                        totalInvoicedBs += parseFloat(o.total_bs || 0);
+                        totalPaidUsd += this.orderPaidUsd(o);
+                        totalPaidBs += parseFloat(o.paid_bs || 0);
+                        if (o.status !== 'paid') {
+                            totalDebtUsd += this.orderRemainingUsd(o);
+                            totalDebtBs += this.orderRemainingBs(o);
+                        }
+                    });
+
+                    let count = list.length;
+                    let effectiveness = totalInvoicedUsd > 0 ? ((totalPaidUsd / totalInvoicedUsd) * 100).toFixed(1) : '100.0';
+
+                    return {
+                        count,
+                        totalInvoicedUsd,
+                        totalInvoicedBs,
+                        totalPaidUsd,
+                        totalPaidBs,
+                        totalDebtUsd,
+                        totalDebtBs,
+                        effectiveness,
+                        today_bs: totalPaidBs,
+                        debt_bs: totalDebtBs
+                    };
+                },
+
                 get historyMetrics() { 
-                    let t = new Date().toISOString().split('T')[0], m = { today_bs: 0, debt_bs: 0 }; 
-                    this.filteredHistory.forEach(o => { 
-                        if(o.status !== 'paid') m.debt_bs += parseFloat(this.calculateDebt(o, 'Bs')); 
-                        if(o.created_at && o.created_at.startsWith(t)) m.today_bs += parseFloat(o.paid_bs) + (parseFloat(o.paid_usd) * this.exchangeRate); 
-                    }); 
-                    return m; 
+                    return this.historyFinancialMetrics;
+                },
+
+                get registeredCustomers() {
+                    let map = new Map();
+                    (this.directoryCustomers || []).forEach(c => {
+                        let key = (c.name || '').trim().toLowerCase();
+                        if (!key) return;
+                        map.set(key, {
+                            id: c.id,
+                            name: c.name,
+                            phone: c.phone || '',
+                            is_favorite: Number(c.is_favorite) === 1,
+                            order_count: Number(c.order_count || 0),
+                            open_orders: Number(c.open_orders || 0),
+                            total_usd: Number(c.total_usd || 0),
+                            total_bs: Number(c.total_bs || 0),
+                            paid_usd: Number(c.paid_usd || 0),
+                            paid_bs: Number(c.paid_bs || 0),
+                            last_order_at: c.last_order_at || null
+                        });
+                    });
+
+                    let localCustomerOrders = new Map();
+                    this.orders.forEach(o => {
+                        let name = (o.customer_name || 'Cliente sin nombre').trim();
+                        if (!name || name.toLowerCase() === 'cliente') return;
+                        let key = name.toLowerCase();
+                        if (!localCustomerOrders.has(key)) {
+                            localCustomerOrders.set(key, []);
+                        }
+                        localCustomerOrders.get(key).push(o);
+                    });
+
+                    localCustomerOrders.forEach((ords, key) => {
+                        let sample = ords[0];
+                        let existing = map.get(key) || {
+                            id: null,
+                            name: sample.customer_name,
+                            phone: '',
+                            is_favorite: false,
+                            order_count: ords.length,
+                            open_orders: 0,
+                            total_usd: 0,
+                            total_bs: 0,
+                            paid_usd: 0,
+                            paid_bs: 0,
+                            last_order_at: null
+                        };
+
+                        let phone = existing.phone;
+                        let openCount = 0;
+                        let localTotUsd = 0, localTotBs = 0, localPaidUsd = 0, localPaidBs = 0;
+                        let latestDate = existing.last_order_at;
+
+                        ords.forEach(o => {
+                            if (!phone && o.customer_phone) phone = o.customer_phone;
+                            if (o.status !== 'paid') openCount++;
+                            localTotUsd += this.orderTotalUsd(o);
+                            localTotBs += parseFloat(o.total_bs || 0);
+                            localPaidUsd += this.orderPaidUsd(o);
+                            localPaidBs += parseFloat(o.paid_bs || 0);
+                            if (!latestDate || (o.created_at && o.created_at > latestDate)) {
+                                latestDate = o.created_at;
+                            }
+                        });
+
+                        existing.phone = phone || existing.phone;
+                        existing.order_count = Math.max(existing.order_count, ords.length);
+                        existing.open_orders = Math.max(existing.open_orders, openCount);
+                        existing.total_usd = Math.max(existing.total_usd, localTotUsd);
+                        existing.total_bs = Math.max(existing.total_bs, localTotBs);
+                        existing.paid_usd = Math.max(existing.paid_usd, localPaidUsd);
+                        existing.paid_bs = Math.max(existing.paid_bs, localPaidBs);
+                        existing.debt_usd = Math.max(0, existing.total_usd - existing.paid_usd);
+                        existing.debt_bs = Math.max(0, existing.total_bs - existing.paid_bs);
+                        existing.last_order_at = latestDate;
+
+                        map.set(key, existing);
+                    });
+
+                    map.forEach(c => {
+                        if (c.debt_usd === undefined) {
+                            c.debt_usd = Math.max(0, c.total_usd - c.paid_usd);
+                            c.debt_bs = Math.max(0, c.total_bs - c.paid_bs);
+                        }
+                    });
+
+                    return Array.from(map.values());
+                },
+
+                get filteredDirectoryCustomers() {
+                    let list = this.registeredCustomers;
+                    let q = (this.customerDirSearch || '').trim().toLowerCase();
+                    if (q) {
+                        list = list.filter(c => 
+                            (c.name || '').toLowerCase().includes(q) || 
+                            (c.phone || '').toLowerCase().includes(q)
+                        );
+                    }
+                    if (this.customerDirFilter === 'favorites') {
+                        list = list.filter(c => c.is_favorite);
+                    } else if (this.customerDirFilter === 'debt') {
+                        list = list.filter(c => c.open_orders > 0 || c.debt_usd > 0.01);
+                    } else if (this.customerDirFilter === 'solvent') {
+                        list = list.filter(c => c.open_orders === 0 && c.debt_usd <= 0.01);
+                    }
+
+                    return list.slice().sort((a, b) => {
+                        if (this.customerDirSort === 'spent') {
+                            return (b.total_usd || 0) - (a.total_usd || 0);
+                        }
+                        if (this.customerDirSort === 'orders') {
+                            return (b.order_count || 0) - (a.order_count || 0);
+                        }
+                        if (this.customerDirSort === 'debt') {
+                            return (b.debt_usd || 0) - (a.debt_usd || 0);
+                        }
+                        if (this.customerDirSort === 'recent') {
+                            return String(b.last_order_at || '').localeCompare(String(a.last_order_at || ''));
+                        }
+                        if (this.customerDirSort === 'name') {
+                            return (a.name || '').localeCompare(b.name || '');
+                        }
+                        return 0;
+                    });
+                },
+
+                get customerDirectoryMetrics() {
+                    let all = this.registeredCustomers;
+                    return {
+                        total: all.length,
+                        favorites: all.filter(c => c.is_favorite).length,
+                        withDebt: all.filter(c => c.open_orders > 0 || c.debt_usd > 0.01).length,
+                        solvent: all.filter(c => c.open_orders === 0 && c.debt_usd <= 0.01).length,
+                        totalDebtUsd: all.reduce((sum, c) => sum + (c.debt_usd || 0), 0),
+                        totalDebtBs: all.reduce((sum, c) => sum + (c.debt_bs || 0), 0),
+                    };
+                },
+
+                get filteredMovements() {
+                    let list = this.movements || [];
+                    if (this.movementAccountFilter !== 'all') {
+                        list = list.filter(m => String(m.account_id) === String(this.movementAccountFilter));
+                    }
+                    if (this.movementSearch) {
+                        let q = this.movementSearch.toLowerCase().trim();
+                        list = list.filter(m => {
+                            let idMatch = String(m.id).includes(q);
+                            let descMatch = (m.description || '').toLowerCase().includes(q);
+                            let accMatch = (m.account_name || '').toLowerCase().includes(q);
+                            let custMatch = (m.order_customer || '').toLowerCase().includes(q);
+                            return idMatch || descMatch || accMatch || custMatch;
+                        });
+                    }
+                    return list;
+                },
+
+                get movementMetrics() {
+                    let list = this.filteredMovements;
+                    let totalBs = list.reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
+                    let totalUsd = list.reduce((sum, m) => sum + parseFloat(m.amount_usd || 0), 0);
+                    return { totalBs, totalUsd, count: list.length };
+                },
+
+                copyOrderId(id) {
+                    if (!id) return;
+                    try {
+                        navigator.clipboard.writeText(String(id));
+                        this.message = 'ID #' + id + ' copiado';
+                        setTimeout(() => this.message = '', 2000);
+                    } catch(e) {}
+                },
+
+                async copyHistoryReport() {
+                    let m = this.historyFinancialMetrics;
+                    let list = this.filteredHistoryOrders;
+                    let dateLabel = {
+                        all: 'Todo el historial',
+                        today: 'Hoy',
+                        yesterday: 'Ayer',
+                        week: 'Últimos 7 días',
+                        month: 'Este mes',
+                        custom: 'Rango ' + (this.historyCustomStart || '...') + ' a ' + (this.historyCustomEnd || '...')
+                    }[this.historyDateFilter] || 'Personalizado';
+
+                    let lines = [
+                        '📊 *REPORTE DE VENTAS & ÓRDENES - FINANZAHEX*',
+                        '📅 Período: ' + dateLabel + ' · ' + new Date().toLocaleDateString('es-VE'),
+                        '🔢 Total órdenes: ' + m.count,
+                        '',
+                        '💵 *Total Facturado:* $' + this.formatUsd(m.totalInvoicedUsd) + ' (Bs. ' + this.formatBs(m.totalInvoicedBs) + ')',
+                        '💳 *Total Cobrado:* $' + this.formatUsd(m.totalPaidUsd) + ' (Bs. ' + this.formatBs(m.totalPaidBs) + ')',
+                        '⚠️ *Saldo Pendiente:* $' + this.formatUsd(m.totalDebtUsd) + ' (Bs. ' + this.formatBs(m.totalDebtBs) + ')',
+                        '📈 *Efectividad de Cobro:* ' + m.effectiveness + '%',
+                        '',
+                        '--- *LISTADO DE ÓRDENES* ---'
+                    ];
+
+                    list.slice(0, 30).forEach((o, idx) => {
+                        let statusTag = o.status === 'paid' ? '✅ Pagado' : (o.status === 'partial' ? '🟡 Parcial' : '🔴 Deuda');
+                        let remText = o.status !== 'paid' ? ' (Resta: $' + this.formatUsd(this.orderRemainingUsd(o)) + ')' : '';
+                        lines.push((idx + 1) + '. #' + o.id + ' | ' + (o.customer_name || 'Cliente') + ' | ' + statusTag + ' | $' + this.formatUsd(this.orderTotalUsd(o)) + remText);
+                    });
+
+                    if (list.length > 30) {
+                        lines.push('... y ' + (list.length - 30) + ' órdenes adicionales.');
+                    }
+
+                    try {
+                        await navigator.clipboard.writeText(lines.join('\n'));
+                        this.message = 'Reporte copiado al portapapeles';
+                        setTimeout(() => this.message = '', 3000);
+                    } catch(e) {
+                        alert('No se pudo copiar el reporte');
+                    }
+                },
+
+                async copyCustomerDirectoryReport() {
+                    let list = this.filteredDirectoryCustomers;
+                    let m = this.customerDirectoryMetrics;
+                    let lines = [
+                        '👥 *DIRECTORIO DE CLIENTES - FINANZAHEX*',
+                        '📅 Fecha: ' + new Date().toLocaleDateString('es-VE'),
+                        '👤 Clientes listados: ' + list.length + ' de ' + m.total,
+                        '⭐ Frecuentes: ' + m.favorites + ' | 🚨 Con deuda: ' + m.withDebt,
+                        '',
+                        '--- *TOP CLIENTES* ---'
+                    ];
+
+                    list.slice(0, 25).forEach((c, idx) => {
+                        let favTag = c.is_favorite ? '⭐ ' : '';
+                        let debtTag = c.debt_usd > 0.01 ? ' · Deuda: $' + this.formatUsd(c.debt_usd) : ' · Solvente';
+                        let phoneTag = c.phone ? ' · Tel: ' + c.phone : '';
+                        lines.push((idx + 1) + '. ' + favTag + c.name + ' (' + c.order_count + ' ord.) | Facturado: $' + this.formatUsd(c.total_usd) + debtTag + phoneTag);
+                    });
+
+                    try {
+                        await navigator.clipboard.writeText(lines.join('\n'));
+                        this.message = 'Directorio copiado al portapapeles';
+                        setTimeout(() => this.message = '', 3000);
+                    } catch(e) {
+                        alert('No se pudo copiar el directorio');
+                    }
+                },
+
+                filterOrdersByCustomer(customerName) {
+                    this.historyView = 'orders';
+                    this.historySearch = customerName;
+                    this.historyFilter = 'all';
+                    this.historyDateFilter = 'all';
+                },
+
+                startSaleForCustomer(customerName) {
+                    this.customer_name = customerName;
+                    let cust = this.registeredCustomers.find(c => c.name.toLowerCase() === customerName.toLowerCase());
+                    this.isFavorite = !!(cust && cust.is_favorite);
+                    this.tab = 'pos';
+                    this.loadCustomerHistory(customerName);
+                    this.message = 'Cliente ' + customerName + ' cargado en venta';
+                    setTimeout(() => this.message = '', 2500);
+                },
+
+                async toggleFavoriteCustomer(name) {
+                    let targetName = (name || '').trim();
+                    if (!targetName) return;
+                    let cust = this.registeredCustomers.find(c => c.name.toLowerCase() === targetName.toLowerCase());
+                    let nextVal = cust ? !cust.is_favorite : true;
+                    try {
+                        let res = await fetch('<?= base_url('printing/toggle-favorite') ?>', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: targetName, favorite: nextVal })
+                        });
+                        let data = await res.json();
+                        if (data.status === 'success') {
+                            if (cust) cust.is_favorite = nextVal;
+                            let dirCust = (this.directoryCustomers || []).find(c => c.name.toLowerCase() === targetName.toLowerCase());
+                            if (dirCust) dirCust.is_favorite = nextVal ? 1 : 0;
+                            if (this.customer_name.trim().toLowerCase() === targetName.toLowerCase()) {
+                                this.isFavorite = nextVal;
+                            }
+                            this.message = nextVal ? '⭐ Cliente agregado a frecuentes' : 'Cliente removido de frecuentes';
+                            setTimeout(() => this.message = '', 2500);
+                        }
+                    } catch(e) {
+                        alert('Error al actualizar favorito');
+                    }
                 },
                 matchSearch(o, q) { 
                     if(!q) return true; 
@@ -2656,22 +3626,28 @@
                 },
                 openCustomerStatement(cust) {
                     if (!cust) return;
-                    let openOrders = this.orders.filter(o => o.status !== 'paid' && String(o.customer_name || 'Cliente sin nombre').trim().toLowerCase() === cust.key);
-                    let phone = '';
-                    for (let o of openOrders) {
-                        if (o.customer_phone) { phone = o.customer_phone; break; }
+                    let targetName = typeof cust === 'string' ? cust.trim() : (cust.name || cust.key || '').trim();
+                    let targetKey = targetName.toLowerCase();
+                    let clientOrders = this.orders.filter(o => String(o.customer_name || 'Cliente sin nombre').trim().toLowerCase() === targetKey);
+                    let openOrders = clientOrders.filter(o => o.status !== 'paid');
+                    let displayOrders = openOrders.length > 0 ? openOrders : clientOrders;
+                    let phone = (typeof cust === 'object' ? cust.phone : '') || '';
+                    if (!phone) {
+                        for (let o of clientOrders) {
+                            if (o.customer_phone) { phone = o.customer_phone; break; }
+                        }
                     }
                     let totalUsd = openOrders.reduce((sum, o) => sum + this.orderRemainingUsd(o), 0);
                     let totalBs = openOrders.reduce((sum, o) => sum + this.orderRemainingBs(o), 0);
-                    let totalPaidUsd = openOrders.reduce((sum, o) => sum + this.orderPaidUsd(o), 0);
-                    let totalPaidBs = openOrders.reduce((sum, o) => sum + (parseFloat(o.paid_bs || 0)), 0);
-                    let totalInvoiceUsd = openOrders.reduce((sum, o) => sum + this.orderTotalUsd(o), 0);
-                    let totalInvoiceBs = openOrders.reduce((sum, o) => sum + (parseFloat(o.total_bs || 0)), 0);
+                    let totalPaidUsd = clientOrders.reduce((sum, o) => sum + this.orderPaidUsd(o), 0);
+                    let totalPaidBs = clientOrders.reduce((sum, o) => sum + (parseFloat(o.paid_bs || 0)), 0);
+                    let totalInvoiceUsd = clientOrders.reduce((sum, o) => sum + this.orderTotalUsd(o), 0);
+                    let totalInvoiceBs = clientOrders.reduce((sum, o) => sum + (parseFloat(o.total_bs || 0)), 0);
 
                     this.customerStatementModal = {
                         open: true,
-                        customer: cust,
-                        orders: openOrders,
+                        customer: { name: targetName, key: targetKey },
+                        orders: displayOrders,
                         phone: phone,
                         totalUsd: totalUsd,
                         totalBs: totalBs,

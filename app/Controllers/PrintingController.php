@@ -95,6 +95,8 @@ class PrintingController extends BaseController
     {
         $db = \Config\Database::connect();
         $term = trim((string) $this->request->getGet('term'));
+        $all = !empty($this->request->getGet('all'));
+        $queryLimit = $all ? (int) ($this->request->getGet('limit') ?: 350) : 30;
 
         $customerBuilder = $db->table('customers');
         if ($term !== '') {
@@ -103,11 +105,19 @@ class PrintingController extends BaseController
         $savedCustomers = $customerBuilder
             ->orderBy('is_favorite', 'DESC')
             ->orderBy('updated_at', 'DESC')
-            ->limit(30)
+            ->limit($queryLimit)
             ->get()->getResultArray();
 
         $historyBuilder = $db->table('print_orders')
-            ->select("customer_name AS name, COUNT(*) AS order_count, SUM(CASE WHEN status <> 'paid' THEN 1 ELSE 0 END) AS open_orders, MAX(created_at) AS last_order_at", false)
+            ->select("customer_name AS name, 
+                      COUNT(*) AS order_count, 
+                      SUM(CASE WHEN status <> 'paid' THEN 1 ELSE 0 END) AS open_orders, 
+                      MAX(customer_phone) AS phone, 
+                      COALESCE(SUM(total_bs), 0) AS total_bs,
+                      COALESCE(SUM(total_usd), 0) AS total_usd,
+                      COALESCE(SUM(paid_bs), 0) AS paid_bs,
+                      COALESCE(SUM(paid_usd), 0) AS paid_usd,
+                      MAX(created_at) AS last_order_at", false)
             ->where('customer_name IS NOT NULL', null, false)
             ->where('customer_name !=', '')
             ->where('customer_name !=', 'Cliente');
@@ -117,7 +127,7 @@ class PrintingController extends BaseController
         $historicalCustomers = $historyBuilder
             ->groupBy('customer_name')
             ->orderBy('last_order_at', 'DESC')
-            ->limit(30)
+            ->limit($queryLimit)
             ->get()->getResultArray();
 
         $customersByName = [];
@@ -127,9 +137,14 @@ class PrintingController extends BaseController
                 'key' => $key,
                 'id' => $customer['id'],
                 'name' => $customer['name'],
+                'phone' => '',
                 'is_favorite' => (int) $customer['is_favorite'],
                 'order_count' => 0,
                 'open_orders' => 0,
+                'total_bs' => 0.0,
+                'total_usd' => 0.0,
+                'paid_bs' => 0.0,
+                'paid_usd' => 0.0,
                 'last_order_at' => null,
             ];
         }
@@ -140,11 +155,19 @@ class PrintingController extends BaseController
                     'key' => $key,
                     'id' => null,
                     'name' => $customer['name'],
+                    'phone' => !empty($customer['phone']) ? $customer['phone'] : '',
                     'is_favorite' => 0,
                 ];
             }
             $customersByName[$key]['order_count'] = (int) $customer['order_count'];
             $customersByName[$key]['open_orders'] = (int) $customer['open_orders'];
+            if (!empty($customer['phone'])) {
+                $customersByName[$key]['phone'] = $customer['phone'];
+            }
+            $customersByName[$key]['total_bs'] = (float) ($customer['total_bs'] ?? 0);
+            $customersByName[$key]['total_usd'] = (float) ($customer['total_usd'] ?? 0);
+            $customersByName[$key]['paid_bs'] = (float) ($customer['paid_bs'] ?? 0);
+            $customersByName[$key]['paid_usd'] = (float) ($customer['paid_usd'] ?? 0);
             $customersByName[$key]['last_order_at'] = $customer['last_order_at'];
         }
 
@@ -169,9 +192,11 @@ class PrintingController extends BaseController
             return strcmp((string) $right['last_order_at'], (string) $left['last_order_at']);
         });
 
+        $returnLimit = $all ? $queryLimit : 20;
+
         return $this->response->setJSON([
             'status' => 'success',
-            'data' => array_slice($customers, 0, 20),
+            'data' => array_slice($customers, 0, $returnLimit),
         ]);
     }
 
@@ -664,6 +689,7 @@ class PrintingController extends BaseController
 
     public function getHistory() {
         $db = \Config\Database::connect();
+        $limit = (int) ($this->request->getGet('limit') ?: 350);
         $openOrders = $db->table('print_orders')
             ->whereIn('status', ['pending', 'partial'])
             ->orderBy('created_at', 'DESC')
@@ -671,7 +697,7 @@ class PrintingController extends BaseController
         $recentPaidOrders = $db->table('print_orders')
             ->where('status', 'paid')
             ->orderBy('created_at', 'DESC')
-            ->limit(200)
+            ->limit($limit)
             ->get()->getResultArray();
 
         $ordersById = [];
