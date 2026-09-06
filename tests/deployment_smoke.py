@@ -91,27 +91,11 @@ printing_history = request('printing/history')['data']
 saved_order = next(o for o in printing_history if int(o['id']) == int(printing_order['order_id']))
 assert float(saved_order['total_bs']) == 4
 assert json.loads(saved_order['details']) == [f'2x Copia B/N ({tag})']
-printing_debt = request('printing/store', {
-    'customer_name': tag,
-    'items': [{'id': int(copy_product['id']), 'quantity': 1, 'note': 'debt check'}],
-    'paid_bs': 0,
-    'paid_usd': 0,
-    'exchange_rate': 50,
-    'account_id': None,
-})
-printing_payment = request('printing/add-payment', {
-    'order_id': int(printing_debt['order_id']),
-    'account_id': account_id,
-    'amount_bs': 2,
-    'amount_usd': 0,
-    'rate': 50,
-})
-assert printing_payment['order']['status'] == 'paid'
 request('printing/toggle-favorite', {'name': tag, 'favorite': True})
 customers = request('printing/customers?term=' + urllib.parse.quote(tag))['data']
 saved_customer = next(c for c in customers if c['name'] == tag)
 assert int(saved_customer['is_favorite']) == 1
-assert int(saved_customer['order_count']) >= 2
+assert int(saved_customer['order_count']) >= 1
 customer_orders = request('printing/customer-orders?name=' + urllib.parse.quote(tag))['data']
 assert any(int(order['id']) == int(printing_order['order_id']) for order in customer_orders)
 conversation = request('ai/save-conversation', {

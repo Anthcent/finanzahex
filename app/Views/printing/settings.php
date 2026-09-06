@@ -1,16 +1,3 @@
-<?php
-$printColorHexes = [
-    'slate' => '#475569', 'red' => '#dc2626', 'orange' => '#ea580c', 'amber' => '#d97706',
-    'yellow' => '#ca8a04', 'lime' => '#65a30d', 'green' => '#16a34a', 'emerald' => '#059669',
-    'teal' => '#0d9488', 'cyan' => '#0891b2', 'sky' => '#0284c7', 'blue' => '#2563eb',
-    'indigo' => '#4f46e5', 'violet' => '#7c3aed', 'purple' => '#9333ea', 'fuchsia' => '#c026d3',
-    'pink' => '#db2777', 'rose' => '#e11d48',
-];
-$printProductCategories = array_values(array_unique(array_merge(
-    ['General', 'Impresión', 'Copias', 'Documentos', 'Materiales', 'Papelería', 'Servicios', 'Otro'],
-    array_column($products ?? [], 'category')
-)));
-?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -24,10 +11,6 @@ $printProductCategories = array_values(array_unique(array_merge(
     <meta name="theme-color" content="#047857">
     <style>
         body { font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif; }
-        button, input, select { -webkit-tap-highlight-color: transparent; }
-        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(16, 185, 129, .22); outline-offset: 2px; }
-        .workspace-surface { background: rgba(255, 255, 255, .92); border: 1px solid rgba(226, 232, 240, .92); box-shadow: 0 18px 45px -32px rgba(15, 23, 42, .35); }
-        .soft-grid { background-image: radial-gradient(circle at 1px 1px, rgba(15, 118, 110, .07) 1px, transparent 0); background-size: 22px 22px; }
         .customize-scrollbar::-webkit-scrollbar { width: 5px; }
         .customize-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .customize-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
@@ -37,11 +20,11 @@ $printProductCategories = array_values(array_unique(array_merge(
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 1rem); }
     </style>
 </head>
-<body class="bg-[#f4f7f6] soft-grid min-h-screen text-slate-800 antialiased" x-data="settingsApp()">
+<body class="bg-gradient-to-br from-emerald-50/60 via-slate-50 to-teal-50/40 min-h-screen text-slate-800 antialiased" x-data="settingsApp()">
 
     <!-- Header -->
     <header class="bg-white/90 backdrop-blur-xl border-b border-slate-200/80 sticky top-0 z-30 shadow-xs">
-        <div class="max-w-7xl mx-auto px-3 sm:px-5 h-16 flex items-center justify-between gap-3">
+        <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2.5 min-w-0">
                 <a href="<?= base_url('printing') ?>" class="w-9 h-9 flex items-center justify-center rounded-2xl bg-slate-100/80 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 transition-colors border border-slate-200/60 active:scale-95 shrink-0" title="Volver a Impresiones">
                     <span class="material-icons text-xl">arrow_back</span>
@@ -51,7 +34,7 @@ $printProductCategories = array_values(array_unique(array_merge(
                 </div>
                 <div class="leading-tight min-w-0">
                     <h1 class="font-black text-slate-900 tracking-tight text-sm sm:text-base truncate">
-                        Configuración de <span class="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">impresiones</span>
+                        Catálogo de <span class="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Servicios</span>
                     </h1>
                     <p class="text-[9px] font-bold text-slate-400 hidden sm:block">Precios y parámetros predeterminados</p>
                 </div>
@@ -65,11 +48,10 @@ $printProductCategories = array_values(array_unique(array_merge(
     </header>
 
     <!-- Content Area -->
-    <main class="max-w-7xl mx-auto p-3 sm:p-5 pb-24">
-        <div class="lg:grid lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)] gap-6 items-start">
+    <main class="max-w-4xl mx-auto p-4 sm:p-6 pb-24">
         
         <!-- General Config Section (Executive Fintech Gradient Card) -->
-        <div class="bg-gradient-to-br from-slate-900 via-emerald-950 to-teal-950 rounded-3xl shadow-xl p-5 sm:p-6 mb-6 lg:mb-0 lg:sticky lg:top-20 text-white relative overflow-hidden border border-emerald-500/20">
+        <div class="bg-gradient-to-br from-slate-900 via-emerald-950 to-teal-950 rounded-3xl shadow-xl p-5 sm:p-6 mb-8 text-white relative overflow-hidden border border-emerald-500/20">
             <div class="absolute -right-8 -bottom-8 w-40 h-40 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none"></div>
             
             <div class="flex items-center gap-2 mb-4">
@@ -116,7 +98,6 @@ $printProductCategories = array_values(array_unique(array_merge(
             </div>
         </div>
 
-        <section class="min-w-0">
         <!-- Products List Header -->
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-black text-slate-900 text-sm sm:text-base flex items-center gap-2">
@@ -127,12 +108,11 @@ $printProductCategories = array_values(array_unique(array_merge(
         </div>
 
         <!-- Products Grid (Mobile Friendly Cards) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
             <?php foreach($products as $p): ?>
-            <div class="workspace-surface p-4 rounded-2xl hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-between group transition-all">
+            <div class="bg-white p-4 rounded-2xl shadow-2xs hover:shadow-md border border-slate-200/80 flex items-center justify-between group transition-all">
                 <div class="flex items-center gap-3 min-w-0 flex-1 pr-2">
-                    <?php $productColor = $printColorHexes[$p['color'] ?? 'emerald'] ?? $printColorHexes['emerald']; ?>
-                    <div class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style="background-color: <?= $productColor ?>18; color: <?= $productColor ?>">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
                         <span class="material-icons text-xl"><?= $p['icon'] ?? 'print' ?></span>
                     </div>
                     <div class="min-w-0 flex-1">
@@ -140,15 +120,15 @@ $printProductCategories = array_values(array_unique(array_merge(
                          <p class="text-[10px] font-bold text-slate-400 mt-0.5"><?= $p['category'] ?></p>
                          <div class="flex items-baseline gap-2 mt-1">
                              <span class="text-xs font-black text-slate-900">Bs. <?= number_format($p['price_bs'], 2) ?></span>
-                             <span class="text-[10px] font-bold text-emerald-700">≈ $<?= number_format($p['price_bs'] > 0 && $rate > 0 ? $p['price_bs'] / $rate : $p['price_usd'], 4) ?></span>
+                             <span class="text-[10px] font-bold text-emerald-700">$<?= number_format($p['price_usd'], 2) ?></span>
                          </div>
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
-                    <button @click='edit(<?= json_encode($p) ?>)' class="w-10 h-10 sm:w-8 sm:h-8 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 flex items-center justify-center transition-colors border border-slate-200/60" title="Editar">
+                    <button @click='edit(<?= json_encode($p) ?>)' class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 flex items-center justify-center transition-colors border border-slate-200/60" title="Editar">
                         <span class="material-icons text-sm">edit</span>
                     </button>
-                    <button @click="remove(<?= $p['id'] ?>)" class="w-10 h-10 sm:w-8 sm:h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-colors border border-rose-200/60" title="Eliminar">
+                    <button @click="remove(<?= $p['id'] ?>)" class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-colors border border-rose-200/60" title="Eliminar">
                         <span class="material-icons text-sm">delete</span>
                     </button>
                 </div>
@@ -162,8 +142,6 @@ $printProductCategories = array_values(array_unique(array_merge(
             <p class="font-bold text-slate-600 text-sm">No hay productos registrados.</p>
         </div>
         <?php endif; ?>
-        </section>
-        </div>
     </main>
 
     <!-- Add / Edit Product Modal (Mobile Bottom Sheet & Desktop Dialog) -->
@@ -187,21 +165,24 @@ $printProductCategories = array_values(array_unique(array_merge(
                     <div>
                         <label class="block text-[10px] font-bold text-slate-500 mb-1">Precio Bs.</label>
                         <input type="number" step="0.01" x-model="form.price_bs" 
-                               @input="if(rate > 0) form.price_usd = (form.price_bs / rate).toFixed(4)"
+                               @input="if(rate > 0) form.price_usd = (form.price_bs / rate).toFixed(2)"
                                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-emerald-500 font-black text-slate-800 text-sm">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-emerald-700 mb-1">Referencia USD</label>
-                        <input type="number" step="0.0001" x-model="form.price_usd" @input="if(rate > 0) form.price_bs = (form.price_usd * rate).toFixed(2)" class="w-full bg-emerald-50/50 border border-emerald-200 rounded-xl px-3 py-2.5 outline-none focus:border-emerald-500 font-black text-emerald-800 text-sm">
+                        <label class="block text-[10px] font-bold text-emerald-700 mb-1">Precio USD</label>
+                        <input type="number" step="0.01" x-model="form.price_usd" class="w-full bg-emerald-50/50 border border-emerald-200 rounded-xl px-3 py-2.5 outline-none focus:border-emerald-500 font-black text-emerald-800 text-sm">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-[10px] font-bold text-slate-500 mb-1">Categoría</label>
                     <select x-model="form.category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-emerald-500 font-bold text-slate-800 text-xs sm:text-sm">
-                        <?php foreach ($printProductCategories as $productCategory): ?>
-                        <option value="<?= esc($productCategory) ?>"><?= esc($productCategory) ?></option>
-                        <?php endforeach; ?>
+                        <option value="General">General</option>
+                        <option value="Impresiones">Impresiones</option>
+                        <option value="Copias">Copias</option>
+                        <option value="Papelería">Papelería</option>
+                        <option value="Servicios">Servicios</option>
+                        <option value="Otro">Otro</option>
                     </select>
                 </div>
                 
@@ -223,10 +204,9 @@ $printProductCategories = array_values(array_unique(array_merge(
                     <label class="block text-[10px] font-bold text-slate-500 mb-1.5">Color de Distinción</label>
                     <div class="flex flex-wrap gap-1.5">
                         <template x-for="c in colors">
-                            <button @click="form.color = c"
-                                    :style="{ backgroundColor: colorHex(c) }"
-                                    class="w-9 h-9 sm:w-7 sm:h-7 rounded-full shadow-2xs border transition-transform hover:scale-110"
-                                    :class="form.color === c ? 'border-slate-900 scale-110 ring-2 ring-emerald-400' : 'border-white'">
+                            <button @click="form.color = c" 
+                                    class="w-6 h-6 rounded-full shadow-2xs border transition-transform hover:scale-110" 
+                                    :class="'bg-' + c + '-500 ' + (form.color === c ? 'border-slate-900 scale-110 ring-2 ring-emerald-400' : 'border-white')">
                             </button>
                         </template>
                     </div>
@@ -275,17 +255,6 @@ $printProductCategories = array_values(array_unique(array_merge(
                     category: 'General',
                     icon: 'print',
                     color: 'emerald'
-                },
-
-                colorHex(color) {
-                    const palette = {
-                        slate: '#475569', red: '#dc2626', orange: '#ea580c', amber: '#d97706',
-                        yellow: '#ca8a04', lime: '#65a30d', green: '#16a34a', emerald: '#059669',
-                        teal: '#0d9488', cyan: '#0891b2', sky: '#0284c7', blue: '#2563eb',
-                        indigo: '#4f46e5', violet: '#7c3aed', purple: '#9333ea', fuchsia: '#c026d3',
-                        pink: '#db2777', rose: '#e11d48'
-                    };
-                    return palette[color] || palette.emerald;
                 },
 
                 openModal() {
