@@ -1331,9 +1331,89 @@
                     <input type="text" x-model="debtConfigModal.form.print_ticket_address" placeholder="Ej: Av. Principal, C.C. Plaza, Local 12" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-500">
                 </div>
 
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Cuentas Bancarias / Pago Móvil (para el comprobante)</label>
-                    <textarea x-model="debtConfigModal.form.print_ticket_payment_info" rows="3" placeholder="Ej: Banco Banesco: 0134-XXXX...&#10;Pago Móvil: 0412-1234567, V-12345678, Banesco" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono outline-none resize-none focus:bg-white focus:border-emerald-500"></textarea>
+                <!-- Bank & Payment Info Builder -->
+                <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <label class="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <span class="material-icons text-emerald-600 text-sm">account_balance</span>
+                            <span>Datos Bancarios / Pago Móvil</span>
+                        </label>
+                        <div class="flex bg-slate-200/70 p-0.5 rounded-lg">
+                            <button type="button" @click="debtConfigModal.bankType = 'pagomovil'" :class="debtConfigModal.bankType === 'pagomovil' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'" class="px-2.5 py-1 rounded-md text-[10px] font-black transition-all">
+                                📲 Pago Móvil
+                            </button>
+                            <button type="button" @click="debtConfigModal.bankType = 'transfer'" :class="debtConfigModal.bankType === 'transfer' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'" class="px-2.5 py-1 rounded-md text-[10px] font-black transition-all">
+                                🏦 Transferencia
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Builder Form Inputs -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-0.5">Seleccionar Banco</label>
+                            <select x-model="debtConfigModal.bankBuilder.bank" class="w-full h-8 bg-white border border-slate-200 rounded-lg px-2 text-[11px] font-bold outline-none focus:border-emerald-500">
+                                <option value="Banco de Venezuela (0102)">Banco de Venezuela (0102)</option>
+                                <option value="Banesco (0134)">Banesco (0134)</option>
+                                <option value="Mercantil (0105)">Mercantil (0105)</option>
+                                <option value="BBVA Provincial (0108)">BBVA Provincial (0108)</option>
+                                <option value="Bancamiga (0172)">Bancamiga (0172)</option>
+                                <option value="BNC (0191)">BNC (0191)</option>
+                                <option value="Bancaribe (0114)">Bancaribe (0114)</option>
+                                <option value="Banco Exterior (0115)">Banco Exterior (0115)</option>
+                                <option value="Banplus (0174)">Banplus (0174)</option>
+                                <option value="Banco Bicentenario (0175)">Banco Bicentenario (0175)</option>
+                                <option value="Banco del Tesoro (0163)">Banco del Tesoro (0163)</option>
+                                <option value="Banco Plaza (0138)">Banco Plaza (0138)</option>
+                                <option value="100% Banco (0156)">100% Banco (0156)</option>
+                                <option value="BFC Banco Fondo Común (0151)">BFC Banco Fondo Común (0151)</option>
+                                <option value="Bancrecer (0168)">Bancrecer (0168)</option>
+                                <option value="Banco Activo (0171)">Banco Activo (0171)</option>
+                                <option value="Otro Banco">Otro Banco...</option>
+                            </select>
+                        </div>
+
+                        <!-- If Pago Móvil: Phone -->
+                        <div x-show="debtConfigModal.bankType === 'pagomovil'">
+                            <label class="block text-[9px] font-bold text-slate-400 mb-0.5">Teléfono Pago Móvil</label>
+                            <input type="tel" x-model="debtConfigModal.bankBuilder.phone" placeholder="Ej: 0414-1234567" class="w-full h-8 bg-white border border-slate-200 rounded-lg px-2 text-[11px] font-bold outline-none focus:border-emerald-500">
+                        </div>
+
+                        <!-- If Transfer: Account Number -->
+                        <div x-show="debtConfigModal.bankType === 'transfer'">
+                            <label class="block text-[9px] font-bold text-slate-400 mb-0.5">Número de Cuenta (20 dígitos)</label>
+                            <input type="text" x-model="debtConfigModal.bankBuilder.accountNumber" placeholder="0134-XXXX-XX-XXXXXXXXXX" class="w-full h-8 bg-white border border-slate-200 rounded-lg px-2 text-[11px] font-bold font-mono outline-none focus:border-emerald-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-0.5">Cédula o RIF</label>
+                            <input type="text" x-model="debtConfigModal.bankBuilder.idNumber" placeholder="Ej: V-12345678 o J-12345678-0" class="w-full h-8 bg-white border border-slate-200 rounded-lg px-2 text-[11px] font-bold outline-none focus:border-emerald-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 mb-0.5">Titular de la Cuenta (opcional)</label>
+                            <input type="text" x-model="debtConfigModal.bankBuilder.holder" placeholder="Nombre de la persona o negocio" class="w-full h-8 bg-white border border-slate-200 rounded-lg px-2 text-[11px] font-bold outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                        <span class="text-[9px] text-slate-400">Presiona 'Agregar' para añadir este método</span>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" @click="addBankToPaymentInfo()" class="h-7 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black flex items-center gap-1 transition-all active:scale-95 shadow-xs">
+                                <span class="material-icons text-xs">add</span>
+                                <span>Agregar a la lista</span>
+                            </button>
+                            <button type="button" x-show="debtConfigModal.form.print_ticket_payment_info" @click="debtConfigModal.form.print_ticket_payment_info = ''" class="h-7 px-2 rounded-lg bg-slate-200 text-slate-600 hover:text-rose-600 text-[10px] font-bold transition-all" title="Borrar todo el texto de pago">
+                                Limpiar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Resulting Textarea -->
+                    <div>
+                        <label class="block text-[9px] font-bold text-slate-400 mb-1">Texto generado (editable libremente):</label>
+                        <textarea x-model="debtConfigModal.form.print_ticket_payment_info" rows="3" placeholder="Los datos bancarios agregados aparecerán aquí..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-mono outline-none resize-none focus:border-emerald-500"></textarea>
+                    </div>
                 </div>
 
                 <div>
@@ -1561,7 +1641,9 @@
                     tab: 'ticket',
                     saving: false,
                     error: '',
-                    form: {}
+                    form: {},
+                    bankType: 'pagomovil',
+                    bankBuilder: { bank: 'Banesco (0134)', phone: '', idNumber: '', accountNumber: '', holder: '' }
                 },
                 sharingTicketImage: false,
                 
@@ -2447,7 +2529,48 @@
                         print_wa_detailed: this.debtConfig.print_wa_detailed || defaults.detailed,
                         print_wa_urgent: this.debtConfig.print_wa_urgent || defaults.urgent,
                     };
+                    this.debtConfigModal.bankBuilder = {
+                        bank: 'Banesco (0134)',
+                        phone: this.debtConfig.print_ticket_phone || '',
+                        idNumber: this.debtConfig.print_ticket_rif || '',
+                        accountNumber: '',
+                        holder: this.debtConfig.print_ticket_business_name || ''
+                    };
+                    this.debtConfigModal.bankType = 'pagomovil';
                     this.debtConfigModal.open = true;
+                },
+                addBankToPaymentInfo() {
+                    let b = this.debtConfigModal.bankBuilder;
+                    let bank = (b.bank || 'Banesco (0134)').trim();
+                    let id = (b.idNumber || '').trim();
+                    let holder = (b.holder || '').trim();
+                    let lines = [];
+
+                    if (this.debtConfigModal.bankType === 'pagomovil') {
+                        let phone = (b.phone || '').trim();
+                        lines.push('📲 *PAGO MÓVIL*');
+                        lines.push('• Banco: ' + bank);
+                        if (phone) lines.push('• Teléfono: ' + phone);
+                        if (id) lines.push('• Cédula/RIF: ' + id);
+                        if (holder) lines.push('• Titular: ' + holder);
+                    } else {
+                        let acc = (b.accountNumber || '').trim();
+                        lines.push('🏦 *TRANSFERENCIA BANCARIA*');
+                        lines.push('• Banco: ' + bank);
+                        if (acc) lines.push('• Cuenta: ' + acc);
+                        if (id) lines.push('• Cédula/RIF: ' + id);
+                        if (holder) lines.push('• Titular: ' + holder);
+                    }
+
+                    let block = lines.join('\n');
+                    let current = (this.debtConfigModal.form.print_ticket_payment_info || '').trim();
+                    if (current) {
+                        this.debtConfigModal.form.print_ticket_payment_info = current + '\n\n' + block;
+                    } else {
+                        this.debtConfigModal.form.print_ticket_payment_info = block;
+                    }
+                    this.message = '¡Datos de pago agregados!';
+                    setTimeout(() => this.message = '', 2000);
                 },
                 resetDefaultWaTemplates() {
                     let defaults = this.defaultWaTemplates();
@@ -2659,7 +2782,10 @@
                         let remUsd = this.formatUsd(this.orderRemainingUsd(order));
                         let remBs = this.formatBs(this.orderRemainingBs(order));
                         let rawBs = Number(this.orderRemainingBs(order) || 0).toFixed(2);
-                        let caption = 'Saldo pendiente: $' + remUsd + ' (Bs. ' + remBs + ')\n\n```' + rawBs + '```';
+                        let caption = 'Saldo pendiente: *$' + remUsd + '* (Bs. *' + remBs + '*)\n\n```' + rawBs + '```';
+                        if (this.debtConfig.print_ticket_payment_info && this.debtConfig.print_ticket_payment_info.trim()) {
+                            caption += '\n\n💳 *Datos de pago:*\n' + this.debtConfig.print_ticket_payment_info.trim();
+                        }
 
                         if (navigator.canShare && navigator.canShare({ files: [file] })) {
                             await navigator.share({
