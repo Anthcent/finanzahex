@@ -146,6 +146,15 @@ request('printing/add-payment', {
     'account_id': account_id,
     'rate': 50,
 })
+debt_settings_res = request('printing/save-debt-settings', {
+    'settings': {
+        'print_ticket_business_name': tag + ' Print Shop',
+        'print_ticket_rif': 'J-12345678-0',
+        'print_wa_friendly': 'Hola {cliente}, recordatorio de {negocio}',
+    }
+})
+assert debt_settings_res['status'] == 'success'
+assert debt_settings_res['settings']['print_ticket_business_name'] == tag + ' Print Shop'
 conversation = request('ai/save-conversation', {
     'title': tag, 'messages': [{'role': 'user', 'content': 'Deployment test'}]})
 request('ai/conversation/' + str(conversation['id']))

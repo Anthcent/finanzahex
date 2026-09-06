@@ -24,25 +24,19 @@ class PrintingController extends BaseController
         // Get Accounts for income selection
         $accounts = $accountModel->where('status', 'active')->findAll();
 
-        try {
-            $setting = $db->table('settings')->where('key', 'default_print_account')->get()->getRowArray();
-        } catch (\Exception $e) {
-            $setting = null;
+        $settingsQuery = $db->table('settings')->get()->getResultArray();
+        $settings = [];
+        foreach ($settingsQuery as $row) {
+            $settings[$row['key']] = $row['value'];
         }
 
-        // Safe fallback for Default Account
-        if ($setting && isset($setting['value'])) {
-            $defaultAccount = $setting['value'];
-        } elseif (!empty($accounts)) {
-            $defaultAccount = $accounts[0]['id'];
-        } else {
-            $defaultAccount = 0; // Or handle as "No Account"
-        }
+        $defaultAccount = $settings['default_print_account'] ?? (!empty($accounts) ? $accounts[0]['id'] : 0);
 
         return view('printing/index', [
             'products' => $products,
             'accounts' => $accounts,
             'defaultAccount' => $defaultAccount,
+            'settings' => $settings,
             'initialTab' => $this->request->getGet('tab') ?: 'pos',
         ]);
     }
@@ -58,24 +52,19 @@ class PrintingController extends BaseController
         $products = $model->orderBy('category', 'ASC')->orderBy('name', 'ASC')->findAll();
         $accounts = $accountModel->where('status', 'active')->findAll();
 
-        try {
-            $setting = $db->table('settings')->where('key', 'default_print_account')->get()->getRowArray();
-        } catch (\Exception $e) {
-            $setting = null;
+        $settingsQuery = $db->table('settings')->get()->getResultArray();
+        $settings = [];
+        foreach ($settingsQuery as $row) {
+            $settings[$row['key']] = $row['value'];
         }
 
-        if ($setting && isset($setting['value'])) {
-            $defaultAccount = $setting['value'];
-        } elseif (!empty($accounts)) {
-            $defaultAccount = $accounts[0]['id'];
-        } else {
-            $defaultAccount = 0;
-        }
+        $defaultAccount = $settings['default_print_account'] ?? (!empty($accounts) ? $accounts[0]['id'] : 0);
 
         return view('printing/index', [
             'products' => $products,
             'accounts' => $accounts,
             'defaultAccount' => $defaultAccount,
+            'settings' => $settings,
             'initialTab' => 'debts',
         ]);
     }
@@ -1091,6 +1080,57 @@ class PrintingController extends BaseController
             'status' => 'success',
             'data' => count($orderIds) === 1 && isset($updatedOrders[$orderIds[0]]) ? $updatedOrders[$orderIds[0]] : null,
             'updated' => $updatedOrders,
+        ]);
+    }
+
+    public function saveDebtSettings()
+    {
+        $payload = $this->request->getJSON(true) ?? [];
+        $settings = $payload['settings'] ?? $payload;
+        if (!is_array($settings)) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => 'error',
+                'message' => 'Datos inválidos',
+            ]);
+        }
+
+        $allowedKeys = [
+            'print_ticket_business_name',
+            'print_ticket_subtitle',
+            'print_ticket_rif',
+            'print_ticket_phone',
+            'print_ticket_address',
+            'print_ticket_payment_info',
+            'print_ticket_footer',
+            'print_wa_friendly',
+            'print_wa_detailed',
+            'print_wa_urgent',
+        ];
+
+        $db = \Config\Database::connect();
+        $builder = $db->table('settings');
+        $updated = [];
+
+        foreach ($settings as $key => $value) {
+            if (!in_array($key, $allowedKeys, true)) {
+                continue;
+            }
+            $val = trim((string) $value);
+            $exists = $builder->where('key', $key)->countAllResults() > 0;
+            if ($exists) {
+                $builder->where('key', $key)->update(['value' => $val]);
+            } else {
+                $builder->insert(['key' => $key, 'value' => $val]);
+            }
+            $updated[$key] = $val;
+        }
+
+        AuditLogModel::log('printing', 'save_debt_settings', 0, null, $updated, null, 'Actualización de configuración de tickets y WhatsApp de deudas');
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'message' => 'Configuración de cobranzas guardada correctamente',
+            'settings' => $updated,
         ]);
     }
 }

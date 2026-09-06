@@ -6,6 +6,7 @@
     <title>Impresiones & POS - Fi-Hex</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <meta name="theme-color" content="#047857">
@@ -411,6 +412,10 @@
                         <button type="button" @click="debtViewMode = 'customers'" :class="debtViewMode === 'customers' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'" class="h-8 px-3 rounded-lg text-[11px] font-black flex items-center gap-1.5 transition-all"><span class="material-icons text-sm">group</span>Clientes</button>
                     </div>
                     <div class="flex items-center gap-1.5">
+                        <button type="button" @click="openDebtConfigModal('ticket')" class="h-8 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black flex items-center gap-1 transition-all" title="Configurar tickets y mensajes WhatsApp de cobranza">
+                            <span class="material-icons text-xs">settings</span>
+                            <span class="hidden sm:inline">Configurar</span>
+                        </button>
                         <button type="button" @click="copyCollectionReport()" class="h-8 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black flex items-center gap-1 transition-all" title="Copiar resumen general de cobranzas">
                             <span class="material-icons text-xs">content_copy</span>
                             <span class="hidden sm:inline">Copiar reporte</span>
@@ -1077,9 +1082,14 @@
                         <p class="text-[10px] font-bold text-slate-400 truncate" x-text="'Orden #' + (whatsappModal.order?.id || '') + ' · ' + (whatsappModal.order?.customer_name || 'Cliente')"></p>
                     </div>
                 </div>
-                <button @click="whatsappModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center shrink-0">
-                    <span class="material-icons text-base">close</span>
-                </button>
+                <div class="flex items-center gap-1 shrink-0">
+                    <button type="button" @click="openDebtConfigModal('whatsapp')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition-all" title="Configurar plantillas WhatsApp">
+                        <span class="material-icons text-base">settings</span>
+                    </button>
+                    <button @click="whatsappModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center">
+                        <span class="material-icons text-base">close</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Phone input -->
@@ -1137,19 +1147,27 @@
             <div class="flex justify-between items-center border-b border-slate-100 pb-3 no-print">
                 <div>
                     <h3 class="font-black text-base text-slate-900">Comprobante de Deuda</h3>
-                    <p class="text-[10px] font-bold text-slate-400">Formato ticket para imprimir o entregar</p>
+                    <p class="text-[10px] font-bold text-slate-400">Formato ticket para compartir o imprimir</p>
                 </div>
-                <button @click="debtPrintModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center">
-                    <span class="material-icons text-base">close</span>
-                </button>
+                <div class="flex items-center gap-1">
+                    <button type="button" @click="openDebtConfigModal('ticket')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition-all" title="Configurar datos del comprobante">
+                        <span class="material-icons text-base">settings</span>
+                    </button>
+                    <button @click="debtPrintModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center">
+                        <span class="material-icons text-base">close</span>
+                    </button>
+                </div>
             </div>
 
-            <!-- Ticket Card to Print -->
-            <div id="debt-printable-ticket" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-slate-900 text-xs font-mono space-y-3">
+            <!-- Ticket Card to Print / Screenshot -->
+            <div id="debt-printable-ticket" class="bg-white p-5 rounded-2xl border border-slate-200 text-slate-900 text-xs font-mono space-y-3 shadow-xs">
                 <div class="text-center pb-2 border-b border-dashed border-slate-300">
-                    <p class="font-black text-sm tracking-wider uppercase">FINANZAHEX</p>
-                    <p class="text-[10px] text-slate-500 font-sans">Servicios de Impresión & POS</p>
-                    <p class="text-[10px] text-slate-500 font-sans mt-0.5">COMPROBANTE DE CUENTA POR COBRAR</p>
+                    <p class="font-black text-sm tracking-wider uppercase" x-text="debtConfig.print_ticket_business_name || 'FINANZAHEX'"></p>
+                    <p class="text-[10px] text-slate-500 font-sans" x-text="debtConfig.print_ticket_subtitle || 'Servicios de Impresión & POS'"></p>
+                    <p class="text-[10px] text-slate-500 font-sans" x-show="debtConfig.print_ticket_rif" x-text="'RIF: ' + debtConfig.print_ticket_rif"></p>
+                    <p class="text-[10px] text-slate-500 font-sans" x-show="debtConfig.print_ticket_phone" x-text="'Tel: ' + debtConfig.print_ticket_phone"></p>
+                    <p class="text-[9px] text-slate-400 font-sans mt-0.5" x-show="debtConfig.print_ticket_address" x-text="debtConfig.print_ticket_address"></p>
+                    <p class="text-[10px] font-bold text-slate-700 font-sans mt-1">COMPROBANTE DE CUENTA POR COBRAR</p>
                 </div>
 
                 <div class="space-y-1 text-[11px]">
@@ -1207,21 +1225,180 @@
                     <p class="text-[10px] font-sans text-slate-600 mt-0.5" x-text="debtPrintModal.order?.collection_notes"></p>
                 </div>
 
+                <div x-show="debtConfig.print_ticket_payment_info" class="border-t border-dashed border-slate-300 pt-2 font-sans">
+                    <p class="text-[9px] uppercase font-bold text-slate-400">Datos para Pago / Transferencia:</p>
+                    <p class="text-[10px] text-slate-700 whitespace-pre-line mt-0.5 font-mono" x-text="debtConfig.print_ticket_payment_info"></p>
+                </div>
+
                 <div class="border-t border-dashed border-slate-300 pt-3 text-center text-[9px] text-slate-500 font-sans space-y-1">
-                    <p>Por favor conserve este comprobante para su control.</p>
-                    <p>¡Gracias por su preferencia!</p>
+                    <p x-text="debtConfig.print_ticket_footer || 'Por favor conserve este comprobante para su control. ¡Gracias por su preferencia!'"></p>
                     <div class="pt-6 border-b border-slate-400 w-3/4 mx-auto"></div>
                     <p class="text-[8px] text-slate-400 uppercase">Firma de Conformidad</p>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 no-print">
-                <button type="button" @click="debtPrintModal.open = false" class="h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black">
-                    Cerrar
+            <!-- Ticket Actions -->
+            <div class="space-y-2 pt-1 border-t border-slate-100 no-print">
+                <!-- Primary Action: Share image on WhatsApp -->
+                <button type="button" @click="shareDebtTicketImage()" :disabled="sharingTicketImage" class="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md shadow-emerald-950/20 transition-all active:scale-98">
+                    <template x-if="!sharingTicketImage">
+                        <span class="flex items-center gap-1.5">
+                            <span class="material-icons text-base">photo_camera</span>
+                            <span>Compartir Captura en WhatsApp</span>
+                        </span>
+                    </template>
+                    <template x-if="sharingTicketImage">
+                        <span class="flex items-center gap-1.5">
+                            <span class="material-icons text-base animate-spin">sync</span>
+                            <span>Generando captura...</span>
+                        </span>
+                    </template>
                 </button>
-                <button type="button" @click="printDebtTicket()" class="h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md">
-                    <span class="material-icons text-sm">print</span>
-                    <span>Imprimir Ticket</span>
+
+                <!-- Secondary buttons: Copy photo, Download photo, Print -->
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" @click="copyTicketImage()" :disabled="sharingTicketImage" class="h-9 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 text-[10px] font-black flex items-center justify-center gap-1 transition-all" title="Copiar foto al portapapeles (para pegar con Ctrl+V)">
+                        <span class="material-icons text-xs">content_copy</span>
+                        <span>Copiar foto</span>
+                    </button>
+                    <button type="button" @click="downloadTicketImage()" :disabled="sharingTicketImage" class="h-9 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 text-[10px] font-black flex items-center justify-center gap-1 transition-all" title="Descargar archivo PNG">
+                        <span class="material-icons text-xs">download</span>
+                        <span>Descargar</span>
+                    </button>
+                    <button type="button" @click="printDebtTicket()" class="h-9 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black flex items-center justify-center gap-1 transition-all shadow-xs">
+                        <span class="material-icons text-xs">print</span>
+                        <span>Imprimir</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debt & Ticket Configuration Modal -->
+    <div x-show="debtConfigModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" @click="debtConfigModal.open = false"></div>
+        <div class="bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl w-full sm:max-w-xl relative z-10 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto customize-scrollbar animate-slide-up safe-bottom">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <span class="material-icons text-xl">tune</span>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-base text-slate-900">Configuración de Cobranzas</h3>
+                        <p class="text-[10px] font-bold text-slate-400">Personaliza comprobantes de deuda y WhatsApp</p>
+                    </div>
+                </div>
+                <button @click="debtConfigModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center">
+                    <span class="material-icons text-base">close</span>
+                </button>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="bg-slate-100 p-1 rounded-xl flex gap-1">
+                <button type="button" @click="debtConfigModal.tab = 'ticket'" :class="debtConfigModal.tab === 'ticket' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'" class="flex-1 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5">
+                    <span class="material-icons text-sm">receipt_long</span>
+                    <span>Datos del Ticket</span>
+                </button>
+                <button type="button" @click="debtConfigModal.tab = 'whatsapp'" :class="debtConfigModal.tab === 'whatsapp' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'" class="flex-1 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5">
+                    <span class="material-icons text-sm">chat</span>
+                    <span>Mensajes WhatsApp</span>
+                </button>
+            </div>
+
+            <!-- Tab 1: Ticket Settings -->
+            <div x-show="debtConfigModal.tab === 'ticket'" class="space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Nombre Comercial</label>
+                        <input type="text" x-model="debtConfigModal.form.print_ticket_business_name" placeholder="Ej: FINANZAHEX" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Subtítulo / Razón Social</label>
+                        <input type="text" x-model="debtConfigModal.form.print_ticket_subtitle" placeholder="Ej: Servicios de Impresión & POS" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">RIF / Identificación</label>
+                        <input type="text" x-model="debtConfigModal.form.print_ticket_rif" placeholder="Ej: J-12345678-9" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Teléfono de Contacto</label>
+                        <input type="text" x-model="debtConfigModal.form.print_ticket_phone" placeholder="Ej: +58 412 1234567" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Dirección / Ubicación</label>
+                    <input type="text" x-model="debtConfigModal.form.print_ticket_address" placeholder="Ej: Av. Principal, C.C. Plaza, Local 12" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Cuentas Bancarias / Pago Móvil (para el comprobante)</label>
+                    <textarea x-model="debtConfigModal.form.print_ticket_payment_info" rows="3" placeholder="Ej: Banco Banesco: 0134-XXXX...&#10;Pago Móvil: 0412-1234567, V-12345678, Banesco" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono outline-none resize-none focus:bg-white focus:border-emerald-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Pie de Página / Agradecimiento</label>
+                    <input type="text" x-model="debtConfigModal.form.print_ticket_footer" placeholder="Ej: Por favor conserve este comprobante. ¡Gracias por su preferencia!" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-500">
+                </div>
+            </div>
+
+            <!-- Tab 2: WhatsApp Templates -->
+            <div x-show="debtConfigModal.tab === 'whatsapp'" class="space-y-3">
+                <div class="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3 text-[11px] text-emerald-900">
+                    <p class="font-bold flex items-center gap-1 mb-1 text-emerald-800">
+                        <span class="material-icons text-sm">code</span>
+                        <span>Etiquetas dinámicas disponibles:</span>
+                    </p>
+                    <p class="text-[10px] text-emerald-800/80 leading-relaxed font-mono">
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{cliente}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{orden}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{fecha}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{vencimiento}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{servicios}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{total}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{abonado}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{pendiente_usd}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{pendiente_bs}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{negocio}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded mr-1">{datos_pago}</span>
+                        <span class="bg-white/80 px-1 py-0.5 rounded">{notas}</span>
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Plantilla 1: Amistoso 😊</label>
+                    <textarea x-model="debtConfigModal.form.print_wa_friendly" rows="4" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono outline-none resize-none focus:bg-white focus:border-emerald-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Plantilla 2: Factura Ítems 📄</label>
+                    <textarea x-model="debtConfigModal.form.print_wa_detailed" rows="5" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono outline-none resize-none focus:bg-white focus:border-emerald-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Plantilla 3: Urgente / Vencimiento 🚨</label>
+                    <textarea x-model="debtConfigModal.form.print_wa_urgent" rows="4" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono outline-none resize-none focus:bg-white focus:border-emerald-500"></textarea>
+                </div>
+
+                <div class="pt-1 flex justify-between items-center">
+                    <button type="button" @click="resetDefaultWaTemplates()" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 underline">
+                        Restablecer plantillas predeterminadas
+                    </button>
+                </div>
+            </div>
+
+            <!-- Error message if any -->
+            <div x-show="debtConfigModal.error" class="bg-rose-50 text-rose-700 text-xs p-2.5 rounded-xl font-bold" x-text="debtConfigModal.error"></div>
+
+            <!-- Modal Footer -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button type="button" @click="debtConfigModal.open = false" class="h-10 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">
+                    Cancelar
+                </button>
+                <button type="button" @click="saveDebtConfig()" :disabled="debtConfigModal.saving" class="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-black transition-all shadow-md shadow-emerald-950/20 flex items-center gap-1.5 active:scale-95">
+                    <span class="material-icons text-sm" x-show="!debtConfigModal.saving">save</span>
+                    <span class="material-icons text-sm animate-spin" x-show="debtConfigModal.saving">sync</span>
+                    <span x-text="debtConfigModal.saving ? 'Guardando...' : 'Guardar Configuración'"></span>
                 </button>
             </div>
         </div>
@@ -1366,6 +1543,26 @@
                 whatsappModal: { open: false, order: null, phone: '', template: 'detailed', message: '' },
                 customerStatementModal: { open: false, customer: null, orders: [], phone: '', totalUsd: 0, totalBs: 0, totalPaidUsd: 0, totalPaidBs: 0, totalInvoiceUsd: 0, totalInvoiceBs: 0 },
                 debtPrintModal: { open: false, order: null },
+                debtConfig: {
+                    print_ticket_business_name: <?= json_encode($settings['print_ticket_business_name'] ?? 'FINANZAHEX') ?>,
+                    print_ticket_subtitle: <?= json_encode($settings['print_ticket_subtitle'] ?? 'Servicios de Impresión & POS') ?>,
+                    print_ticket_rif: <?= json_encode($settings['print_ticket_rif'] ?? '') ?>,
+                    print_ticket_phone: <?= json_encode($settings['print_ticket_phone'] ?? '') ?>,
+                    print_ticket_address: <?= json_encode($settings['print_ticket_address'] ?? '') ?>,
+                    print_ticket_payment_info: <?= json_encode($settings['print_ticket_payment_info'] ?? '') ?>,
+                    print_ticket_footer: <?= json_encode($settings['print_ticket_footer'] ?? 'Por favor conserve este comprobante para su control. ¡Gracias por su preferencia!') ?>,
+                    print_wa_friendly: <?= json_encode($settings['print_wa_friendly'] ?? '') ?>,
+                    print_wa_detailed: <?= json_encode($settings['print_wa_detailed'] ?? '') ?>,
+                    print_wa_urgent: <?= json_encode($settings['print_wa_urgent'] ?? '') ?>,
+                },
+                debtConfigModal: {
+                    open: false,
+                    tab: 'ticket',
+                    saving: false,
+                    error: '',
+                    form: {}
+                },
+                sharingTicketImage: false,
                 
                 customerSuggestions: { show: false, list: [], loading: false },
                 customerProfile: { name: '', orders: [], totalOrders: 0, loading: false, expanded: false },
@@ -2133,6 +2330,62 @@
                     this.whatsappModal.template = key;
                     this.whatsappModal.message = this.buildWhatsAppText(this.whatsappModal.order, key);
                 },
+                defaultWaTemplates() {
+                    return {
+                        friendly: [
+                            '¡Hola, {cliente}! 👋',
+                            '',
+                            'Esperamos que estés muy bien. Te saludamos de parte de {negocio}.',
+                            'Te escribimos con un cordial recordatorio sobre tu orden *#{orden}* del {fecha}.',
+                            '',
+                            'Saldo pendiente: *{pendiente_usd}* ({pendiente_bs})',
+                            '{vencimiento}',
+                            '',
+                            'Puedes realizar tu pago cuando gustes:',
+                            '{datos_pago}',
+                            '',
+                            'Al transferir, por favor compártenos el comprobante por este medio.',
+                            '¡Que tengas un excelente día!'
+                        ].join('\n'),
+                        detailed: [
+                            '📄 *FACTURA DE DEUDA - {negocio}*',
+                            '',
+                            'Cliente: *{cliente}*',
+                            'Orden: *#{orden}*',
+                            'Fecha: {fecha}',
+                            '{vencimiento}',
+                            '',
+                            '*Servicios de la orden:*',
+                            '{servicios}',
+                            '',
+                            'Total orden: {total}',
+                            'Total abonado: {abonado}',
+                            '*SALDO PENDIENTE:* {pendiente_usd} ({pendiente_bs})',
+                            '{notas}',
+                            '',
+                            'Datos de pago:',
+                            '{datos_pago}',
+                            '',
+                            'Al efectuar el pago, por favor remítenos el comprobante por este chat. ¡Muchas gracias por tu preferencia!'
+                        ].join('\n'),
+                        urgent: [
+                            '⚠️ *AVISO DE COBRANZA - {negocio}*',
+                            '',
+                            'Estimado(a) *{cliente}*,',
+                            'Le notificamos que la orden *#{orden}* presenta saldo pendiente de pago.',
+                            '',
+                            '*Monto adeudado:* {pendiente_usd} ({pendiente_bs})',
+                            '*Fecha de orden:* {fecha}',
+                            '{vencimiento}',
+                            '',
+                            'Datos de pago:',
+                            '{datos_pago}',
+                            '',
+                            'Le solicitamos comunicarse a la brevedad posible para concretar su pago o coordinar un acuerdo.',
+                            'Agradecemos su pronta atención.'
+                        ].join('\n')
+                    };
+                },
                 buildWhatsAppText(order, templateKey) {
                     if (!order) return '';
                     let customer = order.customer_name || 'Estimado(a) cliente';
@@ -2142,74 +2395,90 @@
                     let totBs = 'Bs. ' + parseFloat(order.total_bs || 0).toFixed(2);
                     let paidUsd = '$' + this.formatUsd(this.orderPaidUsd(order));
                     let dateStr = this.formatDateStr(order.created_at);
-                    let dueStr = order.due_date ? this.formatDateStr(order.due_date) : '';
-                    let details = this.parseDetails(order.details);
+                    let dueStr = order.due_date ? 'Vencimiento: ' + this.formatDateStr(order.due_date) : '';
+                    let detailsList = this.parseDetails(order.details);
+                    let servicesStr = detailsList.length ? detailsList.map(d => '• ' + d).join('\n') : '• Servicios generales';
+                    let negocio = this.debtConfig.print_ticket_business_name || 'FINANZAHEX';
+                    let notasStr = order.collection_notes ? '*Nota:* ' + order.collection_notes : '';
+                    let datosPago = (this.debtConfig.print_ticket_payment_info || '').trim();
 
+                    let template = '';
+                    let defaults = this.defaultWaTemplates();
                     if (templateKey === 'friendly') {
-                        let lines = [
-                            '¡Hola, ' + customer + '! 👋',
-                            '',
-                            'Esperamos que estés muy bien. Te saludamos de parte del equipo de Impresiones.',
-                            'Te escribimos con un cordial recordatorio sobre tu orden *#' + order.id + '* del ' + dateStr + '.',
-                            '',
-                            'Saldo pendiente: *' + remUsd + '* (' + remBs + ')',
-                        ];
-                        if (dueStr) lines.push('Fecha convenida: ' + dueStr);
-                        lines.push(
-                            '',
-                            'Puedes realizar tu pago cuando gustes. Al transferir, por favor compártenos el comprobante por este medio.',
-                            '',
-                            '¡Que tengas un excelente día!'
-                        );
-                        return lines.join('\n');
+                        template = this.debtConfig.print_wa_friendly || defaults.friendly;
+                    } else if (templateKey === 'urgent') {
+                        template = this.debtConfig.print_wa_urgent || defaults.urgent;
+                    } else {
+                        template = this.debtConfig.print_wa_detailed || defaults.detailed;
                     }
 
-                    if (templateKey === 'urgent') {
-                        let lines = [
-                            '⚠️ *AVISO DE COBRANZA - VENCIMIENTO*',
-                            '',
-                            'Estimado(a) *' + customer + '*,',
-                            'Le notificamos que la orden *#' + order.id + '* presenta saldo vencido pendiente de pago.',
-                            '',
-                            '*Monto adeudado:* ' + remUsd + ' (' + remBs + ')',
-                            '*Fecha de orden:* ' + dateStr,
-                        ];
-                        if (dueStr) lines.push('*Fecha límite original:* ' + dueStr);
-                        lines.push(
-                            '',
-                            'Le solicitamos comunicarse a la brevedad posible para concretar su pago o coordinar un acuerdo.',
-                            'Agradecemos su pronta atención.'
-                        );
-                        return lines.join('\n');
-                    }
+                    let text = template
+                        .replace(/\{cliente\}/g, customer)
+                        .replace(/\{orden\}/g, order.id)
+                        .replace(/\{fecha\}/g, dateStr)
+                        .replace(/\{vencimiento\}/g, dueStr)
+                        .replace(/\{servicios\}/g, servicesStr)
+                        .replace(/\{total\}/g, totUsd + ' (' + totBs + ')')
+                        .replace(/\{abonado\}/g, paidUsd)
+                        .replace(/\{pendiente_usd\}/g, remUsd)
+                        .replace(/\{pendiente_bs\}/g, remBs)
+                        .replace(/\{negocio\}/g, negocio)
+                        .replace(/\{notas\}/g, notasStr)
+                        .replace(/\{datos_pago\}/g, datosPago);
 
-                    // Default: Factura Detallada
-                    let lines = [
-                        '📄 *FACTURA DE DEUDA - IMPRESIONES*',
-                        '',
-                        'Cliente: *' + customer + '*',
-                        'Orden: *#' + order.id + '*',
-                        'Fecha: ' + dateStr,
-                    ];
-                    if (dueStr) lines.push('Vencimiento: ' + dueStr);
-                    if (details.length) {
-                        lines.push('', '*Servicios de la orden:*');
-                        details.forEach(d => lines.push('• ' + d));
+                    return text.split('\n').filter((line, idx, arr) => !(line.trim() === '' && arr[idx - 1]?.trim() === '')).join('\n').trim();
+                },
+                openDebtConfigModal(tab = 'ticket') {
+                    this.debtConfigModal.tab = tab;
+                    this.debtConfigModal.error = '';
+                    let defaults = this.defaultWaTemplates();
+                    this.debtConfigModal.form = {
+                        print_ticket_business_name: this.debtConfig.print_ticket_business_name || '',
+                        print_ticket_subtitle: this.debtConfig.print_ticket_subtitle || '',
+                        print_ticket_rif: this.debtConfig.print_ticket_rif || '',
+                        print_ticket_phone: this.debtConfig.print_ticket_phone || '',
+                        print_ticket_address: this.debtConfig.print_ticket_address || '',
+                        print_ticket_payment_info: this.debtConfig.print_ticket_payment_info || '',
+                        print_ticket_footer: this.debtConfig.print_ticket_footer || '',
+                        print_wa_friendly: this.debtConfig.print_wa_friendly || defaults.friendly,
+                        print_wa_detailed: this.debtConfig.print_wa_detailed || defaults.detailed,
+                        print_wa_urgent: this.debtConfig.print_wa_urgent || defaults.urgent,
+                    };
+                    this.debtConfigModal.open = true;
+                },
+                resetDefaultWaTemplates() {
+                    let defaults = this.defaultWaTemplates();
+                    this.debtConfigModal.form.print_wa_friendly = defaults.friendly;
+                    this.debtConfigModal.form.print_wa_detailed = defaults.detailed;
+                    this.debtConfigModal.form.print_wa_urgent = defaults.urgent;
+                },
+                async saveDebtConfig() {
+                    this.debtConfigModal.saving = true;
+                    this.debtConfigModal.error = '';
+                    try {
+                        let res = await fetch('<?= base_url('printing/save-debt-settings') ?>', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ settings: this.debtConfigModal.form })
+                        });
+                        let data = await res.json();
+                        if (!res.ok || data.status !== 'success') {
+                            throw new Error(data.message || 'Error al guardar la configuración');
+                        }
+                        if (data.settings) {
+                            this.debtConfig = { ...this.debtConfig, ...data.settings };
+                        }
+                        if (this.whatsappModal.open && this.whatsappModal.order) {
+                            this.whatsappModal.message = this.buildWhatsAppText(this.whatsappModal.order, this.whatsappModal.template);
+                        }
+                        this.debtConfigModal.open = false;
+                        this.message = 'Configuración de cobranzas guardada correctamente';
+                        setTimeout(() => this.message = '', 3000);
+                    } catch(e) {
+                        this.debtConfigModal.error = e.message || 'No se pudo guardar la configuración';
+                    } finally {
+                        this.debtConfigModal.saving = false;
                     }
-                    lines.push(
-                        '',
-                        'Total orden: ' + totUsd + ' (' + totBs + ')',
-                        'Total abonado: ' + paidUsd,
-                        '*SALDO PENDIENTE:* ' + remUsd + ' (' + remBs + ')'
-                    );
-                    if (order.collection_notes) {
-                        lines.push('', '*Nota:* ' + order.collection_notes);
-                    }
-                    lines.push(
-                        '',
-                        'Al efectuar el pago, por favor remítenos el comprobante por este chat. ¡Muchas gracias por tu preferencia!'
-                    );
-                    return lines.join('\n');
                 },
                 async sendWhatsAppModal() {
                     if (!this.whatsappModal.order) return;
@@ -2356,6 +2625,118 @@
                 },
                 printDebtTicket() {
                     window.print();
+                },
+                async generateTicketCanvas() {
+                    let el = document.getElementById('debt-printable-ticket');
+                    if (!el) return null;
+                    if (document.fonts && document.fonts.ready) {
+                        try { await document.fonts.ready; } catch(e) {}
+                    }
+                    return await html2canvas(el, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        logging: false
+                    });
+                },
+                async shareDebtTicketImage() {
+                    if (!this.debtPrintModal.order || this.sharingTicketImage) return;
+                    let order = this.debtPrintModal.order;
+                    this.sharingTicketImage = true;
+                    try {
+                        let canvas = await this.generateTicketCanvas();
+                        if (!canvas) throw new Error('No se pudo generar la imagen del ticket');
+                        
+                        let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                        if (!blob) throw new Error('No se pudo procesar la imagen PNG');
+
+                        let filename = 'ticket_deuda_orden_' + order.id + '.png';
+                        let file = new File([blob], filename, { type: 'image/png' });
+                        let phone = this.whatsappPhone(order.customer_phone);
+                        let caption = 'Comprobante de Deuda - Orden #' + order.id + ' (' + (order.customer_name || 'Cliente') + ') - Saldo Pendiente: $' + this.formatUsd(this.orderRemainingUsd(order));
+
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                files: [file],
+                                title: 'Ticket Orden #' + order.id,
+                                text: caption,
+                            });
+                            this.message = '¡Comprobante compartido con éxito!';
+                            setTimeout(() => this.message = '', 3000);
+                        } else {
+                            let copied = false;
+                            if (navigator.clipboard && window.ClipboardItem) {
+                                try {
+                                    await navigator.clipboard.write([
+                                        new ClipboardItem({ 'image/png': blob })
+                                    ]);
+                                    copied = true;
+                                } catch(err) {}
+                            }
+
+                            let waUrl = 'https://wa.me/' + (phone || '') + '?text=' + encodeURIComponent(caption);
+                            window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+                            if (copied) {
+                                alert('¡Captura del ticket copiada al portapapeles!\n\nSe abrió WhatsApp. En el chat, presiona Ctrl + V para pegar la imagen del comprobante.');
+                            } else {
+                                let downloadUrl = URL.createObjectURL(blob);
+                                let link = document.createElement('a');
+                                link.href = downloadUrl;
+                                link.download = filename;
+                                link.click();
+                                URL.revokeObjectURL(downloadUrl);
+                                alert('Se descargó la captura del ticket y se abrió WhatsApp para que puedas adjuntarla en el chat.');
+                            }
+                        }
+                    } catch(e) {
+                        if (e.name !== 'AbortError') {
+                            alert('No se pudo compartir la captura: ' + (e.message || e));
+                        }
+                    } finally {
+                        this.sharingTicketImage = false;
+                    }
+                },
+                async copyTicketImage() {
+                    if (!this.debtPrintModal.order || this.sharingTicketImage) return;
+                    this.sharingTicketImage = true;
+                    try {
+                        let canvas = await this.generateTicketCanvas();
+                        if (!canvas) throw new Error('No se pudo generar la imagen');
+                        let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                        if (navigator.clipboard && window.ClipboardItem) {
+                            await navigator.clipboard.write([
+                                new ClipboardItem({ 'image/png': blob })
+                            ]);
+                            this.message = '¡Foto del ticket copiada! Pégala con Ctrl+V';
+                            setTimeout(() => this.message = '', 3500);
+                        } else {
+                            throw new Error('Tu navegador no admite copiar imágenes al portapapeles directamente. Puedes usar "Descargar" o "Compartir".');
+                        }
+                    } catch(e) {
+                        alert(e.message || 'No se pudo copiar la imagen al portapapeles');
+                    } finally {
+                        this.sharingTicketImage = false;
+                    }
+                },
+                async downloadTicketImage() {
+                    if (!this.debtPrintModal.order || this.sharingTicketImage) return;
+                    this.sharingTicketImage = true;
+                    try {
+                        let canvas = await this.generateTicketCanvas();
+                        if (!canvas) throw new Error('No se pudo generar la imagen');
+                        let orderId = this.debtPrintModal.order.id;
+                        let link = document.createElement('a');
+                        link.download = 'ticket_deuda_orden_' + orderId + '.png';
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                        this.message = 'Captura descargada correctamente';
+                        setTimeout(() => this.message = '', 3000);
+                    } catch(e) {
+                        alert('Error al descargar captura: ' + (e.message || e));
+                    } finally {
+                        this.sharingTicketImage = false;
+                    }
                 },
                 async copyCollectionReport() {
                     let open = this.orders.filter(o => o.status !== 'paid');

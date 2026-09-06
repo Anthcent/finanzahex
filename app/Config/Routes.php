@@ -81,6 +81,7 @@ $routes->get('printing/debug-payments', 'PrintingController::debugPayments');
 $routes->get('printing/debts', 'PrintingController::debts');
 $routes->post('printing/update-debt', 'PrintingController::updateDebt');
 $routes->post('printing/record-reminder', 'PrintingController::recordDebtReminder');
+$routes->post('printing/save-debt-settings', 'PrintingController::saveDebtSettings');
 
 $routes->get('printing/fix-db', 'PrintingController::fixDb');
 
