@@ -691,6 +691,21 @@ class PrintingController extends BaseController
             $amountUsd = floatval($json->amount_usd ?? 0);
             $rate = floatval($json->rate ?? 50);
 
+            if ($order['status'] === 'paid') {
+                throw new \InvalidArgumentException('Esta orden ya está pagada.');
+            }
+            if ($rate <= 0 || $amountBs < 0 || $amountUsd < 0 || ($amountBs === 0.0 && $amountUsd === 0.0)) {
+                throw new \InvalidArgumentException('Ingresa un monto válido para el abono.');
+            }
+
+            $outstandingBs = max(
+                0,
+                (float) $order['total_bs'] - (float) $order['paid_bs'] - ((float) $order['paid_usd'] * $rate)
+            );
+            if (($amountBs + ($amountUsd * $rate)) > ($outstandingBs + 0.05)) {
+                throw new \InvalidArgumentException('El abono no puede superar la deuda pendiente.');
+            }
+
             // Validation: Must have an account if paying money
             if (($amountBs > 0 || $amountUsd > 0) && empty($json->account_id)) {
                 throw new \Exception('Debe seleccionar una cuenta para registrar el pago');
@@ -700,30 +715,10 @@ class PrintingController extends BaseController
             $newPaidBs = floatval($order['paid_bs']) + $amountBs;
             $newPaidUsd = floatval($order['paid_usd']) + $amountUsd;
             
-            // Check status
-            $totalAsUsd = floatval($order['total_usd']);
-            // Improved Status Check respecting original currency totals
             $totalAsBs = floatval($order['total_bs']);
-            $totalAsUsd = floatval($order['total_usd']);
-            
-            $isPaid = false;
-
-            if ($totalAsBs > 0) {
-                 // Check primarily against Bs Total
-                 // Calculate total paid value in Bs
-                 $paidValueBs = $newPaidBs + ($newPaidUsd * $rate);
-                 // Tolerance 0.50 Bs
-                 if ($paidValueBs >= ($totalAsBs - 0.50)) $isPaid = true;
-            } else {
-                 // Check against USD Total
-                 $paidValueUsd = $newPaidUsd + ($newPaidBs / $rate);
-                 if ($paidValueUsd >= ($totalAsUsd - 0.10)) $isPaid = true;
-            }
-
+            $paidValueBs = $newPaidBs + ($newPaidUsd * $rate);
+            $isPaid = $paidValueBs >= ($totalAsBs - 0.05);
             $status = $isPaid ? 'paid' : 'partial';
-
-            // Special case: If nothing paid, pending
-            if ($newPaidBs == 0 && $newPaidUsd == 0) $status = 'pending';
 
             $db->table('print_orders')->where('id', $json->order_id)->update([
                 'paid_bs' => $newPaidBs,
@@ -805,7 +800,9 @@ class PrintingController extends BaseController
 
 
         } catch (\Exception $e) {
-             return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
+             $db->transRollback();
+             $statusCode = $e instanceof \InvalidArgumentException ? 422 : 500;
+             return $this->response->setStatusCode($statusCode)->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
         }
     }
 
