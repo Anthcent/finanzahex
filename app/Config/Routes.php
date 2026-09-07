@@ -82,6 +82,8 @@ $routes->get('printing/movements', 'PrintingController::getMovements');
 $routes->post('printing/add-payment', 'PrintingController::addPayment');
 $routes->post('printing/save-product', 'PrintingController::saveProduct');
 $routes->get('printing/delete-product/(:num)', 'PrintingController::deleteProduct/$1');
+$routes->post('printing/save-catalog-category', 'PrintingController::saveCatalogCategory');
+$routes->post('printing/delete-catalog-category/(:num)', 'PrintingController::deleteCatalogCategory/$1');
 $routes->post('printing/delete-order/(:num)', 'PrintingController::deleteOrder/$1');
 $routes->post('printing/update-order', 'PrintingController::updateOrder');
 $routes->get('printing/payments/(:num)', 'PrintingController::getPayments/$1');

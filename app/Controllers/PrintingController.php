@@ -3,8 +3,10 @@
 namespace App\Controllers;
 
 use App\Libraries\PrintingPaymentCalculator;
+use App\Libraries\PrintProductConfigurator;
 use App\Libraries\TransactionValue;
 use App\Models\PrintProductModel;
+use App\Models\PrintProductCategoryModel;
 use App\Models\TransactionModel;
 use App\Models\AccountModel;
 use App\Models\AuditLogModel;
@@ -21,7 +23,8 @@ class PrintingController extends BaseController
         $accountModel = new AccountModel();
 
         // Get Products grouped by category
-        $products = $model->orderBy('category', 'ASC')->orderBy('name', 'ASC')->findAll();
+        $products = $model->where('is_active', 1)->orderBy('category', 'ASC')->orderBy('name', 'ASC')->findAll();
+        $products = array_map([$this, 'hydrateCatalogProduct'], $products);
         
         // Get Accounts for income selection
         $accounts = $accountModel->where('status', 'active')->findAll();
@@ -51,7 +54,8 @@ class PrintingController extends BaseController
         $model = new PrintProductModel();
         $accountModel = new AccountModel();
 
-        $products = $model->orderBy('category', 'ASC')->orderBy('name', 'ASC')->findAll();
+        $products = $model->where('is_active', 1)->orderBy('category', 'ASC')->orderBy('name', 'ASC')->findAll();
+        $products = array_map([$this, 'hydrateCatalogProduct'], $products);
         $accounts = $accountModel->where('status', 'active')->findAll();
 
         $settingsQuery = $db->table('settings')->get()->getResultArray();
@@ -74,11 +78,15 @@ class PrintingController extends BaseController
     public function getProducts()
     {
         $products = (new PrintProductModel())
+            ->where('is_active', 1)
             ->orderBy('category', 'ASC')
             ->orderBy('name', 'ASC')
             ->findAll();
 
-        return $this->response->setJSON(['status' => 'success', 'data' => $products]);
+        return $this->response->setJSON([
+            'status' => 'success',
+            'data' => array_map([$this, 'hydrateCatalogProduct'], $products),
+        ]);
     }
 
     public function fixDb()
@@ -373,13 +381,18 @@ class PrintingController extends BaseController
 
     public function settings()
     {
-        // ... (reuse existing settings code)
+        $this->ensureTablesExist();
         $db = \Config\Database::connect();
         $model = new PrintProductModel();
         $accountModel = new AccountModel();
 
         $products = $model->orderBy('category', 'ASC')->orderBy('name', 'ASC')->findAll();
+        $products = array_map([$this, 'hydrateCatalogProduct'], $products);
         $accounts = $accountModel->where('status', 'active')->findAll();
+        $catalogCategories = (new PrintProductCategoryModel())
+            ->orderBy('sort_order', 'ASC')
+            ->orderBy('name', 'ASC')
+            ->findAll();
         
         $categories = (new \App\Models\CategoryModel())->findAll();
         
@@ -427,6 +440,7 @@ class PrintingController extends BaseController
             'products' => $products, 
             'accounts' => $accounts, 
             'categories' => $categories,
+            'catalogCategories' => $catalogCategories,
             'defaultAccount' => $defaultAccount,
             'defaultCategory' => $defaultCategory,
             'rate' => $rate
@@ -594,6 +608,7 @@ class PrintingController extends BaseController
                 'id' => $productId,
                 'quantity' => $quantity,
                 'note' => mb_substr(trim((string) ($item['note'] ?? '')), 0, 180),
+                'selections' => is_array($item['selections'] ?? null) ? $item['selections'] : [],
             ];
             $productIds[] = $productId;
         }
@@ -610,7 +625,7 @@ class PrintingController extends BaseController
         $totalUsd = 0.0;
         $details = [];
         $summary = [];
-        foreach ($items as $item) {
+        foreach ($items as $itemIndex => $item) {
             if (!isset($productsById[$item['id']])) {
                 throw new \InvalidArgumentException('Uno de los servicios ya no existe. Actualiza la página e intenta nuevamente.');
             }
@@ -621,18 +636,31 @@ class PrintingController extends BaseController
                 throw new \InvalidArgumentException("El servicio {$product['name']} no tiene un precio válido.");
             }
 
+            $configuration = PrintProductConfigurator::calculate(
+                $product,
+                $item['selections'],
+                $rate
+            );
+            $selectionLabels = $configuration['labels'];
+            $adjustmentBs = $configuration['adjustment_bs'];
+            $adjustmentUsd = $configuration['adjustment_usd'];
+            $items[$itemIndex]['selections'] = $configuration['selections'];
+
             if ($priceBs > 0) {
-                $lineBs = $priceBs * $item['quantity'];
-                $lineUsd = $lineBs / $rate;
+                $unitBs = $priceBs + $adjustmentBs;
+                $unitUsd = $unitBs / $rate;
             } else {
-                $lineUsd = $priceUsd * $item['quantity'];
-                $lineBs = $lineUsd * $rate;
+                $unitUsd = $priceUsd + $adjustmentUsd;
+                $unitBs = $unitUsd * $rate;
             }
+            $lineBs = $unitBs * $item['quantity'];
+            $lineUsd = $unitUsd * $item['quantity'];
             $totalBs += $lineBs;
             $totalUsd += $lineUsd;
             $note = $item['note'] !== '' ? " ({$item['note']})" : '';
-            $details[] = "{$item['quantity']}x {$product['name']}{$note}";
-            $summary[] = "{$item['quantity']}x {$product['name']}";
+            $features = $selectionLabels !== [] ? ' · ' . implode(', ', $selectionLabels) : '';
+            $details[] = "{$item['quantity']}x {$product['name']}{$features}{$note}";
+            $summary[] = "{$item['quantity']}x {$product['name']}{$features}";
         }
 
         return [$items, round($totalBs, 2), round($totalUsd, 2), $details, $summary];
@@ -917,24 +945,110 @@ class PrintingController extends BaseController
     // CRUD Settings
     public function saveProduct()
     {
-        $json = $this->request->getJSON();
+        $json = $this->request->getJSON(true) ?? [];
         $model = new PrintProductModel();
-        
-        $data = [
-            'name' => $json->name,
-            'price_bs' => $json->price_bs,
-            'price_usd' => $json->price_usd,
-            'category' => $json->category,
-            'icon' => $json->icon,
-            'color' => $json->color // e.g. 'indigo', 'emerald'
-        ];
 
-        if (isset($json->id) && $json->id) {
-            $model->update($json->id, $data);
-        } else {
-            $model->insert($data);
+        try {
+            $name = mb_substr(trim((string) ($json['name'] ?? '')), 0, 255);
+            $categoryId = (int) ($json['category_id'] ?? 0);
+            $category = (new PrintProductCategoryModel())->find($categoryId);
+            $priceBs = round((float) ($json['price_bs'] ?? 0), 2);
+            $priceUsd = round((float) ($json['price_usd'] ?? 0), 2);
+            if ($name === '') {
+                throw new \InvalidArgumentException('Escribe el nombre del producto o servicio.');
+            }
+            if (!$category) {
+                throw new \InvalidArgumentException('Selecciona una categoría válida.');
+            }
+            if ($priceBs < 0 || $priceUsd < 0 || ($priceBs <= 0 && $priceUsd <= 0)) {
+                throw new \InvalidArgumentException('Indica un precio mayor que cero.');
+            }
+
+            $type = strtolower(trim((string) ($json['product_type'] ?? 'service')));
+            if (!in_array($type, ['service', 'product', 'custom'], true)) {
+                $type = 'service';
+            }
+            $data = [
+                'name' => $name,
+                'price_bs' => $priceBs,
+                'price_usd' => $priceUsd,
+                'category_id' => $categoryId,
+                'category' => $category['name'],
+                'product_type' => $type,
+                'sku' => ($sku = mb_substr(trim((string) ($json['sku'] ?? '')), 0, 80)) !== '' ? $sku : null,
+                'description' => ($description = trim((string) ($json['description'] ?? ''))) !== '' ? mb_substr($description, 0, 1000) : null,
+                'unit' => mb_substr(trim((string) ($json['unit'] ?? 'unidad')) ?: 'unidad', 0, 30),
+                'characteristics_json' => json_encode($this->normalizeCharacteristics($json['characteristics'] ?? []), JSON_UNESCAPED_UNICODE),
+                'is_active' => array_key_exists('is_active', $json) ? (!empty($json['is_active']) ? 1 : 0) : 1,
+                'icon' => mb_substr(trim((string) ($json['icon'] ?? 'inventory_2')), 0, 50),
+                'color' => mb_substr(trim((string) ($json['color'] ?? $category['color'] ?? 'emerald')), 0, 20),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ];
+
+            $id = (int) ($json['id'] ?? 0);
+            if ($id <= 0) {
+                $data['created_at'] = date('Y-m-d H:i:s');
+            }
+            $saved = $id > 0 ? $model->update($id, $data) : $model->insert($data);
+            if (!$saved) {
+                throw new \RuntimeException('No se pudo guardar el producto.');
+            }
+
+            return $this->response->setJSON(['status' => 'success']);
+        } catch (\Throwable $e) {
+            return $this->response->setStatusCode($e instanceof \InvalidArgumentException ? 422 : 500)
+                ->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
         }
+    }
 
+    public function saveCatalogCategory()
+    {
+        $json = $this->request->getJSON(true) ?? [];
+        try {
+            $name = mb_substr(trim((string) ($json['name'] ?? '')), 0, 100);
+            if ($name === '') {
+                throw new \InvalidArgumentException('Escribe el nombre de la categoría.');
+            }
+            $model = new PrintProductCategoryModel();
+            $id = (int) ($json['id'] ?? 0);
+            $duplicate = $model->where('name', $name)->first();
+            if ($duplicate && (int) $duplicate['id'] !== $id) {
+                throw new \InvalidArgumentException('Ya existe una categoría con ese nombre.');
+            }
+            $data = [
+                'name' => $name,
+                'icon' => mb_substr(trim((string) ($json['icon'] ?? 'category')), 0, 50),
+                'color' => mb_substr(trim((string) ($json['color'] ?? 'emerald')), 0, 20),
+                'sort_order' => (int) ($json['sort_order'] ?? 0),
+                'is_active' => array_key_exists('is_active', $json) ? (!empty($json['is_active']) ? 1 : 0) : 1,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ];
+            if ($id <= 0) {
+                $data['created_at'] = date('Y-m-d H:i:s');
+            }
+            $saved = $id > 0 ? $model->update($id, $data) : $model->insert($data);
+            if (!$saved) {
+                throw new \RuntimeException('No se pudo guardar la categoría.');
+            }
+            if ($id > 0) {
+                (new PrintProductModel())->where('category_id', $id)->set(['category' => $name])->update();
+            }
+            return $this->response->setJSON(['status' => 'success']);
+        } catch (\Throwable $e) {
+            return $this->response->setStatusCode($e instanceof \InvalidArgumentException ? 422 : 500)
+                ->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+    }
+
+    public function deleteCatalogCategory($id)
+    {
+        if ((new PrintProductModel())->where('category_id', (int) $id)->countAllResults() > 0) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'status' => 'error',
+                'message' => 'Mueve o elimina los productos de esta categoría antes de borrarla.',
+            ]);
+        }
+        (new PrintProductCategoryModel())->delete((int) $id);
         return $this->response->setJSON(['status' => 'success']);
     }
 
@@ -943,6 +1057,61 @@ class PrintingController extends BaseController
         $model = new PrintProductModel();
         $model->delete($id);
         return $this->response->setJSON(['status' => 'success']);
+    }
+
+    private function hydrateCatalogProduct(array $product): array
+    {
+        $characteristics = json_decode((string) ($product['characteristics_json'] ?? '[]'), true);
+        $product['characteristics'] = is_array($characteristics) ? $characteristics : [];
+        $product['is_active'] = (int) ($product['is_active'] ?? 1);
+
+        return $product;
+    }
+
+    private function normalizeCharacteristics($characteristics): array
+    {
+        if (!is_array($characteristics)) {
+            return [];
+        }
+        $normalized = [];
+        $seen = [];
+        foreach (array_slice($characteristics, 0, 12) as $characteristic) {
+            if (!is_array($characteristic)) {
+                continue;
+            }
+            $name = mb_substr(trim((string) ($characteristic['name'] ?? '')), 0, 60);
+            $key = mb_strtolower($name);
+            if ($name === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $type = ($characteristic['type'] ?? 'select') === 'text' ? 'text' : 'select';
+            $options = [];
+            if ($type === 'select' && is_array($characteristic['options'] ?? null)) {
+                foreach (array_slice($characteristic['options'], 0, 40) as $option) {
+                    $label = mb_substr(trim((string) ($option['label'] ?? '')), 0, 60);
+                    if ($label === '') {
+                        continue;
+                    }
+                    $options[] = [
+                        'label' => $label,
+                        'price_bs' => round(max(0, (float) ($option['price_bs'] ?? 0)), 2),
+                        'price_usd' => round(max(0, (float) ($option['price_usd'] ?? 0)), 2),
+                    ];
+                }
+            }
+            if ($type === 'select' && $options === []) {
+                continue;
+            }
+            $normalized[] = [
+                'name' => $name,
+                'type' => $type,
+                'required' => !empty($characteristic['required']),
+                'options' => $options,
+            ];
+        }
+
+        return $normalized;
     }
 
     public function deleteOrder($id)

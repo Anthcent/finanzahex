@@ -118,7 +118,7 @@
                 <div class="mb-4 bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-2xs border border-slate-200/80 space-y-2.5">
                     <div class="relative">
                         <span class="material-icons absolute left-3 top-2.5 text-slate-400 text-lg">search</span>
-                        <input type="search" x-model="productSearch" placeholder="Buscar servicio..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
+                        <input type="search" x-model="productSearch" placeholder="Buscar producto, servicio o código..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
                         <button x-show="productSearch" @click="productSearch = ''" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700" title="Limpiar búsqueda">
                             <span class="material-icons text-lg">close</span>
                         </button>
@@ -134,7 +134,7 @@
                 <!-- Product Grid -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     <?php foreach ($products as $p): ?>
-                    <button x-show="matchesProduct(<?= htmlspecialchars(json_encode($p['name'])) ?>, <?= htmlspecialchars(json_encode($p['category'])) ?>)" @click="addToCart(<?= htmlspecialchars(json_encode($p)) ?>)"
+                    <button x-show="matchesProduct(<?= htmlspecialchars(json_encode(trim(($p['name'] ?? '') . ' ' . ($p['sku'] ?? '') . ' ' . ($p['description'] ?? '')))) ?>, <?= htmlspecialchars(json_encode($p['category'])) ?>)" @click="selectProduct(<?= htmlspecialchars(json_encode($p), ENT_QUOTES, 'UTF-8') ?>)"
                             :class="cartQuantity(<?= (int) $p['id'] ?>) > 0 ? 'border-emerald-400 ring-2 ring-emerald-100 bg-emerald-50/40' : 'border-slate-200/70 bg-white'"
                             class="hover:bg-emerald-50/30 p-3.5 rounded-2xl shadow-2xs hover:shadow-md border hover:border-emerald-300 flex flex-col items-center justify-center gap-2 active:scale-95 transition-all group relative overflow-hidden h-32 text-center">
                         <span x-show="cartQuantity(<?= (int) $p['id'] ?>) > 0" x-text="cartQuantity(<?= (int) $p['id'] ?>)" class="absolute top-2 right-2 min-w-6 h-6 px-1.5 rounded-full bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shadow-md"></span>
@@ -143,6 +143,7 @@
                         </div>
                         <div class="w-full">
                             <p class="font-bold text-xs leading-tight text-slate-800 line-clamp-1 group-hover:text-emerald-950 transition-colors"><?= $p['name'] ?></p>
+                            <p class="text-[8px] font-bold text-slate-400 truncate"><?= esc($p['unit'] ?? 'unidad') ?><?= !empty($p['characteristics']) ? ' · configurable' : '' ?></p>
                             <div class="text-[10px] font-black text-slate-500 mt-1">
                                 <span class="text-emerald-700 font-extrabold" x-text="'Bs. ' + unitPriceBs(<?= (float) $p['price_bs'] ?>, <?= (float) $p['price_usd'] ?>).toFixed(2)"></span>
                                 <span class="text-[9px] text-slate-400 font-bold ml-1" x-text="'$' + formatUsd(unitPriceUsd(<?= (float) $p['price_bs'] ?>, <?= (float) $p['price_usd'] ?>))"></span>
@@ -183,6 +184,7 @@
                                 <div class="flex justify-between items-start">
                                     <div class="min-w-0 flex-1 pr-2">
                                         <p class="font-bold text-slate-800 text-xs truncate" x-text="item.name"></p>
+                                        <p x-show="selectionSummary(item)" class="text-[9px] font-bold text-violet-600 line-clamp-2" x-text="selectionSummary(item)"></p>
                                         <p class="text-[10px] font-black text-emerald-700 mt-0.5" x-text="'Bs. ' + getLineTotalBs(item)"></p>
                                     </div>
                                     <div class="flex items-center gap-1.5 shrink-0 bg-white p-1 rounded-xl border border-slate-200/60 shadow-2xs">
@@ -273,6 +275,7 @@
                                     <div class="flex items-center justify-between gap-3">
                                         <div class="flex-1 min-w-0">
                                             <p class="font-black text-slate-800 text-sm leading-tight truncate" x-text="item.name"></p>
+                                            <p x-show="selectionSummary(item)" class="text-[9px] font-bold text-violet-600 line-clamp-2" x-text="selectionSummary(item)"></p>
                                             <p class="text-xs font-black text-emerald-700 mt-0.5" x-text="'Bs. ' + getLineTotalBs(item)"></p>
                                         </div>
                                         <div class="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200/80 shadow-2xs">
@@ -1167,6 +1170,32 @@
         </div>
 
     </main>
+
+    <!-- Product configuration modal -->
+    <div x-show="productModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" @click="productModal.open = false"></div>
+        <div class="bg-white rounded-t-[2.25rem] sm:rounded-3xl shadow-2xl w-full sm:max-w-md relative z-10 p-6 max-h-[90vh] overflow-y-auto customize-scrollbar safe-bottom">
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div><p class="text-[10px] uppercase font-black text-violet-600">Configurar producto</p><h3 class="font-black text-lg text-slate-900" x-text="productModal.product?.name"></h3><p class="text-xs text-slate-400" x-text="productModal.product?.description || 'Selecciona las características de esta venta.'"></p></div>
+                <button @click="productModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 material-icons text-slate-500">close</button>
+            </div>
+            <div class="space-y-4 py-4">
+                <template x-for="feature in (productModal.product?.characteristics || [])" :key="feature.name">
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-500"><span x-text="feature.name"></span><span x-show="feature.required" class="text-rose-500"> *</span></label>
+                        <select x-show="feature.type !== 'text'" x-model="productModal.selections[feature.name]" class="w-full mt-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:border-violet-500">
+                            <option value="">Seleccionar...</option>
+                            <template x-for="option in feature.options" :key="option.label"><option :value="option.label" x-text="option.label + optionPriceLabel(option)"></option></template>
+                        </select>
+                        <input x-show="feature.type === 'text'" x-model="productModal.selections[feature.name]" class="w-full mt-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-500" :placeholder="'Indica ' + feature.name.toLowerCase()">
+                    </div>
+                </template>
+                <div class="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 flex justify-between items-center"><span class="text-xs font-bold text-emerald-800">Precio configurado</span><div class="text-right"><b class="block text-emerald-900" x-text="'Bs. ' + configuredProductPriceBs().toFixed(2)"></b><small class="text-emerald-700" x-text="'$' + formatUsd(configuredProductPriceUsd())"></small></div></div>
+                <p x-show="productModal.error" x-text="productModal.error" class="text-xs font-bold text-rose-600 bg-rose-50 rounded-xl p-2.5"></p>
+            </div>
+            <div class="flex gap-2"><button @click="productModal.open = false" class="flex-1 py-3 bg-slate-100 rounded-xl text-xs font-bold">Cancelar</button><button @click="confirmConfiguredProduct()" class="flex-1 py-3 bg-violet-600 text-white rounded-xl text-xs font-black shadow-md">Agregar a la orden</button></div>
+        </div>
+    </div>
 
     <!-- ==================== RESPONSIVE MODALS ==================== -->
 
@@ -2151,6 +2180,7 @@
                 customer_name: '', loading: false, message: '',
                 totalBs: 0, totalUsd: 0, paidBs: 0, paidUsd: 0,
                 productSearch: '', activeCategory: 'all', paymentMode: 'full', checkoutError: '',
+                productModal: { open: false, product: null, selections: {}, error: '' },
                 checkoutCollection: { customer_phone: '', due_date: '', collection_notes: '' },
                 
                 checkoutModal: { open: false },
@@ -2291,8 +2321,7 @@
                 },
 
                 cartQuantity(productId) {
-                    let item = this.cart.find(row => Number(row.id) === Number(productId));
-                    return item ? parseInt(item.quantity || 0) : 0;
+                    return this.cart.filter(row => Number(row.id) === Number(productId)).reduce((total, item) => total + parseInt(item.quantity || 0), 0);
                 },
 
                 restoreCart() {
@@ -2310,21 +2339,76 @@
                     } catch (e) {}
                 },
                 
-                addToCart(product) {
-                    let exists = this.cart.find(i => i.id === product.id);
+                selectProduct(product) {
+                    if (!Array.isArray(product.characteristics) || product.characteristics.length === 0) {
+                        this.addConfiguredProduct(product, {});
+                        return;
+                    }
+                    this.productModal = { open: true, product: product, selections: {}, error: '' };
+                },
+
+                confirmConfiguredProduct() {
+                    let product = this.productModal.product;
+                    let missing = (product.characteristics || []).find(feature => feature.required && !String(this.productModal.selections[feature.name] || '').trim());
+                    if (missing) {
+                        this.productModal.error = 'Selecciona ' + missing.name + ' para continuar.';
+                        return;
+                    }
+                    this.addConfiguredProduct(product, this.productModal.selections);
+                    this.productModal.open = false;
+                },
+
+                addConfiguredProduct(product, selections) {
+                    const selectionKey = Object.keys(selections).sort().map(key => key + ':' + selections[key]).join('|');
+                    const priceBs = this.configuredPriceBsFor(product, selections);
+                    const priceUsd = priceBs / Math.max(this.exchangeRate, 1);
+                    let exists = this.cart.find(i => Number(i.id) === Number(product.id) && (i.selection_key || '') === selectionKey);
                     if (exists) { 
                         exists.quantity++; 
                     } else { 
                         this.cart.push({ 
                             id: product.id, 
                             name: product.name, 
-                            price_bs: parseFloat(product.price_bs), 
-                            price_usd: parseFloat(product.price_usd), 
+                            price_bs: priceBs,
+                            price_usd: priceUsd,
                             quantity: 1, 
-                            note: '' 
+                            note: '',
+                            selections: { ...selections },
+                            selection_key: selectionKey,
                         }); 
                     }
                     this.updateTotals();
+                },
+
+                configuredPriceBsFor(product, selections) {
+                    let price = this.unitPriceBs(product.price_bs, product.price_usd);
+                    (product.characteristics || []).forEach(feature => {
+                        if (feature.type === 'text') return;
+                        const option = (feature.options || []).find(row => row.label === selections[feature.name]);
+                        if (!option) return;
+                        price += Number(option.price_bs || 0) > 0 ? Number(option.price_bs) : Number(option.price_usd || 0) * this.exchangeRate;
+                    });
+                    return Number(price || 0);
+                },
+
+                configuredProductPriceBs() {
+                    return this.productModal.product ? this.configuredPriceBsFor(this.productModal.product, this.productModal.selections) : 0;
+                },
+
+                configuredProductPriceUsd() {
+                    return this.configuredProductPriceBs() / Math.max(this.exchangeRate, 1);
+                },
+
+                optionPriceLabel(option) {
+                    const usd = Number(option.price_usd || 0);
+                    const bs = Number(option.price_bs || 0);
+                    if (usd > 0) return ' (+$' + this.formatUsd(usd) + ')';
+                    if (bs > 0) return ' (+Bs. ' + bs.toFixed(2) + ')';
+                    return '';
+                },
+
+                selectionSummary(item) {
+                    return Object.entries(item.selections || {}).map(([name, value]) => name + ': ' + value).join(' · ');
                 },
                 removeFromCart(index) { 
                     this.cart.splice(index, 1); 
