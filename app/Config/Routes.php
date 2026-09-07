@@ -117,6 +117,13 @@ $routes->post('config/delete-account/(:num)', 'AccountController::delete/$1');
 $routes->post('config/update-account/(:num)', 'ConfigController::updateAccount/$1');
 $routes->post('config/update-balance', 'AccountController::updateBalance');
 $routes->get('config/export', 'ConfigController::export');
+$routes->get('config/data-manager', 'DataManagerController::index');
+$routes->post('config/data-manager/login', 'DataManagerController::login');
+$routes->post('config/data-manager/logout', 'DataManagerController::logout');
+$routes->get('config/data-manager/summary', 'DataManagerController::summary');
+$routes->get('config/data-manager/records', 'DataManagerController::records');
+$routes->post('config/data-manager/delete', 'DataManagerController::deleteSelected');
+$routes->post('config/data-manager/purge', 'DataManagerController::purge');
 
 // Accounts (Dedicated)
 $routes->get('accounts', 'AccountController::index');

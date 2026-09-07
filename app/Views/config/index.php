@@ -171,6 +171,14 @@
             </div>
 
             <div class="space-y-3">
+                <a href="<?= base_url('config/data-manager') ?>"
+                   class="flex items-center justify-between p-4 bg-rose-950/30 hover:bg-rose-950/50 border border-rose-900/50 hover:border-rose-600/60 rounded-2xl transition-all cursor-pointer group active:scale-[0.99]">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400"><span class="material-icons text-xl">admin_panel_settings</span></div>
+                        <div><h3 class="text-xs sm:text-sm font-extrabold text-white">Centro de limpieza</h3><p class="text-[11px] text-slate-400 mt-0.5">Eliminar registros selectiva o masivamente con PIN</p></div>
+                    </div>
+                    <span class="material-icons text-rose-400">chevron_right</span>
+                </a>
                 <a href="<?= base_url('config/export') ?>" target="_blank" 
                    class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 border border-slate-700/60 hover:border-emerald-500/40 rounded-2xl transition-all cursor-pointer group active:scale-[0.99] shadow-inner">
                     <div class="flex items-center gap-3.5">
