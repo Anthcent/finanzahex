@@ -1,5 +1,6 @@
 """Run ONLY against an isolated, migrated test database: creates test records."""
 import argparse
+import base64
 import datetime
 import json
 import urllib.request
@@ -37,11 +38,37 @@ for path in ['', 'accounts', 'history', 'metrics', 'config', 'printing',
     request(path)
 
 tag = 'Deploy test ' + uuid.uuid4().hex[:8]
+today = datetime.date.today().isoformat()
 request('accounts/add', {'name': tag, 'balance': 1000, 'currency': 'Bs'})
 accounts = request('accounts/fetch')['data']
 account = next(a for a in accounts if a['name'] == tag)
 account_id = int(account['id'])
 category = request('config/get-data')['categories'][0]['id']
+
+# Reconciliation keeps only extracted fields and allows a mistaken, unapplied
+# import to be discarded without touching balances or the transaction ledger.
+reconciliation_csv = (
+    'Fecha;Descripción;Crédito;Débito;Moneda;Referencia\n'
+    f'{today};{tag};7,31;;BS;{tag}'
+)
+reconciliation = request('reconciliation/scan', {
+    'import_type': 'bank_statement',
+    'account_id': account_id,
+    'files': [{
+        'name': tag + '.csv',
+        'mime': 'text/csv',
+        'data': 'data:text/csv;base64,' + base64.b64encode(reconciliation_csv.encode()).decode(),
+    }],
+})
+batch_id = int(reconciliation['batch_id'])
+assert len(reconciliation['data']) == 1
+batches = request('reconciliation/batches')['data']
+saved_batch = next(batch for batch in batches if int(batch['id']) == batch_id)
+assert 'raw_json' not in saved_batch
+request('reconciliation/delete-batch/' + str(batch_id), {})
+batches = request('reconciliation/batches')['data']
+assert not any(int(batch['id']) == batch_id for batch in batches)
+
 transaction = request('transaction/save', {
     'account_id': account_id, 'category_id': category, 'type': 'expense',
     'owner': 'Negocio', 'amount': 20, 'amount_usd': 0.4, 'exchange_rate': 50,
@@ -65,7 +92,6 @@ request('inventory/save-item', {'name': tag, 'category_id': None, 'price': 1,
                                 'cost': 0.5, 'unit': 'unid', 'stock': 10})
 inventory = request('inventory/get-items')['data']
 item_id = next(i['id'] for i in inventory if i['name'] == tag)
-today = datetime.date.today().isoformat()
 request('sales/store', {'customer': tag, 'date': today, 'exchange_rate': 50,
                         'status': 'partial', 'paid_amount': 25, 'paid_amount_usd': 0.5,
                         'account_id': account_id, 'category_id': category,

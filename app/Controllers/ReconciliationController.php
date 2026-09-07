@@ -31,8 +31,10 @@ class ReconciliationController extends BaseController
         if ($accountId <= 0) return $this->failJson('Selecciona la cuenta bancaria relacionada.', 422);
 
         $rows = [];
+        $sourceNames = [];
         foreach ($files as $file) {
             $name = trim((string) ($file['name'] ?? 'Archivo'));
+            $sourceNames[] = $name;
             $mime = strtolower(trim((string) ($file['mime'] ?? 'application/octet-stream')));
             $dataUrl = (string) ($file['data'] ?? '');
             if ($dataUrl === '') continue;
@@ -45,6 +47,10 @@ class ReconciliationController extends BaseController
             }
         }
         if (!$rows) return $this->failJson('No se detectaron movimientos válidos. Verifica que monto y fecha sean legibles.', 422);
+
+        // Images and PDFs are transient inputs. Release their base64 payloads before
+        // writing anything; only the structured fields extracted above are persisted.
+        unset($payload['files'], $files, $dataUrl);
 
         $normalizedRows = [];
         foreach ($rows as $row) {
@@ -60,7 +66,7 @@ class ReconciliationController extends BaseController
         $db->transBegin();
         try {
             $db->table('financial_import_batches')->insert([
-                'import_type' => $type, 'source_name' => implode(', ', array_column($files, 'name')),
+                'import_type' => $type, 'source_name' => implode(', ', $sourceNames),
                 'account_id' => $accountId, 'status' => 'pending', 'item_count' => count($normalizedRows),
                 'raw_json' => json_encode($rows, JSON_UNESCAPED_UNICODE), 'created_at' => $now, 'updated_at' => $now,
             ]);
@@ -117,6 +123,36 @@ class ReconciliationController extends BaseController
         $data['updated_at'] = date('Y-m-d H:i:s');
         \Config\Database::connect()->table('financial_import_items')->where('id', $id)->whereIn('status', ['pending','duplicate'])->update($data);
         return $this->response->setJSON(['status' => 'success']);
+    }
+
+    public function deleteBatch(int $id)
+    {
+        $this->ensureTables();
+        $db = \Config\Database::connect();
+        $batch = $db->table('financial_import_batches')->where('id', $id)->get()->getRowArray();
+        if (!$batch) return $this->failJson('La importación ya no existe.', 404);
+
+        $applied = $db->table('financial_import_items')
+            ->where('batch_id', $id)
+            ->where('status', 'applied')
+            ->countAllResults();
+        if ($applied > 0) {
+            return $this->failJson('No se puede eliminar porque ya contiene movimientos aplicados. Puedes conservarla como historial.', 422);
+        }
+
+        $db->transBegin();
+        try {
+            // Delete explicitly as well as relying on the migration's cascade so this
+            // remains safe on databases created before the foreign key was available.
+            $db->table('financial_import_items')->where('batch_id', $id)->delete();
+            $db->table('financial_import_batches')->where('id', $id)->delete();
+            if ($db->transStatus() === false) throw new \RuntimeException('No se pudo eliminar la importación.');
+            $db->transCommit();
+            return $this->response->setJSON(['status' => 'success', 'message' => 'Importación eliminada. Ya puedes escanear otro archivo.']);
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            return $this->failJson($e->getMessage(), 500);
+        }
     }
 
     public function apply(int $id)
@@ -331,7 +367,7 @@ class ReconciliationController extends BaseController
     private function currencyValues($db, array $item, float $usdRate): array { $currency=strtoupper((string)$item['currency']);$amount=(float)$item['amount'];if($currency==='USD')return [0.0,$amount];if($currency==='EUR'){$eur=max(.01,(float)($db->table('settings')->where('key','bcv_eur_rate')->get()->getRowArray()['value']??$usdRate));$bs=round($amount*$eur,2);return [$bs,round($bs/$usdRate,2)];}return [$amount,round($amount/$usdRate,2)]; }
     private function categoryId($db,string $type): int { $row=$db->table('categories')->where('type',$type)->orderBy('id')->get()->getRowArray() ?: $db->table('categories')->orderBy('id')->get()->getRowArray(); if(!$row)throw new \RuntimeException('Crea al menos una categoría antes de confirmar.');return (int)$row['id']; }
     private function refreshBatch($db,int $id): void { $pending=$db->table('financial_import_items')->where('batch_id',$id)->whereIn('status',['pending','duplicate'])->countAllResults();$db->table('financial_import_batches')->where('id',$id)->update(['status'=>$pending?'pending':'completed','updated_at'=>date('Y-m-d H:i:s')]); }
-    private function batchRows($db): array { return $db->table('financial_import_batches b')->select("b.*, a.name account_name, (SELECT COUNT(*) FROM financial_import_items ai WHERE ai.batch_id=b.id AND ai.status='applied') applied_count, (SELECT COUNT(*) FROM financial_import_items di WHERE di.batch_id=b.id AND di.status='duplicate') duplicate_count",false)->join('accounts a','a.id=b.account_id','left')->orderBy('b.created_at','DESC')->limit(40)->get()->getResultArray(); }
+    private function batchRows($db): array { return $db->table('financial_import_batches b')->select("b.id, b.import_type, b.source_name, b.account_id, b.status, b.item_count, b.created_at, b.updated_at, a.name account_name, (SELECT COUNT(*) FROM financial_import_items pi WHERE pi.batch_id=b.id AND pi.status='pending') pending_count, (SELECT COUNT(*) FROM financial_import_items ai WHERE ai.batch_id=b.id AND ai.status='applied') applied_count, (SELECT COUNT(*) FROM financial_import_items di WHERE di.batch_id=b.id AND di.status='duplicate') duplicate_count, (SELECT COUNT(*) FROM financial_import_items ii WHERE ii.batch_id=b.id AND ii.status='ignored') ignored_count",false)->join('accounts a','a.id=b.account_id','left')->orderBy('b.created_at','DESC')->limit(40)->get()->getResultArray(); }
     private function failJson(string $message,int $code){return $this->response->setStatusCode($code)->setJSON(['status'=>'error','message'=>$message]);}
     private function ensureTables(): void { if(!\Config\Database::connect()->tableExists('financial_import_batches')){try{command('migrate',['--all']);}catch(\Throwable $e){log_message('error',$e->getMessage());}} }
 }

@@ -85,6 +85,7 @@ $routes->get('reconciliation/batches', 'ReconciliationController::batches');
 $routes->get('reconciliation/items', 'ReconciliationController::items');
 $routes->post('reconciliation/item/(:num)', 'ReconciliationController::updateItem/$1');
 $routes->post('reconciliation/apply/(:num)', 'ReconciliationController::apply/$1');
+$routes->post('reconciliation/delete-batch/(:num)', 'ReconciliationController::deleteBatch/$1');
 $routes->get('reconciliation/debts', 'ReconciliationController::debts');
 
 // Routes for Printing Module
