@@ -153,7 +153,139 @@
                 </div>
             </div>
             
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- QUICK-ACCESS FAB PANEL                      -->
+        <!-- ═══════════════════════════════════════════ -->
+
+        <!-- Hidden camera/file input for Quick OCR -->
+        <input id="quickOcrInput" type="file" accept="image/*" capture="environment"
+               class="hidden" @change="handleQuickOcrFile($event)" multiple>
+
+        <!-- Toast notification for Quick OCR result -->
+        <div x-cloak x-show="quickOcrToast"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             :class="quickOcrToastType === 'success' ? 'bg-emerald-600' : 'bg-rose-600'"
+             class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] px-4 py-2.5 rounded-2xl text-white text-xs font-semibold shadow-xl shadow-black/30 flex items-center gap-2 whitespace-nowrap max-w-[90vw]">
+            <span x-show="quickOcrLoading" class="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
+            <span x-text="quickOcrLoading ? 'Procesando factura...' : quickOcrToast"></span>
+        </div>
+
+        <!-- Loading overlay for Quick OCR -->
+        <div x-cloak x-show="quickOcrLoading"
+             class="fixed inset-0 z-[150] bg-slate-950/60 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center shadow-xl">
+                <span class="material-icons text-white text-2xl animate-pulse">document_scanner</span>
+            </div>
+            <p class="text-white text-sm font-semibold">Escaneando factura...</p>
+            <div class="w-32 h-1 bg-white/20 rounded-full overflow-hidden">
+                <div class="h-full bg-amber-400 rounded-full animate-pulse w-3/4"></div>
+            </div>
+        </div>
+
+        <!-- Backdrop: closes panel when tapping outside -->
+        <div x-cloak x-show="showQuickAccess"
+             class="fixed inset-0 z-[39]"
+             @click="showQuickAccess = false"
+             x-transition:enter="duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0">
+        </div>
+
+        <!-- FAB Tab Handle (always visible right edge) -->
+        <button @click="showQuickAccess = !showQuickAccess"
+                class="fixed right-0 top-1/3 z-[45] flex flex-col items-center justify-center gap-0.5
+                       w-6 h-20 bg-gradient-to-b from-emerald-600 to-teal-700
+                       rounded-l-2xl shadow-lg shadow-emerald-900/40
+                       transition-all duration-300 hover:w-7 active:scale-95"
+                :class="showQuickAccess ? 'opacity-0 pointer-events-none' : 'opacity-100'"
+                title="Accesos rápidos">
+            <span class="material-icons text-white" style="font-size:14px">bolt</span>
+            <div class="flex flex-col gap-0.5">
+                <div class="w-0.5 h-3 bg-white/60 rounded-full"></div>
+                <div class="w-0.5 h-2 bg-white/40 rounded-full"></div>
+            </div>
+        </button>
+
+        <!-- Quick-Access Slide-in Panel -->
+        <div x-cloak x-show="showQuickAccess"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 translate-x-full"
+             x-transition:enter-end="opacity-100 translate-x-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-x-0"
+             x-transition:leave-end="opacity-0 translate-x-full"
+             class="fixed right-0 top-1/2 -translate-y-1/2 z-[46]
+                    w-[72px] bg-white rounded-l-3xl shadow-2xl shadow-black/25
+                    border border-slate-200/80 py-4 px-2 flex flex-col items-center gap-4">
+
+            <!-- Close handle -->
+            <button @click="showQuickAccess = false"
+                    class="w-8 h-1.5 bg-slate-200 rounded-full mb-1 hover:bg-slate-300 transition-colors"
+                    title="Cerrar"></button>
+
+            <!-- 1. Quick OCR Camera Scan -->
+            <button @click="triggerQuickOcr()"
+                    class="group flex flex-col items-center gap-1 w-full">
+                <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200
+                            flex items-center justify-center
+                            group-active:scale-90 transition-transform shadow-sm
+                            group-hover:bg-amber-100">
+                    <span class="material-icons text-amber-500" style="font-size:22px">photo_camera</span>
+                </div>
+                <span class="text-[9px] font-semibold text-amber-600 leading-tight text-center">Factura</span>
+            </button>
+
+            <!-- Divider -->
+            <div class="w-8 h-px bg-slate-100"></div>
+
+            <!-- 2. Metrics -->
+            <a href="<?= base_url('metrics') ?>"
+               class="group flex flex-col items-center gap-1 w-full">
+                <div class="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200
+                            flex items-center justify-center
+                            group-active:scale-90 transition-transform shadow-sm
+                            group-hover:bg-teal-100">
+                    <span class="material-icons text-teal-500" style="font-size:22px">bar_chart</span>
+                </div>
+                <span class="text-[9px] font-semibold text-teal-600 leading-tight text-center">Métricas</span>
+            </a>
+
+            <!-- 3. Registro / History -->
+            <a href="<?= base_url('history') ?>"
+               class="group flex flex-col items-center gap-1 w-full">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200
+                            flex items-center justify-center
+                            group-active:scale-90 transition-transform shadow-sm
+                            group-hover:bg-emerald-100">
+                    <span class="material-icons text-emerald-600" style="font-size:22px">receipt_long</span>
+                </div>
+                <span class="text-[9px] font-semibold text-emerald-700 leading-tight text-center">Registro</span>
+            </a>
+
+            <!-- 4. Printing / Deudas -->
+            <a href="<?= base_url('printing?tab=debts') ?>"
+               class="group flex flex-col items-center gap-1 w-full">
+                <div class="w-12 h-12 rounded-2xl bg-violet-50 border border-violet-200
+                            flex items-center justify-center
+                            group-active:scale-90 transition-transform shadow-sm
+                            group-hover:bg-violet-100">
+                    <span class="material-icons text-violet-500" style="font-size:22px">group</span>
+                </div>
+                <span class="text-[9px] font-semibold text-violet-600 leading-tight text-center">Deudas</span>
+            </a>
+        </div>
+        <!-- END QUICK-ACCESS FAB PANEL -->
+
             <!-- Compact Menu Modal (Executive Fintech Design) -->
+
             <div x-cloak x-show="showMenu"
                  class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                  
@@ -1410,6 +1542,10 @@
 
                 dateTimer: null,
                 compactLevel: 0,
+                showQuickAccess: false,
+                quickOcrLoading: false,
+                quickOcrToast: '',
+                quickOcrToastType: 'success',
                 
                 init() {
                     this.fetchStats();
@@ -1461,6 +1597,19 @@
                     const deltaX = touch.clientX - this.touchStartX;
                     const deltaY = touch.clientY - this.touchStartY;
                     const deltaTime = Date.now() - this.touchStartTime;
+
+                    // Close quick-access panel on any right swipe if it's open
+                    if (this.showQuickAccess && deltaX > 30 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1) {
+                        this.showQuickAccess = false;
+                        return;
+                    }
+
+                    // Open quick-access panel: left-swipe starting from right 30% of screen
+                    if (deltaX < -40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1 && deltaTime < 750
+                        && this.touchStartX > (window.innerWidth * 0.7)) {
+                        this.showQuickAccess = true;
+                        return;
+                    }
 
                     // Require distance > 30px, predominantly horizontal, within 750ms
                     if (Math.abs(deltaX) > 30 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1 && deltaTime < 750) {
@@ -1514,6 +1663,57 @@
                     const currentIndex = types.indexOf(this.type);
                     const prevIndex = (currentIndex - 1 + types.length) % types.length;
                     this.type = types[prevIndex];
+                },
+
+                // Quick OCR Scan — triggered from FAB panel camera button
+                triggerQuickOcr() {
+                    this.showQuickAccess = false;
+                    this.$nextTick(() => {
+                        const input = document.getElementById('quickOcrInput');
+                        if (input) input.click();
+                    });
+                },
+
+                async handleQuickOcrFile(e) {
+                    const files = e.target.files;
+                    if (!files || !files.length) return;
+                    this.quickOcrLoading = true;
+                    try {
+                        const images = [];
+                        for (let f of files) {
+                            const b64 = await new Promise((res, rej) => {
+                                const reader = new FileReader();
+                                reader.onload = ev => res(ev.target.result.split(',')[1]);
+                                reader.onerror = rej;
+                                reader.readAsDataURL(f);
+                            });
+                            images.push(b64);
+                        }
+                        const accountId = this.selectedAccount;
+                        const categoryId = this.selectedCategory;
+                        const owner = this.owner || '<?= $_SESSION['owner'] ?? 'personal' ?>';
+                        const resp = await fetch('<?= base_url('ocr/quick-process') ?>', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ images, account_id: accountId, category_id: categoryId, owner })
+                        });
+                        const data = await resp.json();
+                        if (data.status === 'success' || data.status === 'pending') {
+                            this.quickOcrToast = '✅ Factura escaneada — pendiente de revisión';
+                            this.quickOcrToastType = 'success';
+                            this.fetchStats();
+                        } else {
+                            this.quickOcrToast = '⚠️ ' + (data.message || 'Error al procesar');
+                            this.quickOcrToastType = 'error';
+                        }
+                    } catch(err) {
+                        this.quickOcrToast = '❌ Error de conexión';
+                        this.quickOcrToastType = 'error';
+                    } finally {
+                        this.quickOcrLoading = false;
+                        e.target.value = '';
+                        setTimeout(() => { this.quickOcrToast = ''; }, 4000);
+                    }
                 },
                 
                 selectInvItem(item) {

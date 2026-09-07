@@ -2216,6 +2216,11 @@
                 movementAccountFilter: 'all',
 
                 init() {
+                    // Deep-link support: /printing?tab=debts
+                    const urlTab = new URLSearchParams(window.location.search).get('tab');
+                    if (urlTab && ['pos', 'debts', 'history'].includes(urlTab)) {
+                        this.tab = urlTab;
+                    }
                     this.restoreCart();
                     this.fetchRate();
                     this.fetchHistory();
