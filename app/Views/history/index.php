@@ -25,7 +25,7 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-emerald-50/60 via-slate-50 to-teal-50/40 min-h-screen flex flex-col text-slate-800 antialiased selection:bg-emerald-500 selection:text-white" x-data="historyApp()">
+<body class="bg-gradient-to-br from-emerald-50/60 via-slate-50 to-teal-50/40 h-[100dvh] min-h-0 overflow-hidden flex flex-col text-slate-800 antialiased selection:bg-emerald-500 selection:text-white" x-data="historyApp()">
 
     <!-- ========================================== -->
     <!-- STICKY EXECUTIVE HEADER                    -->
@@ -224,10 +224,15 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- EXECUTIVE MINI-DASHBOARD (SUMMARY METRICS) -->
+    <!-- MAIN SCROLL AREA: summary + feed unified   -->
     <!-- ========================================== -->
-    <div class="flex-none max-w-6xl mx-auto w-full px-4 pt-4 pb-2">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <main class="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 pt-3 sm:pt-4 pb-0 customize-scrollbar" id="scroll-container">
+        <div class="max-w-6xl mx-auto pb-24 safe-bottom space-y-3 sm:space-y-4">
+
+            <!-- ========================================== -->
+            <!-- EXECUTIVE MINI-DASHBOARD (SUMMARY METRICS) -->
+            <!-- ========================================== -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <!-- Total Income Card -->
             <div class="bg-white/90 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-emerald-100 shadow-2xs hover:shadow-sm transition-all relative overflow-hidden group">
                 <div class="absolute -right-3 -top-3 w-14 h-14 bg-emerald-50 rounded-full group-hover:scale-110 transition-transform"></div>
@@ -283,13 +288,8 @@
                 <div class="text-[10px] font-bold text-slate-400 mt-0.5">Ingresos vs. Gastos</div>
             </div>
         </div>
-    </div>
 
-    <!-- ========================================== -->
-    <!-- MAIN CHRONOLOGICAL FEED                   -->
-    <!-- ========================================== -->
-    <main class="flex-1 overflow-y-auto px-4 py-4 customize-scrollbar" id="scroll-container">
-        <div class="max-w-6xl mx-auto pb-24 safe-bottom">
+            <!-- CHRONOLOGICAL FEED -->
             
             <!-- Loading Indicator -->
             <div x-show="loading" class="flex flex-col items-center justify-center py-20 text-slate-400">
@@ -318,7 +318,7 @@
                     <div class="space-y-2.5">
                         
                         <!-- Day Group Sticky Header -->
-                        <div class="sticky top-[64px] z-10 py-1.5 px-3 bg-slate-100/90 backdrop-blur-md rounded-2xl border border-slate-200/70 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 shadow-2xs">
+                        <div class="sticky top-0 z-10 py-1.5 px-3 bg-slate-100/90 backdrop-blur-md rounded-2xl border border-slate-200/70 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 shadow-2xs">
                             <div class="flex items-center gap-2 min-w-0">
                                 <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
                                 <h3 class="text-xs font-black text-slate-800 tracking-tight truncate" x-text="dayGroup.label"></h3>
