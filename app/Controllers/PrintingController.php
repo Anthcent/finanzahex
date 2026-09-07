@@ -1160,11 +1160,4 @@ class PrintingController extends BaseController
         ]);
     }
 
-    /**
-     * Shortcut to open Printing Debts view
-     */
-    public function debts()
-    {
-        return redirect()->to(base_url('printing?tab=debts'));
-    }
 }
