@@ -794,20 +794,6 @@
                                x-text="'≈ ' + (currency === 'Bs' ? '$ ' : 'Bs ') + formatMoney(currentConversion)"></span>
                      </div>
 
-                     <!-- Owner stays available without competing with the amount -->
-                     <div class="mt-1.5 flex justify-end">
-                         <button type="button" @click="showQuickOwnerPicker = !showQuickOwnerPicker"
-                                 title="Seleccionar quién registra"
-                                 class="h-8 px-2.5 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95 select-none"
-                                 :class="owner ? (owner === 'Arianny' ? 'bg-pink-50 text-pink-700 border-pink-200' : (owner === 'Anthony' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-purple-50 text-purple-700 border-purple-200')) : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-white'">
-                             <span class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black shrink-0"
-                                   :class="owner ? (owner === 'Arianny' ? 'bg-pink-500 text-white' : (owner === 'Anthony' ? 'bg-emerald-700 text-white' : 'bg-purple-600 text-white')) : 'bg-slate-200 text-slate-500'"
-                                   x-text="owner ? (owner === 'Arianny' ? 'Ar' : (owner === 'Anthony' ? 'An' : '🏢')) : '👤'"></span>
-                             <span class="truncate max-w-[58px]" x-text="owner || 'Dueño'"></span>
-                             <span x-show="owner" @click.stop="owner = null; ownerLockedInBar = false" class="text-slate-400 hover:text-rose-500 rounded-full" title="Desasignar"><span class="material-icons text-[10px]">close</span></span>
-                             <span x-show="!owner" class="material-icons text-[12px] text-slate-400">expand_more</span>
-                         </button>
-                     </div>
                 </div>
 
                 <!-- Attributes (Account + Category) & Action Tools -->
@@ -994,6 +980,20 @@
                             <span class="material-icons text-[14px]">savings</span>
                         </button>
                     </div>
+
+                    <!-- Owner selector as a compact icon -->
+                    <button type="button"
+                            @click="showQuickOwnerPicker = !showQuickOwnerPicker; showAccountMenu = false; showCategoryMenu = false"
+                            :title="owner ? ('Dueño: ' + owner) : 'Seleccionar dueño'"
+                            :aria-label="owner ? ('Dueño seleccionado: ' + owner) : 'Seleccionar dueño'"
+                            class="relative w-8 h-full rounded-xl border flex items-center justify-center shrink-0 shadow-xs transition-all active:scale-95"
+                            :class="owner
+                                ? (owner === 'Arianny' ? 'bg-pink-50 text-pink-700 border-pink-300' : (owner === 'Anthony' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-purple-50 text-purple-700 border-purple-300'))
+                                : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'">
+                        <span class="material-icons text-[15px]" x-text="owner === 'Negocio' ? 'business' : 'person'"></span>
+                        <span x-show="owner" class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full border border-white"
+                              :class="owner === 'Arianny' ? 'bg-pink-500' : (owner === 'Anthony' ? 'bg-emerald-600' : 'bg-purple-600')"></span>
+                    </button>
 
                     <!-- Prominent compact cart access -->
                     <button type="button"
