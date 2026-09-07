@@ -211,7 +211,7 @@
              x-transition:leave-end="opacity-0 translate-x-full"
              class="fixed right-0 top-1/2 -translate-y-1/2 z-[46]
                     w-[72px] bg-white rounded-l-3xl shadow-2xl shadow-black/25
-                    border border-slate-200/80 py-4 px-2 flex flex-col items-center gap-4">
+                    border border-slate-200/80 py-3 px-2 flex flex-col items-center gap-3">
 
             <!-- Close handle -->
             <button @click="showQuickAccess = false"
@@ -232,6 +232,14 @@
 
             <!-- Divider -->
             <div class="w-8 h-px bg-slate-100"></div>
+
+            <!-- Transfer between accounts -->
+            <a href="<?= base_url('accounts?transfer=1') ?>" class="group flex flex-col items-center gap-1 w-full">
+                <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center group-active:scale-90 transition-transform shadow-sm group-hover:bg-blue-100">
+                    <span class="material-icons text-blue-600" style="font-size:22px">sync_alt</span>
+                </div>
+                <span class="text-[9px] font-semibold text-blue-700 leading-tight text-center">Transferir</span>
+            </a>
 
             <!-- 2. Metrics -->
             <a href="<?= base_url('metrics') ?>"

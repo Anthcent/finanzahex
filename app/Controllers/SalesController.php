@@ -334,6 +334,7 @@ class SalesController extends BaseController
                 throw new \RuntimeException('No existe una categoría para registrar el ingreso.');
             }
 
+            $balanceIncrease = ($account['currency'] ?? 'Bs') === 'USD' ? $amountUsd : $amountBs;
             $transactionId = $transactionModel->insert([
                 'account_id' => $accountId,
                 'category_id' => $category['id'],
@@ -343,6 +344,8 @@ class SalesController extends BaseController
                 'type' => 'income',
                 'owner' => 'Negocio',
                 'description' => "Abono venta #{$saleId} - {$sale['customer']}",
+                'balance_before' => (float) $account['balance'],
+                'balance_after' => (float) $account['balance'] + $balanceIncrease,
                 'created_at' => $paymentDate . ' ' . date('H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ]);
@@ -350,7 +353,6 @@ class SalesController extends BaseController
                 throw new \RuntimeException('No se pudo registrar el ingreso del abono.');
             }
 
-            $balanceIncrease = ($account['currency'] ?? 'Bs') === 'USD' ? $amountUsd : $amountBs;
             if (!$accountModel->update($accountId, ['balance' => (float) $account['balance'] + $balanceIncrease])) {
                 throw new \RuntimeException('No se pudo actualizar el saldo de la cuenta.');
             }

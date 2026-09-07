@@ -717,6 +717,7 @@
                                 <th class="p-4">Propietario</th>
                                 <th class="p-4 text-right">Monto (Bs)</th>
                                 <th class="p-4 text-right">Monto ($)</th>
+                                <th class="p-4 text-right">Saldo de cuenta</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -751,10 +752,18 @@
                                         <span x-text="formatBs(row.display_amount_bs ?? row.amount)"></span>
                                     </td>
                                     <td class="p-4 text-right font-black whitespace-nowrap text-slate-600" x-text="formatUsd(row.display_amount_usd ?? row.amount_usd)"></td>
+                                    <td class="p-4 text-right whitespace-nowrap">
+                                        <div x-show="row.balance_before !== null && row.balance_before !== undefined" class="text-[10px] font-bold text-slate-500">
+                                            <span x-text="formatNativeBalance(row.balance_before, row.account_currency)"></span>
+                                            <span class="text-slate-300 mx-1">→</span>
+                                            <span class="text-slate-900" x-text="formatNativeBalance(row.balance_after, row.account_currency)"></span>
+                                        </div>
+                                        <span x-show="row.balance_before === null || row.balance_before === undefined" class="text-slate-300">—</span>
+                                    </td>
                                 </tr>
                             </template>
                             <tr x-show="filteredHistory.length === 0">
-                                <td colspan="8" class="p-12 text-center text-slate-400 font-bold">
+                                <td colspan="9" class="p-12 text-center text-slate-400 font-bold">
                                     No se encontraron transacciones con los criterios seleccionados.
                                 </td>
                             </tr>
@@ -781,6 +790,10 @@
                                     <span x-text="row.category_name || 'General'"></span>
                                     <span>•</span>
                                     <span x-text="row.account_name || 'Cuenta'"></span>
+                                </div>
+                                <div x-show="row.balance_before !== null && row.balance_before !== undefined" class="mt-1.5 text-[9px] font-bold text-slate-400">
+                                    Saldo: <span x-text="formatNativeBalance(row.balance_before, row.account_currency)"></span>
+                                    <span class="mx-1">→</span><span class="text-slate-700" x-text="formatNativeBalance(row.balance_after, row.account_currency)"></span>
                                 </div>
                             </div>
                             <div class="text-right shrink-0">
@@ -1195,7 +1208,11 @@
                 formatDate(dateStr) {
                     if (!dateStr) return '-';
                     const d = new Date(dateStr);
-                    return d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    return d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+                },
+
+                formatNativeBalance(value, currency = 'Bs') {
+                    return String(currency || 'Bs').toUpperCase() === 'USD' ? this.formatUsd(value) : this.formatBs(value);
                 },
 
                 copyWhatsAppSummary() {

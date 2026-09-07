@@ -156,27 +156,24 @@
                                 </div>
                             </div>
                             
-                            <!-- Liquidar Button (Only for Active) -->
-                            <button x-show="acc.status === 'active'" 
-                                    @click="confirmLiquidation(acc)" 
-                                    class="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1 active:scale-95">
-                                <span class="material-icons text-xs">published_with_changes</span>
-                                <span>Liquidar</span>
-                            </button>
-                            
-                            <!-- Static Badge (For Closed) -->
-                            <span x-show="acc.status === 'closed'" class="text-[10px] font-black text-slate-500 bg-slate-200 px-2.5 py-1 rounded-lg uppercase">
-                                Liquidado
-                            </span>
+                            <div class="flex items-center gap-1.5">
+                                <button x-show="acc.status === 'active'" @click="confirmLiquidation(acc)" class="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1 active:scale-95">
+                                    <span class="material-icons text-xs">published_with_changes</span><span>Liquidar</span>
+                                </button>
+                                <span x-show="acc.status === 'closed'" class="text-[10px] font-black text-slate-500 bg-slate-200 px-2.5 py-1 rounded-lg uppercase">Liquidado</span>
+                                <button @click="confirmDelete(acc)" class="w-8 h-8 rounded-xl text-rose-500 bg-white/80 border border-rose-100 hover:bg-rose-50 flex items-center justify-center" title="Eliminar fondo">
+                                    <span class="material-icons text-base">delete</span>
+                                </button>
+                            </div>
                         </div>
                         
                         <div class="relative z-10 mt-3 p-3 bg-white/80 rounded-xl border border-amber-100 text-right">
                              <span class="text-xl font-black tracking-tight" 
                                    :class="acc.status === 'closed' ? 'text-slate-400 line-through' : 'text-slate-900'"
-                                   x-text="formatMoney(acc.balance)"></span>
+                                   x-text="formatMoney(acc.balance, acc.currency)"></span>
                              <p class="text-[11px] font-bold" 
                                 :class="acc.status === 'closed' ? 'text-slate-400' : 'text-amber-700'"
-                                x-text="'≈ $' + formatValUsd(acc.balance)"></p>
+                                x-text="acc.currency === 'USD' ? 'Saldo en divisas' : '≈ $' + formatValUsd(acc.balance)"></p>
                         </div>
                     </div>
                 </template>
@@ -215,10 +212,15 @@
             <div>
                 <h2 class="text-lg font-black text-slate-900">¿Liquidar Fondo?</h2>
                 <p class="text-xs text-slate-500 mt-1">
-                    El saldo de <span class="font-bold text-slate-800" x-text="selectedAccount?.name"></span> 
-                    (<span class="font-black text-emerald-700" x-text="formatMoney(selectedAccount?.balance || 0)"></span>)
+                    Solo el saldo no utilizado de <span class="font-bold text-slate-800" x-text="selectedAccount?.name"></span>
+                    (<span class="font-black text-emerald-700" x-text="formatMoney(selectedAccount?.balance || 0, selectedAccount?.currency)"></span>)
                     será devuelto a su cuenta de origen.
                 </p>
+                <div class="grid grid-cols-3 gap-1.5 mt-3 text-left">
+                    <div class="bg-slate-50 rounded-xl p-2"><span class="block text-[8px] font-black text-slate-400 uppercase">Asignado</span><b class="text-[10px]" x-text="formatMoney(selectedAccount?.initial_balance || 0, selectedAccount?.currency)"></b></div>
+                    <div class="bg-rose-50 rounded-xl p-2"><span class="block text-[8px] font-black text-rose-400 uppercase">Utilizado</span><b class="text-[10px] text-rose-700" x-text="formatMoney(Math.max(0, (selectedAccount?.initial_balance || 0) - (selectedAccount?.balance || 0)), selectedAccount?.currency)"></b></div>
+                    <div class="bg-emerald-50 rounded-xl p-2"><span class="block text-[8px] font-black text-emerald-500 uppercase">A devolver</span><b class="text-[10px] text-emerald-700" x-text="formatMoney(selectedAccount?.balance || 0, selectedAccount?.currency)"></b></div>
+                </div>
             </div>
             <div class="flex gap-2.5 pt-2">
                 <button @click="showConfirmModal = false" class="flex-1 py-3 rounded-xl text-slate-600 font-bold bg-slate-100 hover:bg-slate-200 transition-colors text-xs sm:text-sm">Cancelar</button>
@@ -238,7 +240,7 @@
                 <h2 class="text-lg font-black text-slate-900">¿Eliminar Cuenta?</h2>
                 <p class="text-xs text-slate-500 mt-1">
                     Se eliminará la cuenta <span class="font-black text-slate-800" x-text="selectedAccount?.name"></span>.
-                    <span class="block mt-1 font-bold text-rose-600">Esta acción es irreversible.</span>
+                    <span class="block mt-1 font-bold text-rose-600" x-text="selectedAccount?.type === 'temporary' ? 'El saldo disponible se devolverá al origen y el historial se conservará.' : 'Solo puede eliminarse si no tiene saldo.'"></span>
                 </p>
             </div>
             <div class="flex gap-2.5 pt-2">
@@ -333,7 +335,7 @@
                         <span class="material-icons text-blue-600 text-lg">sync_alt</span>
                         <span>Transferencia Rápida</span>
                     </h2>
-                    <p class="text-[10px] text-slate-400">Mueve fondos entre tus cuentas principales.</p>
+                    <p class="text-[10px] text-slate-400">Mueve saldo entre cuentas activas sin alterar ingresos ni gastos.</p>
                 </div>
                 <button @click="showTransferModal = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center">
                     <span class="material-icons text-base">close</span>
@@ -344,9 +346,9 @@
                 <!-- Source -->
                 <div>
                     <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Desde (Origen):</label>
-                    <select x-model="transferSource" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:border-blue-500 outline-none">
+                    <select x-model="transferSource" @change="transferDest = ''" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:border-blue-500 outline-none">
                         <option value="">Seleccione Cuenta Origen</option>
-                        <template x-for="acc in accounts.filter(a => a.type !== 'temporary')" :key="acc.id">
+                        <template x-for="acc in accounts.filter(a => a.status === 'active')" :key="acc.id">
                             <option :value="acc.id" x-text="acc.name + ' (' + formatMoney(acc.balance, acc.currency) + ')'"></option>
                         </template>
                     </select>
@@ -363,20 +365,17 @@
                     </select>
                 </div>
 
-                <!-- Category -->
                 <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Categoría:</label>
-                    <select x-model="transferCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:border-blue-500 outline-none">
-                        <option value="">Seleccione Categoría</option>
-                        <template x-for="cat in categories" :key="cat.id">
-                            <option :value="cat.id" x-text="cat.name"></option>
-                        </template>
-                    </select>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider">Monto a transferir</label>
+                        <button x-show="selectedTransferSource" @click="transferAmount = selectedTransferSource.balance" class="text-[10px] font-black text-blue-600">Usar saldo completo</button>
+                    </div>
+                    <input type="number" step="0.01" x-model="transferAmount" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-black text-slate-900 focus:border-blue-500 outline-none">
                 </div>
 
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Monto a Transferir:</label>
-                    <input type="number" step="0.01" x-model="transferAmount" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-black text-slate-900 focus:border-blue-500 outline-none">
+                <div x-show="selectedTransferSource && selectedTransferDest && transferAmount > 0" class="grid grid-cols-2 gap-2 rounded-2xl bg-blue-50 border border-blue-100 p-3">
+                    <div><span class="block text-[9px] font-black text-blue-500 uppercase">Queda en origen</span><b class="text-xs text-slate-800" x-text="formatMoney(Math.max(0, selectedTransferSource.balance - Number(transferAmount)), selectedTransferSource.currency)"></b></div>
+                    <div><span class="block text-[9px] font-black text-blue-500 uppercase">Queda en destino</span><b class="text-xs text-slate-800" x-text="formatMoney(Number(selectedTransferDest.balance) + Number(transferAmount), selectedTransferDest.currency)"></b></div>
                 </div>
 
                 <div>
@@ -387,7 +386,7 @@
             
             <div class="flex gap-2.5 pt-2">
                 <button @click="showTransferModal = false" class="flex-1 py-3 rounded-xl text-slate-600 font-bold bg-slate-100 hover:bg-slate-200 transition-colors text-xs sm:text-sm">Cancelar</button>
-                <button @click="executeTransfer()" class="flex-1 py-3 rounded-xl text-white font-black bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-900/20 active:scale-98 transition-all text-xs sm:text-sm">Transferir</button>
+                <button @click="executeTransfer()" :disabled="transferLoading" class="flex-1 py-3 rounded-xl text-white font-black bg-blue-600 hover:bg-blue-700 disabled:opacity-60 shadow-md shadow-blue-900/20 active:scale-98 transition-all text-xs sm:text-sm" x-text="transferLoading ? 'Transfiriendo…' : 'Transferir'"></button>
             </div>
         </div>
     </div>
@@ -440,6 +439,8 @@
                 transferCategory: '',
                 transferAmount: '',
                 transferNote: '',
+                transferRequestId: '',
+                transferLoading: false,
                 
                 exchangeRate: 50, // Default fallback
 
@@ -459,8 +460,10 @@
                     if (!this.transferSource) return [];
                     const sourceAcc = this.accounts.find(a => a.id == this.transferSource);
                     if (!sourceAcc) return [];
-                    return this.accounts.filter(a => a.id != this.transferSource && a.type !== 'temporary' && a.currency === sourceAcc.currency);
+                    return this.accounts.filter(a => a.id != this.transferSource && a.status === 'active' && a.currency === sourceAcc.currency);
                 },
+                get selectedTransferSource() { return this.accounts.find(a => a.id == this.transferSource) || null; },
+                get selectedTransferDest() { return this.accounts.find(a => a.id == this.transferDest) || null; },
 
                 init() {
                     this.fetchRate();
@@ -498,6 +501,7 @@
                         let data = await res.json();
                         if(data.status === 'success') {
                             this.accounts = data.data;
+                            if (new URLSearchParams(window.location.search).get('transfer') === '1') this.showTransferModal = true;
                         }
                     } catch(e) {}
                 },
@@ -544,12 +548,14 @@
                 },
 
                 async executeTransfer() {
-                    if (!this.transferSource || !this.transferDest || !this.transferAmount || !this.transferCategory) {
-                         alert('Por favor complete todos los campos requeridos (incluyendo categoría)');
+                    if (!this.transferSource || !this.transferDest || !this.transferAmount) {
+                         alert('Selecciona las dos cuentas y el monto a transferir.');
                          return;
                     }
 
                     try {
+                        this.transferLoading = true;
+                        if (!this.transferRequestId) this.transferRequestId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
                         let res = await fetch('<?= base_url('accounts/transfer') ?>', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
@@ -558,7 +564,8 @@
                                 dest_id: this.transferDest,
                                 category_id: this.transferCategory,
                                 amount: this.transferAmount,
-                                note: this.transferNote
+                                note: this.transferNote,
+                                request_id: this.transferRequestId
                             })
                         });
 
@@ -576,6 +583,7 @@
                             this.transferSource = '';
                             this.transferDest = '';
                             this.transferCategory = '';
+                            this.transferRequestId = '';
                             this.showTransferModal = false;
                             this.fetchAccounts();
                             this.showSuccessModal = true; // Show success modal
@@ -587,6 +595,8 @@
 
                     } catch(e) {
                          alert('Error de conexión: ' + e.message);
+                    } finally {
+                         this.transferLoading = false;
                     }
                 },
 
@@ -598,7 +608,7 @@
                 async executeLiquidation() {
                     if (!this.selectedAccount) return;
                     try {
-                        let res = await fetch(`<?= base_url('accounts/close-temp') ?>/${this.selectedAccount.id}`);
+                        let res = await fetch(`<?= base_url('accounts/close-temp') ?>/${this.selectedAccount.id}`, { method: 'POST' });
                         let data = await res.json();
                         if (data.status === 'success') {
                             this.showConfirmModal = false;
@@ -620,7 +630,7 @@
                 async executeDelete() {
                     if (!this.selectedAccount) return;
                     try {
-                        let res = await fetch(`<?= base_url('accounts/delete') ?>/${this.selectedAccount.id}`);
+                        let res = await fetch(`<?= base_url('accounts/delete') ?>/${this.selectedAccount.id}`, { method: 'POST' });
                         let data = await res.json();
                         if (data.status === 'success') {
                             this.showDeleteModal = false;

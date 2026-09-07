@@ -861,6 +861,9 @@ class PrintingController extends BaseController
             }
 
             $now = date('Y-m-d H:i:s');
+            $amountToAdd = ($account['currency'] ?? 'Bs') === 'USD'
+                ? $payment['amount_usd'] + ($payment['amount_bs'] / $rate)
+                : $payment['amount_bs'] + ($payment['amount_usd'] * $rate);
             $transData = [
                 'account_id' => $accountId,
                 'category_id' => $categoryId,
@@ -872,6 +875,8 @@ class PrintingController extends BaseController
                 'type' => 'income',
                 'owner' => 'Negocio',
                 'description' => "Abono Impresiones #{$orderId} - {$order['customer_name']}",
+                'balance_before' => (float) $account['balance'],
+                'balance_after' => (float) $account['balance'] + $amountToAdd,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
@@ -887,9 +892,6 @@ class PrintingController extends BaseController
                 throw new \RuntimeException('No se pudo actualizar el saldo pendiente.');
             }
 
-            $amountToAdd = ($account['currency'] ?? 'Bs') === 'USD'
-                ? $payment['amount_usd'] + ($payment['amount_bs'] / $rate)
-                : $payment['amount_bs'] + ($payment['amount_usd'] * $rate);
             if (!$db->table('accounts')->where('id', $accountId)
                 ->set('balance', 'balance + ' . $db->escape($amountToAdd), false)
                 ->update()) {

@@ -9,7 +9,7 @@ class TransactionModel extends Model
 {
     protected $table = 'transactions';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['account_id', 'category_id', 'print_order_id', 'currency_operation_id', 'amount', 'amount_usd', 'exchange_rate', 'type', 'owner', 'description', 'created_at', 'updated_at'];
+    protected $allowedFields = ['account_id', 'category_id', 'print_order_id', 'currency_operation_id', 'amount', 'amount_usd', 'exchange_rate', 'type', 'owner', 'description', 'balance_before', 'balance_after', 'transfer_group_id', 'created_at', 'updated_at'];
     protected $useTimestamps = true;
 
     public function getStats()
@@ -413,7 +413,7 @@ class TransactionModel extends Model
         $builder = $this->builder();
         $hasOcr = $db->tableExists('ocr_invoices');
 
-        $selectCols = 'transactions.*, accounts.name as account_name, categories.name as category_name, categories.icon as category_icon';
+        $selectCols = 'transactions.*, accounts.name as account_name, accounts.currency as account_currency, categories.name as category_name, categories.icon as category_icon';
         if ($hasOcr) {
             $selectCols .= ', ocr_invoices.id as ocr_invoice_id, ocr_invoices.merchant as invoice_merchant, ocr_invoices.invoice_number, ocr_invoices.rif as invoice_rif, ocr_invoices.iva_amount as invoice_iva';
         }

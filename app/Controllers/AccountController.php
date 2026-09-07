@@ -4,7 +4,10 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\AccountModel;
+use App\Models\AccountTransferModel;
 use App\Models\AuditLogModel;
+use App\Models\CategoryModel;
+use App\Models\TransactionModel;
 
 class AccountController extends BaseController
 {
@@ -15,368 +18,250 @@ class AccountController extends BaseController
 
     public function fetch()
     {
-        $model = new AccountModel();
-        // Return both active and closed, but maybe sort active first
-        return $this->response->setJSON(['status' => 'success', 'data' => $model->orderBy('status', 'ASC')->findAll()]);
+        $accounts = (new AccountModel())->where('status !=', 'deleted')->orderBy('status', 'ASC')->findAll();
+        return $this->response->setJSON(['status' => 'success', 'data' => $accounts]);
     }
 
     public function createTemporary()
     {
         $json = $this->request->getJSON();
-        $name = $json->name;
-        $amount = $json->amount;
-        $sourceId = $json->source_id;
+        $name = trim((string) ($json->name ?? ''));
+        $amount = round((float) ($json->amount ?? 0), 2);
+        $sourceId = (int) ($json->source_id ?? 0);
 
-        $accountModel = new AccountModel();
-        $transModel = new \App\Models\TransactionModel();
+        if ($name === '' || $amount <= 0 || !$sourceId) return $this->error('Indica nombre, cuenta origen y un monto válido.');
+
+        $accounts = new AccountModel();
         $db = \Config\Database::connect();
-        
-        $db->transStart();
-
+        $db->transBegin();
         try {
-            // Validate Source
-            $source = $accountModel->find($sourceId);
-            if (!$source) throw new \Exception("Cuenta origen no existe");
-            if ($source['balance'] < $amount) throw new \Exception("Saldo insuficiente en cuenta origen");
+            $source = $this->lockAccounts([$sourceId])[$sourceId] ?? null;
+            if (!$source || $source['status'] !== 'active') throw new \RuntimeException('La cuenta origen no está disponible.');
+            if ((float) $source['balance'] < $amount) throw new \RuntimeException('Saldo insuficiente en la cuenta origen.');
 
-            // Get a valid category (e.g. first one) for internal records
-            $categoryModel = new \App\Models\CategoryModel();
-            $defaultCat = $categoryModel->first();
-            $catId = $defaultCat ? $defaultCat['id'] : 1; // Fallback to 1
-
-            // 1. Deduct from Source
-            if (!$accountModel->update($sourceId, ['balance' => $source['balance'] - $amount])) {
-                throw new \Exception("Error actualizando origen: " . json_encode($accountModel->errors()));
-            }
-
-            // 2. Create Transfer Out Transaction
-            if (!$transModel->insert([
-                'account_id' => $sourceId,
-                'category_id' => $catId,
-                'amount' => $amount,
-                'amount_usd' => 0,
-                'exchange_rate' => 0,
-                'type' => 'expense',
-                'owner' => 'System',
-                'description' => "Transferencia a Fondo: $name"
-            ])) {
-                throw new \Exception("Error registrando transferencia: " . json_encode($transModel->errors()));
-            }
-
-            // 3. Create Temp Account
-            $newId = $accountModel->insert([
-                'name' => $name,
-                'balance' => $amount,
-                'type' => 'temporary',
-                'status' => 'active',
-                'parent_account_id' => $sourceId
+            $currency = $source['currency'] ?? 'Bs';
+            $newId = $accounts->insert([
+                'name' => $name, 'balance' => 0, 'initial_balance' => $amount,
+                'type' => 'temporary', 'status' => 'active', 'parent_account_id' => $sourceId,
+                'currency' => $currency, 'tenure_type' => $source['tenure_type'] ?? 'none',
             ]);
+            if (!$newId) throw new \RuntimeException('No se pudo crear el fondo temporal.');
 
-            if (!$newId) {
-                throw new \Exception("Error creando fondo: " . json_encode($accountModel->errors()));
-            }
-
-            // 4. Create Initial Deposit Transaction
-            if (!$transModel->insert([
-                'account_id' => $newId,
-                'category_id' => $catId,
-                'amount' => $amount,
-                'amount_usd' => 0,
-                'exchange_rate' => 0,
-                'type' => 'income',
-                'owner' => 'System',
-                'description' => "Fondo Inicial desde: " . $source['name']
-            ])) {
-                 throw new \Exception("Error registrando depósito inicial: " . json_encode($transModel->errors()));
-            }
-
-            $db->transComplete();
-
-            if ($db->transStatus() === false) {
-                throw new \Exception("Error en transacción de base de datos");
-            }
-
-            return $this->response->setJSON(['status' => 'success']);
-
-        } catch (\Exception $e) {
-            log_message('error', $e->getMessage()); // Log error for server admin
-            return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
+            $this->recordTransfer($source, $accounts->find($newId), $amount, 'fund_allocation', null, "Asignación inicial: {$name}");
+            $db->transCommit();
+            return $this->response->setJSON(['status' => 'success', 'id' => $newId]);
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            return $this->error($e->getMessage());
         }
     }
 
     public function closeTemporary($id)
     {
-        $accountModel = new AccountModel();
-        $transModel = new \App\Models\TransactionModel();
-        $categoryModel = new \App\Models\CategoryModel();
-        $db = \Config\Database::connect();
-
-        $db->transStart();
-
-        try {
-            $account = $accountModel->find($id);
-            if (!$account) throw new \Exception("Cuenta no existe");
-            if ($account['status'] !== 'active') throw new \Exception("Cuenta ya cerrada");
-            
-            $parentId = $account['parent_account_id'];
-            $remaining = $account['balance'];
-
-            // Get valid category
-            $defaultCat = $categoryModel->first();
-            $catId = $defaultCat ? $defaultCat['id'] : 1;
-
-            // 1. Return Funds to Source (if any)
-            if ($remaining > 0 && $parentId) {
-                $parent = $accountModel->find($parentId);
-                if ($parent) {
-                    $accountModel->update($parentId, ['balance' => $parent['balance'] + $remaining]);
-                    
-                    $transModel->insert([
-                        'account_id' => $parentId,
-                        'category_id' => $catId,
-                        'type' => 'income',
-                        'amount' => $remaining,
-                        'amount_usd' => 0,
-                        'exchange_rate' => 0,
-                        'owner' => 'System',
-                        'description' => "Devolución de Fondo: " . $account['name']
-                    ]);
-                }
-            }
-
-            // 2. Zero out Temp Account Record (Closing Entry)
-            if ($remaining > 0) {
-                 $transModel->insert([
-                    'account_id' => $id,
-                    'category_id' => $catId,
-                    'type' => 'expense', // Withdrawal
-                    'amount' => $remaining,
-                    'amount_usd' => 0,
-                    'exchange_rate' => 0,
-                    'owner' => 'System',
-                    'description' => "Cierre de Cuenta (Devolución)"
-                ]);
-            }
-
-            // 3. Close Account
-            $accountModel->update($id, ['balance' => 0, 'status' => 'closed']);
-
-            $db->transComplete();
-            return $this->response->setJSON(['status' => 'success']);
-
-        } catch (\Exception $e) {
-            return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
-        }
+        return $this->finishTemporary((int) $id, false);
     }
 
     public function transfer()
     {
         $json = $this->request->getJSON();
-        $sourceId = $json->source_id;
-        $destId = $json->dest_id;
-        $categoryId = $json->category_id ?? null;
-        $amount = $json->amount;
-        $note = $json->note ?? '';
+        $sourceId = (int) ($json->source_id ?? 0);
+        $destId = (int) ($json->dest_id ?? 0);
+        $amount = round((float) ($json->amount ?? 0), 2);
+        $categoryId = !empty($json->category_id) ? (int) $json->category_id : null;
+        $note = trim((string) ($json->note ?? ''));
+        $requestId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($json->request_id ?? '')) ?: bin2hex(random_bytes(16));
 
-        if (!$sourceId || !$destId || !$amount || $amount <= 0 || !$categoryId) {
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Datos incompletos: Faltan cuentas, monto o categoría']);
+        if (!$sourceId || !$destId || $amount <= 0) return $this->error('Selecciona ambas cuentas e indica un monto válido.');
+        if ($sourceId === $destId) return $this->error('La cuenta origen y destino deben ser diferentes.');
+
+        $transfers = new AccountTransferModel();
+        if ($transfers->where('request_id', $requestId)->first()) {
+            return $this->response->setJSON(['status' => 'success', 'duplicate' => true]);
         }
 
-        if ($sourceId == $destId) {
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Cuenta origen y destino deben ser diferentes']);
-        }
-
-        $accountModel = new AccountModel();
-        $transModel = new \App\Models\TransactionModel();
+        $accounts = new AccountModel();
         $db = \Config\Database::connect();
-
-        $db->transStart();
-
+        $db->transBegin();
         try {
-            $source = $accountModel->find($sourceId);
-            $dest = $accountModel->find($destId);
+            $locked = $this->lockAccounts([$sourceId, $destId]);
+            $source = $locked[$sourceId] ?? null;
+            $dest = $locked[$destId] ?? null;
+            if (!$source || !$dest || $source['status'] !== 'active' || $dest['status'] !== 'active') throw new \RuntimeException('Una de las cuentas no está disponible.');
+            if (strtoupper($source['currency'] ?? 'BS') !== strtoupper($dest['currency'] ?? 'BS')) throw new \RuntimeException('Las cuentas deben usar la misma moneda.');
+            if ((float) $source['balance'] < $amount) throw new \RuntimeException('Saldo insuficiente en la cuenta origen.');
 
-            if (!$source || !$dest) {
-                throw new \Exception("Una de las cuentas no existe");
-            }
-
-            // Currency Check
-            if (($source['currency'] ?? 'Bs') !== ($dest['currency'] ?? 'Bs')) {
-                 throw new \Exception("Las cuentas deben tener la misma moneda");
-            }
-
-            if ($source['balance'] < $amount) {
-                throw new \Exception("Saldo insuficiente en cuenta origen");
-            }
-
-            // 1. Deduct from Source
-            $accountModel->update($sourceId, ['balance' => $source['balance'] - $amount]);
-
-            // 2. Add to Dest
-            $accountModel->update($destId, ['balance' => $dest['balance'] + $amount]);
-
-            // 3. Record Out (Source)
-            $transModel->insert([
-                'account_id' => $sourceId,
-                'category_id' => $categoryId,
-                'amount' => $amount,
-                'amount_usd' => 0, // Simplified for same-currency
-                'exchange_rate' => 0,
-                'type' => 'transfer_out',
-                'owner' => 'System',
-                'description' => "Transferencia a " . $dest['name'] . ($note ? ": $note" : "")
-            ]);
-
-            // 4. Record In (Dest)
-            // 4. Update Dest Transaction (audit log injected below)
-            $transModel->insert([
-                'account_id' => $destId,
-                'category_id' => $categoryId,
-                'amount' => $amount,
-                'amount_usd' => 0,
-                'exchange_rate' => 0,
-                'type' => 'transfer_in',
-                'owner' => 'System',
-                'description' => "Transferencia desde " . $source['name'] . ($note ? ": $note" : "")
-            ]);
-
-            // AUDIT LOG
+            $this->recordTransfer($source, $dest, $amount, 'standard', $categoryId, $note, $requestId);
             AuditLogModel::log('accounts', 'transfer', $sourceId, null, null, [
-                'source' => ['id' => $sourceId, 'delta' => -$amount],
-                'dest' => ['id' => $destId, 'delta' => +$amount]
+                'request_id' => $requestId, 'source_id' => $sourceId, 'destination_id' => $destId, 'amount' => $amount,
             ], "Transferencia: {$source['name']} -> {$dest['name']}");
-
-            $db->transComplete();
-
-            if ($db->transStatus() === false) {
-                throw new \Exception("Error en la transacción de base de datos");
-            }
-
-            return $this->response->setJSON(['status' => 'success']);
-
+            $db->transCommit();
+            return $this->response->setJSON(['status' => 'success', 'request_id' => $requestId]);
         } catch (\Throwable $e) {
-            return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
+            $db->transRollback();
+            return $this->error($e->getMessage());
         }
     }
 
     public function add()
     {
         $json = $this->request->getJSON();
+        $name = trim((string) ($json->name ?? ''));
+        $balance = is_numeric($json->balance ?? null) ? round((float) $json->balance, 2) : 0;
+        if ($name === '') return $this->error('El nombre de la cuenta es obligatorio.');
+
         $model = new AccountModel();
-        
-        try {
-            // Validate and sanitize input
-            $name = $json->name ?? '';
-            if (empty($name)) {
-                throw new \Exception("El nombre de la cuenta es obligatorio");
-            }
-            
-            // Ensure balance is never null and is numeric
-            $balance = $json->balance ?? 0;
-            if (!is_numeric($balance) || $balance === '') {
-                $balance = 0;
-            }
-
-            $model->insert([
-                'name' => $name, 
-                'balance' => $balance, 
-                'type' => 'general', 
-                'status' => 'active',
-                'currency' => $json->currency ?? 'Bs',
-                'tenure_type' => $json->tenure_type ?? 'none'
-            ]);
-
-            // AUDIT LOG
-            $newId = $model->insertID();
-            AuditLogModel::log('accounts', 'create', $newId, null, $json, ['initial_balance' => $balance], "Creación de cuenta: $name");
-
-            if ($model->errors()) {
-                throw new \Exception(json_encode($model->errors()));
-            }
-
-            return $this->response->setJSON(['status' => 'success']);
-        } catch (\Throwable $e) {
-            log_message('error', '[AccountCreate] ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-            return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
-        }
+        $id = $model->insert([
+            'name' => $name, 'balance' => $balance, 'initial_balance' => $balance,
+            'type' => 'general', 'status' => 'active', 'currency' => $json->currency ?? 'Bs',
+            'tenure_type' => $json->tenure_type ?? 'none',
+        ]);
+        if (!$id) return $this->error('No se pudo crear la cuenta.');
+        AuditLogModel::log('accounts', 'create', $id, null, $json, ['initial_balance' => $balance], "Creación de cuenta: {$name}");
+        return $this->response->setJSON(['status' => 'success']);
     }
 
-    // ... keep delete and updateBalance
     public function delete($id)
     {
-        $model = new AccountModel();
-        $transModel = new \App\Models\TransactionModel();
-        
-        $db = \Config\Database::connect();
-        $db->transStart();
+        $accounts = new AccountModel();
+        $account = $accounts->find((int) $id);
+        if (!$account) return $this->error('Cuenta no encontrada.');
 
-        try {
-            $account = $model->find($id);
-            if (!$account) throw new \Exception("Cuenta no encontrada");
+        if ($account['type'] === 'temporary') return $this->finishTemporary((int) $id, true);
 
-            // Snapshot for Audit
-            $accountSnapshot = $account;
-
-            // SAFEGUARD: If it's a temporary account with money, return it to source first
-            if ($account['type'] === 'temporary' && $account['balance'] > 0 && !empty($account['parent_account_id'])) {
-                $parentId = $account['parent_account_id'];
-                $parent = $model->find($parentId);
-                
-                if ($parent) {
-                    // Update parent balance
-                    $model->update($parentId, ['balance' => $parent['balance'] + $account['balance']]);
-
-                    // Record refund transaction
-                    $transModel->insert([
-                        'account_id' => $parentId,
-                        'category_id' => 1, // Fallback category
-                        'type' => 'income',
-                        'amount' => $account['balance'],
-                        'amount_usd' => 0,
-                        'exchange_rate' => 0,
-                        'owner' => 'System',
-                        'description' => "Devolución por Eliminación: " . $account['name']
-                    ]);
-                }
-            }
-
-            // 1. Delete transactions where this account is the owner
-            $transModel->where('account_id', $id)->delete();
-            
-            // 2. Check for child temporary accounts
-            $children = $model->where('parent_account_id', $id)->findAll();
-            foreach($children as $child) {
-                // Delete child transactions
-                $transModel->where('account_id', $child['id'])->delete();
-                // Delete child account
-                $model->delete($child['id']);
-            }
-
-            // 3. Delete the account itself
-            if (!$model->delete($id)) {
-                throw new \Exception("Error eliminando cuenta.");
-            }
-            
-            // AUDIT LOG
-            AuditLogModel::log('accounts', 'delete', $id, $accountSnapshot, null, ['deleted_balance' => $accountSnapshot['balance']], "Eliminación de cuenta: {$accountSnapshot['name']}");
-
-            $db->transComplete();
-            return $this->response->setJSON(['status' => 'success']);
-
-        } catch (\Exception $e) {
-            return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
+        if ($accounts->where('parent_account_id', $id)->where('status', 'active')->countAllResults() > 0) {
+            return $this->error('Primero liquida o elimina los fondos temporales vinculados a esta cuenta.');
         }
+        if (abs((float) $account['balance']) > 0.009) return $this->error('Transfiere el saldo restante antes de eliminar esta cuenta.');
+
+        // Preserve its ledger: a deleted account is hidden, not physically erased.
+        $accounts->update($id, ['status' => 'deleted', 'closed_at' => date('Y-m-d H:i:s')]);
+        AuditLogModel::log('accounts', 'delete', $id, $account, null, ['soft_deleted' => true], "Eliminación de cuenta: {$account['name']}");
+        return $this->response->setJSON(['status' => 'success']);
     }
 
     public function updateBalance()
     {
         $json = $this->request->getJSON();
+        $id = (int) ($json->id ?? 0);
+        $balance = round((float) ($json->balance ?? 0), 2);
         $model = new AccountModel();
-        $model->update($json->id, ['balance' => $json->balance]);
-        
-        // AUDIT LOG
-        AuditLogModel::log('accounts', 'update_balance', $json->id, null, ['balance' => $json->balance], null, "Ajuste manual de balance");
-
+        $before = $model->find($id);
+        if (!$before) return $this->error('Cuenta no encontrada.');
+        $model->update($id, ['balance' => $balance]);
+        AuditLogModel::log('accounts', 'update_balance', $id, $before, ['balance' => $balance], [
+            'balance_before' => $before['balance'], 'balance_after' => $balance,
+        ], 'Ajuste manual de balance');
         return $this->response->setJSON(['status' => 'success']);
+    }
+
+    private function finishTemporary(int $id, bool $delete)
+    {
+        $accounts = new AccountModel();
+        $db = \Config\Database::connect();
+        $db->transBegin();
+        try {
+            $candidate = $accounts->find($id);
+            $lockIds = [$id];
+            if (!empty($candidate['parent_account_id'])) $lockIds[] = (int) $candidate['parent_account_id'];
+            $locked = $this->lockAccounts($lockIds);
+            $fund = $locked[$id] ?? null;
+            if (!$fund || $fund['type'] !== 'temporary') throw new \RuntimeException('El fondo temporal no existe.');
+            if ($fund['status'] === 'deleted') throw new \RuntimeException('El fondo ya fue eliminado.');
+
+            $remaining = max(0, round((float) $fund['balance'], 2));
+            if ($fund['status'] === 'active' && $remaining > 0) {
+                $parent = $locked[(int) $fund['parent_account_id']] ?? null;
+                if (!$parent) throw new \RuntimeException('La cuenta de origen ya no existe.');
+                if (strtoupper($parent['currency'] ?? 'BS') !== strtoupper($fund['currency'] ?? 'BS')) throw new \RuntimeException('La moneda del fondo no coincide con su cuenta de origen.');
+                $this->recordTransfer($fund, $parent, $remaining, $delete ? 'fund_deletion' : 'fund_liquidation', null, $delete ? 'Saldo devuelto al eliminar fondo' : 'Saldo no utilizado devuelto');
+            }
+
+            $accounts->update($id, [
+                'balance' => 0,
+                'status' => $delete ? 'deleted' : 'closed',
+                'closed_at' => date('Y-m-d H:i:s'),
+            ]);
+            AuditLogModel::log('accounts', $delete ? 'delete_fund' : 'close_fund', $id, $fund, null, [
+                'initial_balance' => $fund['initial_balance'] ?? 0,
+                'returned_balance' => $remaining,
+                'used_balance' => max(0, (float) ($fund['initial_balance'] ?? 0) - $remaining),
+            ], ($delete ? 'Eliminación' : 'Liquidación') . " de fondo: {$fund['name']}");
+            $db->transCommit();
+            return $this->response->setJSON(['status' => 'success', 'returned' => $remaining]);
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            return $this->error($e->getMessage());
+        }
+    }
+
+    private function recordTransfer(array $source, array $dest, float $amount, string $type, ?int $categoryId = null, string $note = '', ?string $requestId = null): void
+    {
+        $accounts = new AccountModel();
+        $transactions = new TransactionModel();
+        $transfers = new AccountTransferModel();
+        $requestId ??= bin2hex(random_bytes(16));
+        if ($transfers->where('request_id', $requestId)->first()) return;
+
+        $sourceBefore = (float) $source['balance'];
+        $destBefore = (float) $dest['balance'];
+        if ($sourceBefore < $amount) throw new \RuntimeException('Saldo insuficiente en la cuenta origen.');
+        $sourceAfter = round($sourceBefore - $amount, 2);
+        $destAfter = round($destBefore + $amount, 2);
+        $currency = $source['currency'] ?? 'Bs';
+        $categoryId ??= $this->getValidCategoryId();
+        $money = strtoupper($currency) === 'USD'
+            ? ['amount' => 0, 'amount_usd' => $amount]
+            : ['amount' => $amount, 'amount_usd' => 0];
+
+        if (!$accounts->update($source['id'], ['balance' => $sourceAfter]) || !$accounts->update($dest['id'], ['balance' => $destAfter])) {
+            throw new \RuntimeException('No se pudieron actualizar los saldos.');
+        }
+        $suffix = $note !== '' ? ": {$note}" : '';
+        $base = ['category_id' => $categoryId, 'exchange_rate' => 0, 'owner' => 'System', 'transfer_group_id' => $requestId] + $money;
+        if (!$transactions->insert($base + [
+            'account_id' => $source['id'], 'type' => 'transfer_out',
+            'balance_before' => $sourceBefore, 'balance_after' => $sourceAfter,
+            'description' => "Transferencia a {$dest['name']}{$suffix}",
+        ])) throw new \RuntimeException('No se pudo registrar la salida de la transferencia.');
+        if (!$transactions->insert($base + [
+            'account_id' => $dest['id'], 'type' => 'transfer_in',
+            'balance_before' => $destBefore, 'balance_after' => $destAfter,
+            'description' => "Transferencia desde {$source['name']}{$suffix}",
+        ])) throw new \RuntimeException('No se pudo registrar la entrada de la transferencia.');
+
+        if (!$transfers->insert([
+            'request_id' => $requestId, 'transfer_type' => $type,
+            'source_account_id' => $source['id'], 'destination_account_id' => $dest['id'],
+            'amount' => $amount, 'currency' => $currency, 'category_id' => $categoryId, 'note' => $note,
+            'source_balance_before' => $sourceBefore, 'source_balance_after' => $sourceAfter,
+            'destination_balance_before' => $destBefore, 'destination_balance_after' => $destAfter,
+            'status' => 'completed',
+        ])) throw new \RuntimeException('No se pudo auditar la transferencia.');
+    }
+
+    private function getValidCategoryId(): int
+    {
+        $category = (new CategoryModel())->first();
+        if (!$category) throw new \RuntimeException('Debes crear al menos una categoría antes de mover fondos.');
+        return (int) $category['id'];
+    }
+
+    /** @return array<int,array> */
+    private function lockAccounts(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === []) return [];
+        $db = \Config\Database::connect();
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $suffix = stripos((string) $db->DBDriver, 'sqlite') !== false ? '' : ' FOR UPDATE';
+        $rows = $db->query("SELECT * FROM accounts WHERE id IN ({$placeholders}) ORDER BY id{$suffix}", $ids)->getResultArray();
+        $result = [];
+        foreach ($rows as $row) $result[(int) $row['id']] = $row;
+        return $result;
+    }
+
+    private function error(string $message)
+    {
+        return $this->response->setJSON(['status' => 'error', 'message' => $message]);
     }
 }

@@ -8,7 +8,7 @@ class AccountModel extends Model
 {
     protected $table = 'accounts';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['name', 'type', 'balance', 'status', 'parent_account_id', 'currency', 'tenure_type'];
+    protected $allowedFields = ['name', 'type', 'balance', 'initial_balance', 'status', 'closed_at', 'parent_account_id', 'currency', 'tenure_type'];
     public $timestamps = true;
 }
 

@@ -84,6 +84,8 @@ class TransactionController extends BaseController
                     'type' => 'exchange_out', // New internal type
                     'owner' => $json->owner ?? 'Business',
                     'description' => "Compra de Divisas: $amountUsd USD -> " . $destAccount['name'],
+                    'balance_before' => (float) $sourceAccount['balance'],
+                    'balance_after' => (float) $sourceAccount['balance'] - (float) $amount,
                 ]);
 
                 // Incoming to Dest
@@ -99,6 +101,8 @@ class TransactionController extends BaseController
                     'type' => 'exchange_in', 
                     'owner' => $json->owner ?? 'Business',
                     'description' => "Recepción de Divisas ($amountUsd USD) desde " . $sourceAccount['name'],
+                    'balance_before' => (float) $destAccount['balance'],
+                    'balance_after' => (float) $destAccount['balance'] + (float) $amountUsd,
                 ]);
             }
             // --- LOGIC FOR MOVEMENT (USD -> USD) ---
@@ -125,6 +129,8 @@ class TransactionController extends BaseController
                     'type' => 'transfer_out',
                     'owner' => $json->owner ?? 'Business',
                     'description' => "Retiro/Movimiento: $amountUsd USD -> " . $destAccount['name'],
+                    'balance_before' => (float) $sourceAccount['balance'],
+                    'balance_after' => (float) $sourceAccount['balance'] - (float) $amountUsd,
                 ]);
 
                  $transModel->insert([
@@ -136,10 +142,26 @@ class TransactionController extends BaseController
                     'type' => 'transfer_in',
                     'owner' => $json->owner ?? 'Business',
                     'description' => "Depósito/Movimiento: $amountUsd USD desde " . $sourceAccount['name'],
+                    'balance_before' => (float) $destAccount['balance'],
+                    'balance_after' => (float) $destAccount['balance'] + (float) $amountUsd,
                 ]);
             }
             // --- STANDARD TRANSACTION ---
             else {
+                // Account balances are stored in their native currency. The request also
+                // carries the equivalent amount for reporting, so never debit a USD
+                // account with its bolivar equivalent.
+                $nativeAmount = strtoupper((string) ($sourceAccount['currency'] ?? 'BS')) === 'USD'
+                    ? (float) $amountUsd
+                    : (float) $amount;
+                $balanceBefore = (float) $sourceAccount['balance'];
+                $balanceAfter = $balanceBefore;
+                if ($type === 'income' || $type === 'return') {
+                    $balanceAfter += $nativeAmount;
+                } elseif ($type === 'expense' || $type === 'savings') {
+                    $balanceAfter -= $nativeAmount;
+                }
+
                 // Check if it's an Inventory Purchase (Business Mode)
                 $inventoryItemId = $json->inventory_item_id ?? null;
                 $quantity = $json->quantity ?? 1;
@@ -182,6 +204,8 @@ class TransactionController extends BaseController
                     'type' => $type,
                     'owner' => $json->owner ?? 'Business',
                     'description' => $json->description ?? '',
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $balanceAfter,
                     'created_at' => !empty($json->created_at) ? $json->created_at : date('Y-m-d H:i:s'), // Venezuela timezone (set in App.php)
                 ]);
 
@@ -204,12 +228,7 @@ class TransactionController extends BaseController
                 }
 
                 // Update Balance
-                $newBalance = $sourceAccount['balance'];
-                if ($type === 'income' || $type === 'return') {
-                    $newBalance += $amount; 
-                } elseif ($type === 'expense' || $type === 'savings') {
-                    $newBalance -= $amount;
-                }
+                $newBalance = round($balanceAfter, 2);
                 $accountModel->update($accountId, ['balance' => $newBalance]);
 
                 // AUDIT LOG

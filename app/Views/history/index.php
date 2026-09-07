@@ -387,7 +387,7 @@
                                             <!-- Timestamp -->
                                             <div class="text-[11px] text-slate-400 font-bold shrink-0 flex items-center gap-1">
                                                 <span class="material-icons text-[12px]">schedule</span>
-                                                <span x-text="item.time_hi || formatDateOnlyTime(item.created_at)"></span>
+                                                <span x-text="formatDate(item.created_at)"></span>
                                             </div>
                                         </div>
 
@@ -428,6 +428,13 @@
                                                     <span x-show="item.exchange_rate > 0" class="text-[9px] text-slate-400 font-mono bg-slate-100 px-1 rounded" x-text="'@' + parseFloat(item.exchange_rate).toFixed(2)"></span>
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        <!-- Bank-style balance trail -->
+                                        <div x-show="item.balance_before !== null && item.balance_before !== undefined" class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 mb-2 rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
+                                            <div><span class="block text-[8px] font-black uppercase tracking-wider text-slate-400">Saldo anterior</span><b class="text-[11px] text-slate-700" x-text="formatNativeBalance(item.balance_before, item.account_currency)"></b></div>
+                                            <span class="material-icons text-sm text-slate-300">arrow_forward</span>
+                                            <div class="text-right"><span class="block text-[8px] font-black uppercase tracking-wider text-slate-400">Saldo posterior</span><b class="text-[11px] text-slate-900" x-text="formatNativeBalance(item.balance_after, item.account_currency)"></b></div>
                                         </div>
 
                                         <!-- Footer: Account, Owner & Interactive Buttons -->
@@ -1048,6 +1055,10 @@
                 formatUsd(value) {
                     if (isNaN(value) || value === null || value === undefined) return '$0.00';
                     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+                },
+
+                formatNativeBalance(value, currency = 'Bs') {
+                    return String(currency || 'Bs').toUpperCase() === 'USD' ? this.formatUsd(value) : this.formatMoney(value);
                 },
 
                 formatDate(dateStr) {

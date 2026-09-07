@@ -151,12 +151,14 @@ class CurrencyOperationsController extends BaseController
                 'amount' => $type === 'purchase' ? $sourceDebit : 0, 'amount_usd' => $type === 'transfer' ? $amountUsd : 0,
                 'exchange_rate' => $rate, 'type' => $type === 'purchase' ? 'exchange_out' : 'transfer_out',
                 'owner' => $payload['owner'] ?? 'Negocio', 'description' => "$label hacia {$destination['name']}", 'created_at' => $operationDate,
+                'balance_before' => (float) $source['balance'], 'balance_after' => (float) $source['balance'] - $sourceDebit,
             ]);
             $transactionModel->insert([
                 'account_id' => $destinationId, 'category_id' => $categoryId, 'currency_operation_id' => $operationId,
                 'amount' => 0, 'amount_usd' => $amountUsd, 'exchange_rate' => $rate,
                 'type' => $type === 'purchase' ? 'exchange_in' : 'transfer_in',
                 'owner' => $payload['owner'] ?? 'Negocio', 'description' => "$label desde {$source['name']}", 'created_at' => $operationDate,
+                'balance_before' => (float) $destination['balance'], 'balance_after' => (float) $destination['balance'] + $amountUsd,
             ]);
 
             if ($db->transStatus() === false) {

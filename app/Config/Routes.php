@@ -121,10 +121,12 @@ $routes->get('accounts', 'AccountController::index');
 $routes->get('accounts/fetch', 'AccountController::fetch');
 $routes->post('accounts/add', 'AccountController::add');
 $routes->get('accounts/delete/(:num)', 'AccountController::delete/$1');
+$routes->post('accounts/delete/(:num)', 'AccountController::delete/$1');
 $routes->post('accounts/update-balance', 'AccountController::updateBalance');
 $routes->post('accounts/transfer', 'AccountController::transfer');
 $routes->post('/accounts/create-temp', 'AccountController::createTemporary');
 $routes->get('/accounts/close-temp/(:num)', 'AccountController::closeTemporary/$1');
+$routes->post('/accounts/close-temp/(:num)', 'AccountController::closeTemporary/$1');
 
 // Admin repair route
 $routes->get('/admin/fix-compras', 'AdminRepair::fixCompras');
