@@ -206,8 +206,8 @@
                     </button>
                 </div>
 
-                <!-- Carga Rápida Configuration (Bank Account & Owner Pre-selection) -->
-                <div x-show="quickScanMode" x-transition class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <!-- Carga Rápida Configuration (Bank Account, Category & Owner Pre-selection) -->
+                <div x-show="quickScanMode" x-transition class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                     <div>
                         <label class="block text-[10px] font-black text-emerald-800 uppercase mb-1 flex items-center gap-1">
                             <span class="material-icons text-xs">account_balance</span>
@@ -221,9 +221,21 @@
                     </div>
 
                     <div>
+                        <label class="block text-[10px] font-black text-emerald-800 uppercase mb-1 flex items-center gap-1">
+                            <span class="material-icons text-xs">category</span>
+                            <span>Categoría Contable</span>
+                        </label>
+                        <select x-model="quickCategoryId" class="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-400">
+                            <?php foreach ($categories as $cat): ?>
+                                <option value="<?= $cat['id'] ?>"><?= esc($cat['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div>
                         <label class="block text-[10px] font-black text-slate-500 uppercase mb-1 flex items-center gap-1">
                             <span class="material-icons text-xs">tune</span>
-                            <span>Asignación del Gasto</span>
+                            <span>Asignación</span>
                         </label>
                         <div class="flex items-center gap-2">
                             <button type="button" @click="quickOwner = 'Negocio'" 
@@ -1159,6 +1171,7 @@
                 // Carga Rápida Mode Toggle: Default to FALSE so items list is shown after scanning
                 quickScanMode: false,
                 quickAccountId: <?= !empty($accounts[0]['id']) ? $accounts[0]['id'] : 0 ?>,
+                quickCategoryId: <?= !empty($categories[0]['id']) ? $categories[0]['id'] : 0 ?>,
                 quickOwner: 'Negocio',
                 filterMode: 'normal', // 'normal' | 'thermal'
 
@@ -1192,6 +1205,9 @@
                     // Pre-select first account if not set
                     if (!this.quickAccountId && <?= !empty($accounts[0]['id']) ? 'true' : 'false' ?>) {
                         this.quickAccountId = <?= !empty($accounts[0]['id']) ? $accounts[0]['id'] : 0 ?>;
+                    }
+                    if (!this.quickCategoryId && <?= !empty($categories[0]['id']) ? 'true' : 'false' ?>) {
+                        this.quickCategoryId = <?= !empty($categories[0]['id']) ? $categories[0]['id'] : 0 ?>;
                     }
                 },
 
@@ -1280,6 +1296,7 @@
                             body: JSON.stringify({
                                 images: imagesList,
                                 account_id: this.quickAccountId,
+                                category_id: this.quickCategoryId,
                                 owner: this.quickOwner
                             })
                         });

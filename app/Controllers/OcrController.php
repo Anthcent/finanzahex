@@ -174,150 +174,229 @@ class OcrController extends BaseController
             ]);
         }
 
-        // Determine target bank account
+        // Determine target bank account with robust fallback
         if ($targetAccountId <= 0) {
             $defaultAcc = $accountModel->where('status', 'active')->orderBy('id', 'ASC')->first();
             if (!$defaultAcc) {
+                $defaultAcc = $accountModel->orderBy('id', 'ASC')->first();
+            }
+            if (!$defaultAcc) {
                 return $this->response->setJSON([
                     'status' => 'error',
-                    'message' => 'No hay cuentas bancarias activas disponibles para debitar el gasto.'
+                    'message' => 'No hay cuentas bancarias disponibles para debitar el gasto.'
                 ]);
             }
             $targetAccountId = (int) $defaultAcc['id'];
         }
 
-        // Determine default category
+        // Verify account exists
+        $account = $accountModel->find($targetAccountId);
+        if (!$account) {
+            $account = $accountModel->where('status', 'active')->first() ?? $accountModel->first();
+            if (!$account) {
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'La cuenta bancaria seleccionada no existe.'
+                ]);
+            }
+            $targetAccountId = (int) $account['id'];
+        }
+
+        // Determine default category (guarantee valid category ID in DB for Foreign Key & NOT NULL)
         if ($targetCategoryId <= 0) {
-            $defaultCat = $categoryModel->orderBy('id', 'ASC')->first();
-            $targetCategoryId = $defaultCat ? (int) $defaultCat['id'] : null;
+            $defaultCat = $categoryModel->where('type', 'expense')->orderBy('id', 'ASC')->first();
+            if (!$defaultCat) {
+                $defaultCat = $categoryModel->orderBy('id', 'ASC')->first();
+            }
+            if ($defaultCat) {
+                $targetCategoryId = (int) $defaultCat['id'];
+            } else {
+                $targetCategoryId = (int) $categoryModel->insert([
+                    'name' => 'Gastos Generales',
+                    'type' => 'expense',
+                    'icon' => 'receipt'
+                ]);
+            }
+        } else {
+            $chosenCat = $categoryModel->find($targetCategoryId);
+            if (!$chosenCat) {
+                $defaultCat = $categoryModel->where('type', 'expense')->first() ?? $categoryModel->first();
+                $targetCategoryId = $defaultCat ? (int) $defaultCat['id'] : 1;
+            }
         }
 
         $parser = new InvoiceParserService();
-        $savedInvoices = [];
+        $allParsedInvoices = [];
 
+        // 1. Run OCR calls FIRST, outside of DB transaction to avoid idle connection aborts
+        foreach ($base64Images as $idx => $b64Image) {
+            $ocrText = $this->callOcrSpaceApi($b64Image, $apiKey);
+
+            if ($ocrText === false) {
+                $parsedList = [[
+                    'model_type' => 'GENERIC_RECEIPT',
+                    'model_label' => 'Factura / Recibo Rápido',
+                    'merchant' => 'Factura Rápida #' . ($idx + 1),
+                    'rif' => '',
+                    'invoice_number' => 'S/N',
+                    'date' => date('Y-m-d'),
+                    'time' => date('H:i'),
+                    'items' => [],
+                    'subtotal' => 0.0,
+                    'exento' => 0.0,
+                    'base_imponible' => 0.0,
+                    'iva_amount' => 0.0,
+                    'iva_rate' => 16.0,
+                    'igtf_amount' => 0.0,
+                    'total_bs' => 0.0,
+                    'total_usd' => 0.0,
+                    'exchange_rate' => $exchangeRate,
+                    'payment_method' => null,
+                    'cashea' => null,
+                    'raw_text' => ''
+                ]];
+            } else {
+                $parsedList = $parser->parseMulti($ocrText, $exchangeRate);
+            }
+
+            foreach ($parsedList as $inv) {
+                $allParsedInvoices[] = $inv;
+            }
+        }
+
+        if (empty($allParsedInvoices)) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'No se pudo extraer texto legible de la factura.'
+            ]);
+        }
+
+        // 2. Open DB transaction to persist transactions and pending review record
+        $savedInvoices = [];
         $db->transStart();
 
         try {
-            $account = $accountModel->find($targetAccountId);
-            if (!$account) {
-                throw new \Exception('La cuenta bancaria seleccionada no existe.');
-            }
-
-            foreach ($base64Images as $idx => $b64Image) {
-                $ocrText = $this->callOcrSpaceApi($b64Image, $apiKey);
-
-                if ($ocrText === false) {
-                    $parsedList = [[
-                        'model_type' => 'GENERIC_RECEIPT',
-                        'model_label' => 'Factura / Recibo Rápido',
-                        'merchant' => 'Factura Rápida #' . ($idx + 1),
-                        'rif' => '',
-                        'invoice_number' => 'S/N',
-                        'date' => date('Y-m-d'),
-                        'time' => date('H:i'),
-                        'items' => [],
-                        'subtotal' => 0.0,
-                        'exento' => 0.0,
-                        'base_imponible' => 0.0,
-                        'iva_amount' => 0.0,
-                        'iva_rate' => 16.0,
-                        'igtf_amount' => 0.0,
-                        'total_bs' => 0.0,
-                        'total_usd' => 0.0,
-                        'exchange_rate' => $exchangeRate,
-                        'payment_method' => null,
-                        'cashea' => null,
-                        'raw_text' => ''
-                    ]];
-                } else {
-                    $parsedList = $parser->parseMulti($ocrText, $exchangeRate);
+            foreach ($allParsedInvoices as $inv) {
+                $totalBs = max(0.0, (float) ($inv['total_bs'] ?? 0));
+                $totalUsd = max(0.0, (float) ($inv['total_usd'] ?? 0));
+                $rate = (float) ($inv['exchange_rate'] ?? $exchangeRate);
+                if ($rate <= 0) $rate = $exchangeRate > 0 ? $exchangeRate : 50.0;
+                if ($totalUsd <= 0 && $totalBs > 0 && $rate > 0) {
+                    $totalUsd = round($totalBs / $rate, 2);
                 }
 
-                foreach ($parsedList as $inv) {
-                    $totalBs = (float) ($inv['total_bs'] ?? 0);
-                    $totalUsd = (float) ($inv['total_usd'] ?? 0);
-                    $rate = (float) ($inv['exchange_rate'] ?? $exchangeRate);
-                    $merchant = trim($inv['merchant'] ?? 'Gasto Factura');
-                    $invoiceNum = trim($inv['invoice_number'] ?? '');
-                    $invDate = !empty($inv['date']) ? $inv['date'] : date('Y-m-d');
-                    $invTime = !empty($inv['time']) ? $inv['time'] : date('H:i');
-                    $createdAt = "$invDate $invTime:00";
+                $merchant = trim($inv['merchant'] ?? 'Gasto Factura');
+                if (empty($merchant)) $merchant = 'Gasto Factura';
+                $invoiceNum = trim($inv['invoice_number'] ?? '');
 
-                    $desc = "Gasto Rápido: $merchant" . ($invoiceNum ? " (Fac #$invoiceNum)" : "");
+                // Robust Date and Time normalization
+                $rawDate = !empty($inv['date']) ? trim($inv['date']) : date('Y-m-d');
+                $rawTime = !empty($inv['time']) ? trim($inv['time']) : date('H:i:s');
+                $parsedTs = strtotime("$rawDate $rawTime");
+                if ($parsedTs === false || $parsedTs <= 0) {
+                    $parsedTs = strtotime($rawDate);
+                }
+                if ($parsedTs === false || $parsedTs <= 0) {
+                    $parsedTs = time();
+                }
 
-                    // 1. Create Transaction in ledger
-                    $transId = $transModel->insert([
-                        'account_id' => $targetAccountId,
-                        'category_id' => $targetCategoryId,
-                        'amount' => $totalBs,
-                        'amount_usd' => $totalUsd,
-                        'exchange_rate' => $rate,
-                        'type' => 'expense',
-                        'owner' => $owner,
-                        'description' => $desc,
-                        'created_at' => $createdAt
-                    ]);
+                $createdAt = date('Y-m-d H:i:s', $parsedTs);
+                $invDate = date('Y-m-d', $parsedTs);
+                $invTime = date('H:i', $parsedTs);
 
-                    // 2. Insert line items
-                    $itemsList = !empty($inv['items']) && is_array($inv['items']) ? $inv['items'] : [];
-                    if (!empty($itemsList)) {
-                        foreach ($itemsList as $it) {
-                            $itemModel->insert([
-                                'transaction_id' => $transId,
-                                'name' => trim($it['name'] ?? 'Producto'),
-                                'quantity' => (float) ($it['quantity'] ?? 1),
-                                'price' => (float) ($it['price'] ?? 0),
-                                'price_usd' => (float) ($it['price_usd'] ?? 0),
-                                'description' => !empty($it['tax_type']) ? "IVA: {$it['tax_type']}" : null
-                            ]);
+                $desc = "Gasto Rápido: $merchant" . ($invoiceNum ? " (Fac #$invoiceNum)" : "");
+
+                // 1. Create Transaction in ledger
+                $transId = $transModel->insert([
+                    'account_id' => $targetAccountId,
+                    'category_id' => $targetCategoryId,
+                    'amount' => $totalBs,
+                    'amount_usd' => $totalUsd,
+                    'exchange_rate' => $rate,
+                    'type' => 'expense',
+                    'owner' => $owner,
+                    'description' => mb_substr($desc, 0, 250),
+                    'created_at' => $createdAt
+                ]);
+
+                if (!$transId) {
+                    $dbErr = $db->error();
+                    throw new \Exception('No se pudo registrar la transacción: ' . ($dbErr['message'] ?? 'Error desconocido'));
+                }
+
+                // 2. Insert line items
+                $itemsList = !empty($inv['items']) && is_array($inv['items']) ? $inv['items'] : [];
+                if (!empty($itemsList)) {
+                    foreach ($itemsList as $it) {
+                        $rawQty = (float) ($it['quantity'] ?? 1);
+                        $intQty = max(1, (int) round($rawQty));
+                        $itemDesc = !empty($it['tax_type']) ? "IVA: {$it['tax_type']}" : "";
+                        if (abs($rawQty - $intQty) > 0.001) {
+                            $itemDesc = trim("$itemDesc [Cant: " . number_format($rawQty, 2, ',', '.') . "]");
                         }
-                    } else if ($totalBs > 0) {
                         $itemModel->insert([
-                            'transaction_id' => $transId,
-                            'name' => $merchant,
-                            'quantity' => 1,
-                            'price' => $totalBs,
-                            'price_usd' => $totalUsd,
-                            'description' => 'Factura rápida escaneada'
+                            'transaction_id' => (int) $transId,
+                            'name' => mb_substr(trim($it['name'] ?? 'Producto'), 0, 250),
+                            'quantity' => $intQty,
+                            'price' => (float) ($it['price'] ?? 0),
+                            'price_usd' => (float) ($it['price_usd'] ?? 0),
+                            'description' => $itemDesc ? mb_substr($itemDesc, 0, 250) : null
                         ]);
                     }
-
-                    // 3. Deduct from bank account balance
-                    $currentBalance = (float) $accountModel->find($targetAccountId)['balance'];
-                    $accountModel->update($targetAccountId, ['balance' => $currentBalance - $totalBs]);
-
-                    // 4. Record in ocr_invoices as pending_review
-                    $ocrInvoiceId = $ocrInvoiceModel->insert([
-                        'transaction_id' => $transId,
-                        'account_id' => $targetAccountId,
-                        'category_id' => $targetCategoryId,
-                        'merchant' => $merchant,
-                        'rif' => $inv['rif'] ?? '',
-                        'invoice_number' => $invoiceNum,
-                        'model_type' => $inv['model_type'] ?? 'GENERIC_RECEIPT',
-                        'model_label' => $inv['model_label'] ?? 'Factura / Recibo General',
-                        'invoice_date' => $invDate,
-                        'invoice_time' => $invTime,
-                        'total_bs' => $totalBs,
-                        'total_usd' => $totalUsd,
-                        'exchange_rate' => $rate,
-                        'subtotal' => (float) ($inv['subtotal'] ?? 0),
-                        'exento' => (float) ($inv['exento'] ?? 0),
-                        'base_imponible' => (float) ($inv['base_imponible'] ?? 0),
-                        'iva_amount' => (float) ($inv['iva_amount'] ?? 0),
-                        'iva_rate' => (float) ($inv['iva_rate'] ?? 16.0),
-                        'igtf_amount' => (float) ($inv['igtf_amount'] ?? 0),
-                        'payment_method' => $inv['payment_method'] ?? null,
-                        'cashea_amount' => (float) ($inv['cashea'] ?? 0),
-                        'owner' => $owner,
-                        'items_json' => json_encode($itemsList, JSON_UNESCAPED_UNICODE),
-                        'raw_text' => $inv['raw_text'] ?? '',
-                        'status' => 'pending_review',
-                        'quick_scan' => 1,
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'updated_at' => date('Y-m-d H:i:s'),
+                } elseif ($totalBs > 0) {
+                    $itemModel->insert([
+                        'transaction_id' => (int) $transId,
+                        'name' => mb_substr($merchant, 0, 250),
+                        'quantity' => 1,
+                        'price' => $totalBs,
+                        'price_usd' => $totalUsd,
+                        'description' => 'Factura rápida escaneada'
                     ]);
+                }
 
+                // 3. Deduct from bank account balance (only if positive)
+                if ($totalBs > 0) {
+                    $freshAcc = $accountModel->find($targetAccountId);
+                    if ($freshAcc) {
+                        $curBal = (float) ($freshAcc['balance'] ?? 0);
+                        $accountModel->update($targetAccountId, ['balance' => $curBal - $totalBs]);
+                    }
+                }
+
+                // 4. Record in ocr_invoices as pending_review
+                $ocrInvoiceId = $ocrInvoiceModel->insert([
+                    'transaction_id' => (int) $transId,
+                    'account_id' => $targetAccountId,
+                    'category_id' => $targetCategoryId,
+                    'merchant' => mb_substr($merchant, 0, 250),
+                    'rif' => mb_substr($inv['rif'] ?? '', 0, 60),
+                    'invoice_number' => mb_substr($invoiceNum, 0, 60),
+                    'model_type' => mb_substr($inv['model_type'] ?? 'GENERIC_RECEIPT', 0, 60),
+                    'model_label' => mb_substr($inv['model_label'] ?? 'Factura / Recibo General', 0, 120),
+                    'invoice_date' => $invDate,
+                    'invoice_time' => mb_substr($invTime, 0, 30),
+                    'total_bs' => $totalBs,
+                    'total_usd' => $totalUsd,
+                    'exchange_rate' => $rate,
+                    'subtotal' => (float) ($inv['subtotal'] ?? 0),
+                    'exento' => (float) ($inv['exento'] ?? 0),
+                    'base_imponible' => (float) ($inv['base_imponible'] ?? 0),
+                    'iva_amount' => (float) ($inv['iva_amount'] ?? 0),
+                    'iva_rate' => (float) ($inv['iva_rate'] ?? 16.0),
+                    'igtf_amount' => (float) ($inv['igtf_amount'] ?? 0),
+                    'payment_method' => !empty($inv['payment_method']) ? mb_substr($inv['payment_method'], 0, 60) : null,
+                    'cashea_amount' => (float) ($inv['cashea'] ?? 0),
+                    'owner' => $owner,
+                    'items_json' => json_encode($itemsList, JSON_UNESCAPED_UNICODE),
+                    'raw_text' => $inv['raw_text'] ?? '',
+                    'status' => 'pending_review',
+                    'quick_scan' => 1,
+                    'created_at' => $createdAt,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+
+                try {
+                    $accName = $account['name'] ?? 'Cuenta';
                     AuditLogModel::log(
                         'ocr_invoices',
                         'create',
@@ -325,23 +404,25 @@ class OcrController extends BaseController
                         null,
                         ['merchant' => $merchant, 'total_bs' => $totalBs, 'quick_scan' => 1],
                         ['account_id' => $targetAccountId, 'delta' => -$totalBs],
-                        "Carga Rápida OCR: $merchant ($totalBs Bs) descontado de {$account['name']} [Pendiente por revisar]"
+                        "Carga Rápida OCR: $merchant ($totalBs Bs) descontado de $accName [Pendiente por revisar]"
                     );
+                } catch (\Throwable $ignored) {}
 
-                    $savedInvoices[] = [
-                        'id' => $ocrInvoiceId,
-                        'merchant' => $merchant,
-                        'total_bs' => $totalBs,
-                        'total_usd' => $totalUsd,
-                        'invoice_number' => $invoiceNum
-                    ];
-                }
+                $savedInvoices[] = [
+                    'id' => $ocrInvoiceId,
+                    'merchant' => $merchant,
+                    'total_bs' => $totalBs,
+                    'total_usd' => $totalUsd,
+                    'invoice_number' => $invoiceNum
+                ];
             }
 
             $db->transComplete();
 
             if ($db->transStatus() === false) {
-                throw new \Exception('Error al guardar la factura en la base de datos.');
+                $dbErr = $db->error();
+                $detail = !empty($dbErr['message']) ? ': ' . $dbErr['message'] : '';
+                throw new \Exception('Error al registrar en la base de datos' . $detail);
             }
 
             return $this->response->setJSON([
@@ -352,11 +433,12 @@ class OcrController extends BaseController
                 'overdue_count' => $ocrInvoiceModel->countOverdue72h()
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $db->transRollback();
+            log_message('error', 'Carga Rapida error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return $this->response->setJSON([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Error al guardar la factura: ' . $e->getMessage()
             ]);
         }
     }
@@ -379,6 +461,7 @@ class OcrController extends BaseController
         $transModel = new TransactionModel();
         $itemModel = new TransactionItemModel();
         $accountModel = new AccountModel();
+        $categoryModel = new CategoryModel();
         $ocrInvoiceModel = new OcrInvoiceModel();
         $db = \Config\Database::connect();
 
@@ -389,19 +472,49 @@ class OcrController extends BaseController
 
             foreach ($json->invoices as $inv) {
                 $accountId = (int) ($inv->account_id ?? 0);
-                $categoryId = !empty($inv->category_id) ? (int) $inv->category_id : null;
-                $merchant = trim($inv->merchant ?? 'Gasto');
+                $categoryId = !empty($inv->category_id) ? (int) $inv->category_id : 0;
+                $merchant = trim($inv->merchant ?? 'Gasto Factura');
+                if (empty($merchant)) $merchant = 'Gasto Factura';
                 $invoiceNum = trim($inv->invoice_number ?? '');
-                $invDate = !empty($inv->date) ? $inv->date : date('Y-m-d');
-                $invTime = !empty($inv->time) ? $inv->time : date('H:i');
-                $createdAt = "$invDate $invTime:00";
-                $totalBs = (float) ($inv->total_bs ?? 0);
-                $totalUsd = (float) ($inv->total_usd ?? 0);
+
+                // Ensure category exists
+                if ($categoryId <= 0) {
+                    $defaultCat = $categoryModel->where('type', 'expense')->orderBy('id', 'ASC')->first() ?? $categoryModel->first();
+                    $categoryId = $defaultCat ? (int) $defaultCat['id'] : 1;
+                }
+
+                // Robust Date and Time normalization
+                $rawDate = !empty($inv->date) ? trim($inv->date) : date('Y-m-d');
+                $rawTime = !empty($inv->time) ? trim($inv->time) : date('H:i:s');
+                $parsedTs = strtotime("$rawDate $rawTime");
+                if ($parsedTs === false || $parsedTs <= 0) {
+                    $parsedTs = strtotime($rawDate);
+                }
+                if ($parsedTs === false || $parsedTs <= 0) {
+                    $parsedTs = time();
+                }
+
+                $createdAt = date('Y-m-d H:i:s', $parsedTs);
+                $invDate = date('Y-m-d', $parsedTs);
+                $invTime = date('H:i', $parsedTs);
+
+                $totalBs = max(0.0, (float) ($inv->total_bs ?? 0));
+                $totalUsd = max(0.0, (float) ($inv->total_usd ?? 0));
                 $rate = (float) ($inv->exchange_rate ?? 50.0);
+                if ($rate <= 0) $rate = 50.0;
+                if ($totalUsd <= 0 && $totalBs > 0 && $rate > 0) {
+                    $totalUsd = round($totalBs / $rate, 2);
+                }
+
                 $owner = !empty($inv->owner) && in_array($inv->owner, ['Personal', 'Negocio']) ? $inv->owner : 'Negocio';
 
                 if ($accountId <= 0) {
-                    throw new \Exception("Debe seleccionar una cuenta bancaria para la factura de $merchant.");
+                    $defaultAcc = $accountModel->where('status', 'active')->first() ?? $accountModel->first();
+                    if ($defaultAcc) {
+                        $accountId = (int) $defaultAcc['id'];
+                    } else {
+                        throw new \Exception("Debe seleccionar una cuenta bancaria para la factura de $merchant.");
+                    }
                 }
 
                 $account = $accountModel->find($accountId);
@@ -420,9 +533,14 @@ class OcrController extends BaseController
                     'exchange_rate' => $rate,
                     'type' => 'expense',
                     'owner' => $owner,
-                    'description' => $description,
+                    'description' => mb_substr($description, 0, 250),
                     'created_at' => $createdAt
                 ]);
+
+                if (!$transId) {
+                    $dbErr = $db->error();
+                    throw new \Exception('Error al registrar transacción: ' . ($dbErr['message'] ?? 'Error'));
+                }
 
                 // 2. Insert Items
                 $itemsArray = [];
@@ -430,45 +548,61 @@ class OcrController extends BaseController
                     foreach ($inv->items as $it) {
                         $p = (float) ($it->price ?? 0);
                         $pu = (float) ($it->price_usd ?? 0);
-                        $qty = (float) ($it->quantity ?? 1);
+                        $rawQty = (float) ($it->quantity ?? 1);
+                        $intQty = max(1, (int) round($rawQty));
                         $name = trim($it->name ?? 'Item');
                         $taxType = !empty($it->tax_type) ? $it->tax_type : 'G';
+                        $itemDesc = "IVA: $taxType";
+                        if (abs($rawQty - $intQty) > 0.001) {
+                            $itemDesc = trim("$itemDesc [Cant: " . number_format($rawQty, 2, ',', '.') . "]");
+                        }
 
                         $itemModel->insert([
-                            'transaction_id' => $transId,
-                            'name' => $name,
-                            'quantity' => $qty,
+                            'transaction_id' => (int) $transId,
+                            'name' => mb_substr($name, 0, 250),
+                            'quantity' => $intQty,
                             'price' => $p,
                             'price_usd' => $pu,
-                            'description' => "IVA: $taxType"
+                            'description' => mb_substr($itemDesc, 0, 250)
                         ]);
 
                         $itemsArray[] = [
                             'name' => $name,
-                            'quantity' => $qty,
+                            'quantity' => $intQty,
                             'price' => $p,
                             'price_usd' => $pu,
                             'tax_type' => $taxType
                         ];
                     }
+                } elseif ($totalBs > 0) {
+                    $itemModel->insert([
+                        'transaction_id' => (int) $transId,
+                        'name' => mb_substr($merchant, 0, 250),
+                        'quantity' => 1,
+                        'price' => $totalBs,
+                        'price_usd' => $totalUsd,
+                        'description' => 'Factura escaneada'
+                    ]);
                 }
 
-                // 3. Deduct from account
-                $newBalance = (float)$account['balance'] - $totalBs;
-                $accountModel->update($accountId, ['balance' => $newBalance]);
+                // 3. Deduct from account (only if positive)
+                if ($totalBs > 0) {
+                    $newBalance = (float)$account['balance'] - $totalBs;
+                    $accountModel->update($accountId, ['balance' => $newBalance]);
+                }
 
                 // 4. Save into ocr_invoices as approved
                 $ocrInvoiceModel->insert([
-                    'transaction_id' => $transId,
+                    'transaction_id' => (int) $transId,
                     'account_id' => $accountId,
                     'category_id' => $categoryId,
-                    'merchant' => $merchant,
-                    'rif' => $inv->rif ?? '',
-                    'invoice_number' => $invoiceNum,
-                    'model_type' => $inv->model_type ?? 'GENERIC_RECEIPT',
-                    'model_label' => $inv->model_label ?? 'Factura / Recibo General',
+                    'merchant' => mb_substr($merchant, 0, 250),
+                    'rif' => mb_substr($inv->rif ?? '', 0, 60),
+                    'invoice_number' => mb_substr($invoiceNum, 0, 60),
+                    'model_type' => mb_substr($inv->model_type ?? 'GENERIC_RECEIPT', 0, 60),
+                    'model_label' => mb_substr($inv->model_label ?? 'Factura / Recibo General', 0, 120),
                     'invoice_date' => $invDate,
-                    'invoice_time' => $invTime,
+                    'invoice_time' => mb_substr($invTime, 0, 30),
                     'total_bs' => $totalBs,
                     'total_usd' => $totalUsd,
                     'exchange_rate' => $rate,
@@ -478,7 +612,7 @@ class OcrController extends BaseController
                     'iva_amount' => (float) ($inv->iva_amount ?? 0),
                     'iva_rate' => (float) ($inv->iva_rate ?? 16.0),
                     'igtf_amount' => (float) ($inv->igtf_amount ?? 0),
-                    'payment_method' => $inv->payment_method ?? null,
+                    'payment_method' => !empty($inv->payment_method) ? mb_substr($inv->payment_method, 0, 60) : null,
                     'cashea_amount' => (float) ($inv->cashea ?? 0),
                     'owner' => $owner,
                     'items_json' => json_encode($itemsArray, JSON_UNESCAPED_UNICODE),
@@ -486,19 +620,21 @@ class OcrController extends BaseController
                     'status' => 'approved',
                     'quick_scan' => 0,
                     'reviewed_at' => date('Y-m-d H:i:s'),
-                    'created_at' => date('Y-m-d H:i:s'),
+                    'created_at' => $createdAt,
                     'updated_at' => date('Y-m-d H:i:s'),
                 ]);
 
-                AuditLogModel::log(
-                    'transactions',
-                    'create',
-                    $transId,
-                    null,
-                    ['merchant' => $merchant, 'amount' => $totalBs],
-                    ['account_id' => $accountId, 'delta' => -$totalBs],
-                    "Registro de gasto escaneado OCR ($merchant)"
-                );
+                try {
+                    AuditLogModel::log(
+                        'transactions',
+                        'create',
+                        $transId,
+                        null,
+                        ['merchant' => $merchant, 'amount' => $totalBs],
+                        ['account_id' => $accountId, 'delta' => -$totalBs],
+                        "Registro de gasto escaneado OCR ($merchant)"
+                    );
+                } catch (\Throwable $ignored) {}
 
                 $savedCount++;
             }
@@ -506,7 +642,9 @@ class OcrController extends BaseController
             $db->transComplete();
 
             if ($db->transStatus() === false) {
-                throw new \Exception('No se pudo confirmar la transacción en la base de datos.');
+                $dbErr = $db->error();
+                $detail = !empty($dbErr['message']) ? ': ' . $dbErr['message'] : '';
+                throw new \Exception('No se pudo confirmar la transacción en la base de datos' . $detail);
             }
 
             return $this->response->setJSON([
@@ -515,7 +653,7 @@ class OcrController extends BaseController
                 'count' => $savedCount
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $db->transRollback();
             return $this->response->setJSON([
                 'status' => 'error',
@@ -612,26 +750,39 @@ class OcrController extends BaseController
 
             // Update attached transaction if exists
             if (!empty($inv['transaction_id'])) {
+                $rawDate = !empty($newDate) ? trim($newDate) : date('Y-m-d');
+                $rawTime = !empty($inv['invoice_time']) ? trim($inv['invoice_time']) : date('H:i:s');
+                $parsedTs = strtotime("$rawDate $rawTime");
+                $updatedCreatedAt = ($parsedTs !== false && $parsedTs > 0) ? date('Y-m-d H:i:s', $parsedTs) : date('Y-m-d H:i:s');
+
                 $transModel->update($inv['transaction_id'], [
                     'account_id' => $newAccountId,
                     'category_id' => $newCategoryId,
                     'amount' => $newTotalBs,
                     'amount_usd' => $newTotalUsd,
-                    'description' => "Gasto Factura: $newMerchant" . ($newInvoiceNum ? " (Fac #$newInvoiceNum)" : ""),
-                    'created_at' => "$newDate " . ($inv['invoice_time'] ?: '12:00') . ":00"
+                    'description' => mb_substr("Gasto Factura: $newMerchant" . ($newInvoiceNum ? " (Fac #$newInvoiceNum)" : ""), 0, 250),
+                    'created_at' => $updatedCreatedAt
                 ]);
 
                 // Update items if provided
                 if (!empty($json->items) && is_array($json->items)) {
                     $itemModel->where('transaction_id', $inv['transaction_id'])->delete();
                     foreach ($json->items as $it) {
+                        $rawQty = (float) ($it->quantity ?? 1);
+                        $intQty = max(1, (int) round($rawQty));
+                        $taxType = !empty($it->tax_type) ? $it->tax_type : 'G';
+                        $itemDesc = "IVA: $taxType";
+                        if (abs($rawQty - $intQty) > 0.001) {
+                            $itemDesc = trim("$itemDesc [Cant: " . number_format($rawQty, 2, ',', '.') . "]");
+                        }
+
                         $itemModel->insert([
                             'transaction_id' => $inv['transaction_id'],
-                            'name' => trim($it->name ?? 'Item'),
-                            'quantity' => (float) ($it->quantity ?? 1),
+                            'name' => mb_substr(trim($it->name ?? 'Item'), 0, 250),
+                            'quantity' => $intQty,
                             'price' => (float) ($it->price ?? 0),
                             'price_usd' => (float) ($it->price_usd ?? 0),
-                            'description' => !empty($it->tax_type) ? "IVA: {$it->tax_type}" : null
+                            'description' => mb_substr($itemDesc, 0, 250)
                         ]);
                     }
                 }
@@ -640,9 +791,9 @@ class OcrController extends BaseController
             // Update ocr_invoices
             $itemsJson = !empty($json->items) ? json_encode($json->items, JSON_UNESCAPED_UNICODE) : $inv['items_json'];
             $ocrInvoiceModel->update($id, [
-                'merchant' => $newMerchant,
-                'rif' => $newRif,
-                'invoice_number' => $newInvoiceNum,
+                'merchant' => mb_substr($newMerchant, 0, 250),
+                'rif' => mb_substr($newRif, 0, 60),
+                'invoice_number' => mb_substr($newInvoiceNum, 0, 60),
                 'total_bs' => $newTotalBs,
                 'total_usd' => $newTotalUsd,
                 'account_id' => $newAccountId,
@@ -661,7 +812,7 @@ class OcrController extends BaseController
                 'overdue_count' => $ocrInvoiceModel->countOverdue72h()
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $db->transRollback();
             return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
         }
@@ -699,10 +850,12 @@ class OcrController extends BaseController
                 $accountModel->update($accountId, ['balance' => $revertedBalance]);
             }
 
-            // 2. Mark attached transaction as cancelled or delete
+            // 2. Mark attached transaction as cancelled
             if (!empty($inv['transaction_id'])) {
+                $existingTrans = $transModel->find($inv['transaction_id']);
+                $prevDesc = $existingTrans ? $existingTrans['description'] : 'Gasto OCR';
                 $transModel->update($inv['transaction_id'], [
-                    'description' => "[ANULADA] " . $transModel->find($inv['transaction_id'])['description'],
+                    'description' => mb_substr("[ANULADA] $prevDesc", 0, 250),
                     'amount' => 0,
                     'amount_usd' => 0
                 ]);
@@ -714,6 +867,7 @@ class OcrController extends BaseController
                 'updated_at' => date('Y-m-d H:i:s')
             ]);
 
+            $accName = $account ? $account['name'] : 'la cuenta';
             AuditLogModel::log(
                 'ocr_invoices',
                 'cancel',
@@ -721,7 +875,7 @@ class OcrController extends BaseController
                 ['status' => $inv['status']],
                 ['status' => 'cancelled'],
                 ['account_id' => $accountId, 'delta' => +$totalBs],
-                "Factura #$id ({$inv['merchant']}) cancelada. Se devolvió Bs. $totalBs a {$account['name']}."
+                "Factura #$id ({$inv['merchant']}) cancelada. Se devolvió Bs. $totalBs a $accName."
             );
 
             $db->transComplete();
@@ -734,7 +888,7 @@ class OcrController extends BaseController
                 'history_invoices' => $ocrInvoiceModel->getHistory()
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $db->transRollback();
             return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
         }
