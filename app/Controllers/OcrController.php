@@ -161,7 +161,14 @@ class OcrController extends BaseController
         $base64Images = [];
         $targetAccountId = (int) ($json->account_id ?? 0);
         $targetCategoryId = (int) ($json->category_id ?? 0);
-        $owner = !empty($json->owner) && in_array($json->owner, ['Personal', 'Negocio']) ? $json->owner : 'Negocio';
+        $ownerInput = strtolower(trim((string) ($json->owner ?? '')));
+        $ownerMap = [
+            'personal' => 'Personal',
+            'negocio' => 'Negocio',
+            'anthony' => 'Anthony',
+            'arianny' => 'Arianny',
+        ];
+        $owner = $ownerMap[$ownerInput] ?? 'Negocio';
 
         if ($json && !empty($json->images) && is_array($json->images)) {
             $base64Images = $json->images;
@@ -227,48 +234,36 @@ class OcrController extends BaseController
 
         $parser = new InvoiceParserService();
         $allParsedInvoices = [];
+        $failedScans = 0;
 
         // 1. Run OCR calls FIRST, outside of DB transaction to avoid idle connection aborts
-        foreach ($base64Images as $idx => $b64Image) {
+        foreach ($base64Images as $b64Image) {
             $ocrText = $this->callOcrSpaceApi($b64Image, $apiKey);
 
             if ($ocrText === false) {
-                $parsedList = [[
-                    'model_type' => 'GENERIC_RECEIPT',
-                    'model_label' => 'Factura / Recibo Rápido',
-                    'merchant' => 'Factura Rápida #' . ($idx + 1),
-                    'rif' => '',
-                    'invoice_number' => 'S/N',
-                    'date' => date('Y-m-d'),
-                    'time' => date('H:i'),
-                    'items' => [],
-                    'subtotal' => 0.0,
-                    'exento' => 0.0,
-                    'base_imponible' => 0.0,
-                    'iva_amount' => 0.0,
-                    'iva_rate' => 16.0,
-                    'igtf_amount' => 0.0,
-                    'total_bs' => 0.0,
-                    'total_usd' => 0.0,
-                    'exchange_rate' => $exchangeRate,
-                    'payment_method' => null,
-                    'cashea' => null,
-                    'raw_text' => ''
-                ]];
-            } else {
-                $parsedList = $parser->parseMulti($ocrText, $exchangeRate);
+                $failedScans++;
+                continue;
             }
 
+            $parsedList = $parser->parseMulti($ocrText, $exchangeRate);
+            $imageProducedInvoice = false;
             foreach ($parsedList as $inv) {
-                $allParsedInvoices[] = $inv;
+                $hasAmount = (float) ($inv['total_bs'] ?? 0) > 0 || (float) ($inv['total_usd'] ?? 0) > 0;
+                if ($hasAmount) {
+                    $allParsedInvoices[] = $inv;
+                    $imageProducedInvoice = true;
+                }
+            }
+            if (!$imageProducedInvoice) {
+                $failedScans++;
             }
         }
 
         if (empty($allParsedInvoices)) {
             return $this->response->setJSON([
                 'status' => 'error',
-                'message' => 'No se pudo extraer texto legible de la factura.'
-            ]);
+                'message' => 'No se pudo reconocer un monto válido en la factura. Toma la foto completa, con buena luz y el total visible; no se creó ningún registro pendiente.'
+            ])->setStatusCode(422);
         }
 
         // 2. Open DB transaction to persist transactions and pending review record
@@ -283,6 +278,12 @@ class OcrController extends BaseController
                 if ($rate <= 0) $rate = $exchangeRate > 0 ? $exchangeRate : 50.0;
                 if ($totalUsd <= 0 && $totalBs > 0 && $rate > 0) {
                     $totalUsd = round($totalBs / $rate, 2);
+                }
+                if ($totalBs <= 0 && $totalUsd > 0 && $rate > 0) {
+                    $totalBs = round($totalUsd * $rate, 2);
+                }
+                if ($totalBs <= 0) {
+                    throw new \RuntimeException('El OCR no produjo un monto válido para registrar.');
                 }
 
                 $merchant = trim($inv['merchant'] ?? 'Gasto Factura');
@@ -429,6 +430,8 @@ class OcrController extends BaseController
                 'status' => 'success',
                 'message' => '¡Factura registrada automáticamente en Carga Rápida y descontada de la cuenta! Ha quedado en la lista de Pendientes por Revisar.',
                 'saved_count' => count($savedInvoices),
+                'failed_count' => $failedScans,
+                'saved_invoices' => $savedInvoices,
                 'pending_invoices' => $ocrInvoiceModel->getPendingWithAlerts(),
                 'overdue_count' => $ocrInvoiceModel->countOverdue72h()
             ]);
@@ -957,6 +960,11 @@ class OcrController extends BaseController
      */
     protected function callOcrSpaceApi(string $base64Image, string $apiKey)
     {
+        $base64Image = $this->normalizeOcrImagePayload($base64Image);
+        if ($base64Image === null) {
+            return false;
+        }
+
         $url = 'https://api.ocr.space/parse/image';
 
         $postFields = [
@@ -993,6 +1001,39 @@ class OcrController extends BaseController
         }
 
         return false;
+    }
+
+    /**
+     * OCR.space requires a complete data URI. Older quick-capture clients sent only
+     * the Base64 body, so normalize both formats at the shared API boundary.
+     */
+    protected function normalizeOcrImagePayload(string $image): ?string
+    {
+        $image = trim($image);
+        if ($image === '') {
+            return null;
+        }
+
+        if (preg_match('#^data:image/(?:jpeg|jpg|png|webp);base64,#i', $image)) {
+            [$header, $body] = explode(',', $image, 2);
+            $body = preg_replace('/\s+/', '', $body);
+            return $body !== '' && base64_decode($body, true) !== false ? $header . ',' . $body : null;
+        }
+
+        $body = preg_replace('/\s+/', '', $image);
+        $decoded = base64_decode($body, true);
+        if ($decoded === false || $decoded === '') {
+            return null;
+        }
+
+        $mime = 'image/jpeg';
+        if (strncmp($decoded, "\x89PNG\r\n\x1a\n", 8) === 0) {
+            $mime = 'image/png';
+        } elseif (strncmp($decoded, 'RIFF', 4) === 0 && substr($decoded, 8, 4) === 'WEBP') {
+            $mime = 'image/webp';
+        }
+
+        return 'data:' . $mime . ';base64,' . $body;
     }
 
     /**

@@ -1696,19 +1696,13 @@
                 },
 
                 async handleQuickOcrFile(e) {
-                    const files = e.target.files;
+                    const files = Array.from(e.target.files || []);
                     if (!files || !files.length) return;
                     this.quickOcrLoading = true;
                     try {
                         const images = [];
-                        for (let f of files) {
-                            const b64 = await new Promise((res, rej) => {
-                                const reader = new FileReader();
-                                reader.onload = ev => res(ev.target.result.split(',')[1]);
-                                reader.onerror = rej;
-                                reader.readAsDataURL(f);
-                            });
-                            images.push(b64);
+                        for (const file of files) {
+                            images.push(await this.prepareQuickOcrImage(file));
                         }
                         const accountId = this.selectedAccount;
                         const categoryId = this.selectedCategory;
@@ -1719,8 +1713,12 @@
                             body: JSON.stringify({ images, account_id: accountId, category_id: categoryId, owner })
                         });
                         const data = await resp.json();
-                        if (data.status === 'success' || data.status === 'pending') {
-                            this.quickOcrToast = '✅ Factura escaneada — pendiente de revisión';
+                        if (resp.ok && data.status === 'success') {
+                            const saved = Number(data.saved_count || 1);
+                            const failed = Number(data.failed_count || 0);
+                            this.quickOcrToast = failed > 0
+                                ? `✅ ${saved} factura(s) guardada(s); ${failed} foto(s) no reconocida(s)`
+                                : `✅ ${saved} factura(s) escaneada(s) — pendiente(s) de revisión`;
                             this.quickOcrToastType = 'success';
                             this.fetchStats();
                         } else {
@@ -1728,13 +1726,53 @@
                             this.quickOcrToastType = 'error';
                         }
                     } catch(err) {
-                        this.quickOcrToast = '❌ Error de conexión';
+                        this.quickOcrToast = '❌ ' + (err.message || 'Error al procesar la factura');
                         this.quickOcrToastType = 'error';
                     } finally {
                         this.quickOcrLoading = false;
                         e.target.value = '';
                         setTimeout(() => { this.quickOcrToast = ''; }, 4000);
                     }
+                },
+
+                prepareQuickOcrImage(file) {
+                    return new Promise((resolve, reject) => {
+                        if (!file || !String(file.type || '').startsWith('image/')) {
+                            reject(new Error('El archivo seleccionado no es una imagen.'));
+                            return;
+                        }
+
+                        const reader = new FileReader();
+                        reader.onerror = () => reject(new Error('No se pudo leer la fotografía.'));
+                        reader.onload = event => {
+                            const image = new Image();
+                            image.onerror = () => reject(new Error('La fotografía no tiene un formato válido.'));
+                            image.onload = () => {
+                                const maxDimension = 1600;
+                                let width = image.naturalWidth || image.width;
+                                let height = image.naturalHeight || image.height;
+                                if (width > maxDimension || height > maxDimension) {
+                                    const scale = maxDimension / Math.max(width, height);
+                                    width = Math.round(width * scale);
+                                    height = Math.round(height * scale);
+                                }
+
+                                const canvas = document.createElement('canvas');
+                                canvas.width = width;
+                                canvas.height = height;
+                                const context = canvas.getContext('2d');
+                                if (!context) {
+                                    reject(new Error('No se pudo preparar la fotografía.'));
+                                    return;
+                                }
+                                context.drawImage(image, 0, 0, width, height);
+                                // Keep the exact payload format used by the full OCR module.
+                                resolve(canvas.toDataURL('image/jpeg', 0.85));
+                            };
+                            image.src = event.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    });
                 },
                 
                 selectInvItem(item) {
