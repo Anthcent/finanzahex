@@ -118,6 +118,16 @@ class ReconciliationController extends BaseController
         $payload = $this->request->getJSON(true) ?? [];
         $allowed = ['account_id','direction','currency','amount','exchange_rate','movement_date','reference','bank','counterparty','description','suggested_action','matched_order_id'];
         $data = array_intersect_key($payload, array_flip($allowed));
+        if (isset($data['direction'])) {
+            $data['direction'] = strtolower(trim((string) $data['direction']));
+            if (!in_array($data['direction'], ['credit', 'debit', 'unknown'], true)) {
+                return $this->failJson('Selecciona Ingreso, Egreso o Sin determinar.', 422);
+            }
+            if ($data['direction'] !== 'credit' && !array_key_exists('suggested_action', $payload)) {
+                $data['suggested_action'] = 'transaction';
+                $data['matched_order_id'] = null;
+            }
+        }
         if (isset($data['amount'])) $data['amount'] = max(0, round((float) $data['amount'], 2));
         if (isset($data['movement_date'])) $data['movement_date'] = $this->dateTime($data['movement_date']);
         $data['updated_at'] = date('Y-m-d H:i:s');
@@ -172,12 +182,17 @@ class ReconciliationController extends BaseController
             $action = (string) ($payload['action'] ?? $item['suggested_action']);
             if ($action === 'ignore') {
                 $db->table('financial_import_items')->where('id', $id)->update(['status' => 'ignored', 'updated_at' => date('Y-m-d H:i:s')]);
-            } elseif ($action === 'payment') {
-                $this->applyPrintingPayment($db, $item, (int) ($payload['order_id'] ?? $item['matched_order_id']));
-            } elseif ($action === 'transfer') {
-                $this->applyTransfer($db, $item, (int) ($payload['destination_account_id'] ?? 0));
             } else {
-                $this->applyTransaction($db, $item, (int) ($payload['category_id'] ?? 0));
+                if (!in_array($item['direction'], ['credit', 'debit'], true)) {
+                    throw new \InvalidArgumentException('Confirma primero si el movimiento es un ingreso o un egreso.');
+                }
+                if ($action === 'payment') {
+                    $this->applyPrintingPayment($db, $item, (int) ($payload['order_id'] ?? $item['matched_order_id']));
+                } elseif ($action === 'transfer') {
+                    $this->applyTransfer($db, $item, (int) ($payload['destination_account_id'] ?? 0));
+                } else {
+                    $this->applyTransaction($db, $item, (int) ($payload['category_id'] ?? 0));
+                }
             }
             $this->refreshBatch($db, (int) $item['batch_id']);
             if ($db->transStatus() === false) throw new \RuntimeException('La base de datos rechazó la operación.');
@@ -206,6 +221,7 @@ class ReconciliationController extends BaseController
 
     private function applyPrintingPayment($db, array $item, int $orderId): void
     {
+        if ($item['direction'] !== 'credit') throw new \InvalidArgumentException('Un abono a una deuda debe ser un ingreso. Si tú realizaste el pago, regístralo como egreso.');
         if ($orderId <= 0) throw new \InvalidArgumentException('Selecciona la deuda que recibirá el abono.');
         $account = $db->table('accounts')->where('id', $item['account_id'])->get()->getRowArray();
         $order = $db->table('print_orders')->where('id', $orderId)->get()->getRowArray();
@@ -292,7 +308,7 @@ class ReconciliationController extends BaseController
         if ($type === 'bank_statement' && (str_contains($description, 'transfer') || str_contains($description, 'traspaso') || str_contains($description, 'entre cuenta'))) {
             return ['status'=>'pending','suggested_action'=>'transfer','matched_order_id'=>null,'matched_item_id'=>null];
         }
-        if ($type === 'payment_capture' || $row['direction'] === 'credit') {
+        if ($row['direction'] === 'credit') {
             $orders = $db->table('print_orders')->where('status !=','paid')->orderBy('created_at','DESC')->limit(100)->get()->getResultArray();
             $best = null; $bestScore = 0;
             foreach ($orders as $order) {
@@ -314,6 +330,7 @@ class ReconciliationController extends BaseController
     {
         $items=$db->table('financial_import_items')->where('batch_id',$batchId)->where('status','pending')->get()->getResultArray();
         foreach ($items as $a) foreach ($items as $b) {
+            if (!in_array($a['direction'], ['credit','debit'], true) || !in_array($b['direction'], ['credit','debit'], true)) continue;
             if ($a['id'] >= $b['id'] || $a['direction']===$b['direction'] || strtoupper($a['currency'])!==strtoupper($b['currency'])) continue;
             if (abs((float)$a['amount']-(float)$b['amount'])>.01 || abs(strtotime($a['movement_date'])-strtotime($b['movement_date']))>172800) continue;
             $db->table('financial_import_items')->whereIn('id',[$a['id'],$b['id']])->update(['suggested_action'=>'transfer']);
@@ -324,9 +341,13 @@ class ReconciliationController extends BaseController
 
     private function normalizeRow(array $row, int $accountId, string $type): array
     {
-        $direction = strtolower((string)($row['direction'] ?? ($type==='payment_capture'?'credit':'debit')));
+        $direction = strtolower((string)($row['direction'] ?? ($type==='payment_capture'?'unknown':'debit')));
         $direction = strtr($direction, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u']);
-        if (!in_array($direction,['credit','debit'],true)) $direction = preg_match('/credit|ingres|entrada|abono|deposit/', $direction) ? 'credit':'debit';
+        if (!in_array($direction,['credit','debit','unknown'],true)) {
+            if (preg_match('/credit|ingres|entrada|abono|deposit|recibid/', $direction)) $direction = 'credit';
+            elseif (preg_match('/debit|egres|salida|pago|enviad|realizad/', $direction)) $direction = 'debit';
+            else $direction = 'unknown';
+        }
         $currency = strtoupper((string)($row['currency'] ?? 'BS')); if (!in_array($currency,['BS','USD','EUR'],true)) $currency='BS';
         $amount = abs($this->number($row['amount'] ?? $row['monto'] ?? 0));
         $reference=trim((string)($row['reference']??$row['referencia']??''));
@@ -341,9 +362,9 @@ class ReconciliationController extends BaseController
         if ($apiKey==='') return ['ok'=>false,'message'=>'Configura tu API key de Gemini para analizar imágenes o PDF.','rows'=>[]];
         if (!preg_match('#^data:([^;]+);base64,(.+)$#s',$dataUrl,$m)) return ['ok'=>false,'message'=>'El archivo recibido no es válido.','rows'=>[]];
         $prompt = $type==='payment_capture'
-            ? 'Extrae del comprobante de pago: monto, moneda (BS/USD/EUR), fecha y hora, referencia, banco, pagador/titular y descripción. Es un ingreso (credit).'
+            ? 'Extrae del comprobante: monto, moneda (BS/USD/EUR), fecha y hora, referencia, banco, pagador/titular, receptor/beneficiario, título y toda descripción legible. Determina direction desde la perspectiva del dueño de la cuenta: credit solo si recibió el dinero; debit si realizó o envió el pago. Frases como "pago realizado", "enviaste" o "pago a comercio" indican debit. Si la captura no permite saberlo con seguridad usa unknown.'
             : 'Extrae TODOS los movimientos del estado de cuenta. Para cada uno indica credit si entra dinero o debit si sale, monto positivo, moneda, fecha/hora, referencia, banco, contraparte y descripción. No incluyas saldos como movimientos.';
-        $schema='Devuelve exclusivamente JSON válido con esta forma: {"movements":[{"direction":"credit|debit","amount":0,"currency":"BS|USD|EUR","date":"YYYY-MM-DD HH:MM:SS","reference":"","bank":"","counterparty":"","description":"","confidence":0}]}. '.$prompt.' Si un dato no existe usa cadena vacía; no inventes referencias.';
+        $schema='Devuelve exclusivamente JSON válido con esta forma: {"movements":[{"direction":"credit|debit|unknown","amount":0,"currency":"BS|USD|EUR","date":"YYYY-MM-DD HH:MM:SS","reference":"","bank":"","counterparty":"","title":"","description":"","confidence":0}]}. '.$prompt.' Conserva en description cualquier texto relevante que no tenga campo propio. Si un dato no existe usa cadena vacía; no inventes referencias.';
         $result=(new GeminiClient())->generate($apiKey,['contents'=>[['parts'=>[['text'=>$schema],['inline_data'=>['mime_type'=>$m[1]?:$mime,'data'=>$m[2]]]]]],'generationConfig'=>['temperature'=>0.1,'responseMimeType'=>'application/json','maxOutputTokens'=>16384]]);
         if (!$result['ok']) return ['ok'=>false,'message'=>$result['message'],'rows'=>[]];
         $body=json_decode($result['body'],true); $text=$body['candidates'][0]['content']['parts'][0]['text']??''; $json=json_decode(trim(preg_replace('/^```(?:json)?|```$/m','',$text)),true);
@@ -363,7 +384,7 @@ class ReconciliationController extends BaseController
     private function number($value): float { $v=preg_replace('/[^0-9,.-]/','',(string)$value); if(str_contains($v,',')&&str_contains($v,'.'))$v=strrpos($v,',')>strrpos($v,'.')?str_replace(['. ','.',','],['','','.'],$v):str_replace(',','',$v);elseif(str_contains($v,','))$v=str_replace(',','.',$v);return (float)$v; }
     private function dateTime(string $value): string { $value=trim($value);if(preg_match('#^(\d{1,2})/(\d{1,2})/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?#',$value,$m))return sprintf('%04d-%02d-%02d %02d:%02d:%02d',$m[3],$m[2],$m[1],$m[4]??0,$m[5]??0,$m[6]??0);$ts=strtotime($value);return date('Y-m-d H:i:s',$ts?:time()); }
     private function rate($db): float { return max(.01,(float)($db->table('settings')->where('key','bcv_usd_rate')->get()->getRowArray()['value']??1)); }
-    private function matchesLedgerTransaction($db, array $item): bool { $day=substr((string)$item['movement_date'],0,10);$rows=$db->table('transactions')->where('account_id',$item['account_id'])->where('created_at >=',$day.' 00:00:00')->where('created_at <=',$day.' 23:59:59')->get()->getResultArray();$rate=max(.01,(float)($item['exchange_rate']?:$this->rate($db)));$account=$db->table('accounts')->where('id',$item['account_id'])->get()->getRowArray();$target=strtoupper((string)($account['currency']??'BS'))==='USD'?$this->currencyValues($db,$item,$rate)[1]:$this->currencyValues($db,$item,$rate)[0];foreach($rows as $row){$credit=in_array($row['type'],['income','return','transfer_in','exchange_in'],true);if(($item['direction']==='credit')!==$credit)continue;$native=strtoupper((string)($account['currency']??'BS'))==='USD'?TransactionValue::inDollars($row,$rate):TransactionValue::inBolivars($row,$rate);if(abs($native-$target)<=.01)return true;}return false; }
+    private function matchesLedgerTransaction($db, array $item): bool { if($item['direction']==='unknown')return false;$day=substr((string)$item['movement_date'],0,10);$rows=$db->table('transactions')->where('account_id',$item['account_id'])->where('created_at >=',$day.' 00:00:00')->where('created_at <=',$day.' 23:59:59')->get()->getResultArray();$rate=max(.01,(float)($item['exchange_rate']?:$this->rate($db)));$account=$db->table('accounts')->where('id',$item['account_id'])->get()->getRowArray();$target=strtoupper((string)($account['currency']??'BS'))==='USD'?$this->currencyValues($db,$item,$rate)[1]:$this->currencyValues($db,$item,$rate)[0];foreach($rows as $row){$credit=in_array($row['type'],['income','return','transfer_in','exchange_in'],true);if(($item['direction']==='credit')!==$credit)continue;$native=strtoupper((string)($account['currency']??'BS'))==='USD'?TransactionValue::inDollars($row,$rate):TransactionValue::inBolivars($row,$rate);if(abs($native-$target)<=.01)return true;}return false; }
     private function currencyValues($db, array $item, float $usdRate): array { $currency=strtoupper((string)$item['currency']);$amount=(float)$item['amount'];if($currency==='USD')return [0.0,$amount];if($currency==='EUR'){$eur=max(.01,(float)($db->table('settings')->where('key','bcv_eur_rate')->get()->getRowArray()['value']??$usdRate));$bs=round($amount*$eur,2);return [$bs,round($bs/$usdRate,2)];}return [$amount,round($amount/$usdRate,2)]; }
     private function categoryId($db,string $type): int { $row=$db->table('categories')->where('type',$type)->orderBy('id')->get()->getRowArray() ?: $db->table('categories')->orderBy('id')->get()->getRowArray(); if(!$row)throw new \RuntimeException('Crea al menos una categoría antes de confirmar.');return (int)$row['id']; }
     private function refreshBatch($db,int $id): void { $pending=$db->table('financial_import_items')->where('batch_id',$id)->whereIn('status',['pending','duplicate'])->countAllResults();$db->table('financial_import_batches')->where('id',$id)->update(['status'=>$pending?'pending':'completed','updated_at'=>date('Y-m-d H:i:s')]); }

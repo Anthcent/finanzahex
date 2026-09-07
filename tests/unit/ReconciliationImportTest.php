@@ -59,4 +59,24 @@ final class ReconciliationImportTest extends TestCase
 
         $this->assertSame('credit', $normalized['direction']);
     }
+
+    public function testPaymentCaptureWithoutDirectionRequiresManualReview(): void
+    {
+        $normalized = $this->callPrivate('normalizeRow', [
+            'amount' => '75,00',
+            'description' => 'Operación bancaria',
+        ], 8, 'payment_capture');
+
+        $this->assertSame('unknown', $normalized['direction']);
+    }
+
+    public function testRecognizesOutgoingPaymentDescriptionAsDebit(): void
+    {
+        $normalized = $this->callPrivate('normalizeRow', [
+            'amount' => '75,00',
+            'direction' => 'Pago realizado',
+        ], 8, 'payment_capture');
+
+        $this->assertSame('debit', $normalized['direction']);
+    }
 }
