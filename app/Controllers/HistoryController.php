@@ -18,7 +18,8 @@ class HistoryController extends BaseController
         $data = [
             'accounts'   => $accountModel->orderBy('name', 'ASC')->findAll(),
             'categories' => $categoryModel->orderBy('name', 'ASC')->findAll(),
-            'owners'     => ['Arianny', 'Anthony', 'Negocio']
+            'owners'     => ['Arianny', 'Anthony', 'Negocio'],
+            'focusTransactionId' => max(0, (int) $this->request->getGet('transaction_id')),
         ];
 
         return view('history/index', $data);

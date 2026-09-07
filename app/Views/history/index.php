@@ -339,8 +339,12 @@
                         <!-- Transaction Cards Grid -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <template x-for="item in dayGroup.items" :key="item.id">
-                                <div class="group bg-white/95 backdrop-blur-md rounded-2xl shadow-2xs hover:shadow-md transition-all duration-200 border border-slate-200/80 overflow-hidden relative flex flex-col justify-between"
-                                     :class="item.has_invoice ? 'ring-1 ring-amber-400/40 bg-gradient-to-r from-amber-50/15 to-white' : ''">
+                                <div :id="'transaction-' + item.id"
+                                     class="group bg-white/95 backdrop-blur-md rounded-2xl shadow-2xs hover:shadow-md transition-all duration-500 border border-slate-200/80 overflow-hidden relative flex flex-col justify-between scroll-mt-24"
+                                     :class="[
+                                         item.has_invoice ? 'ring-1 ring-amber-400/40 bg-gradient-to-r from-amber-50/15 to-white' : '',
+                                         Number(item.id) === focusTransactionId ? 'ring-2 ring-indigo-500 border-indigo-300 shadow-lg shadow-indigo-100' : ''
+                                     ]">
                                     
                                     <!-- Left Accent Stripe -->
                                     <div class="absolute top-0 bottom-0 left-0 w-1.5"
@@ -872,6 +876,8 @@
                 records: [],
                 summary: null,
                 activePreset: 'all',
+                focusTransactionId: <?= (int) ($focusTransactionId ?? 0) ?>,
+                focusHandled: false,
                 
                 // Detail Modal State
                 showDetailModal: false,
@@ -899,8 +905,20 @@
                     sort: 'date_desc'
                 },
 
-                init() {
-                    this.fetchRecords();
+                async init() {
+                    await this.fetchRecords();
+                    this.focusRequestedTransaction();
+                },
+
+                focusRequestedTransaction() {
+                    if (!this.focusTransactionId || this.focusHandled) return;
+                    const item = this.records.find(record => Number(record.id) === Number(this.focusTransactionId));
+                    if (!item) return;
+                    this.focusHandled = true;
+                    this.$nextTick(() => {
+                        const element = document.getElementById('transaction-' + this.focusTransactionId);
+                        if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
                 },
 
                 get activeFiltersCount() {

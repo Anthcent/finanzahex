@@ -661,59 +661,62 @@
                     </div>
 
                     <!-- Items Feed List -->
-                    <div class="space-y-1.5">
+                    <div class="space-y-2">
                         <template x-for="item in (stats.recent || [])" :key="item.id">
-                            <div class="bg-white px-3 py-2.5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-2.5 hover:border-emerald-200 hover:shadow-md transition-all group">
-                                <!-- Icon Avatar with type color -->
-                                <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm relative"
+                            <article class="bg-white p-2.5 rounded-2xl border border-slate-200/80 shadow-sm grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 hover:border-emerald-300 hover:shadow-md transition-all group">
+                                <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 relative ring-1 ring-inset"
                                      :class="{
-                                         'bg-emerald-50 text-emerald-700': item.type === 'income' || item.type === 'return',
-                                         'bg-rose-50 text-rose-700': item.type === 'expense',
-                                         'bg-blue-50 text-blue-700': item.type === 'savings' || ['exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out'].includes(item.type),
-                                         'bg-amber-50 text-amber-700': item.type === 'invoice',
-                                         'bg-slate-100 text-slate-500': !['income','expense','savings','exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out','return','invoice'].includes(item.type)
+                                         'bg-emerald-50 text-emerald-700 ring-emerald-100': item.type === 'income' || item.type === 'return',
+                                         'bg-rose-50 text-rose-700 ring-rose-100': item.type === 'expense',
+                                         'bg-blue-50 text-blue-700 ring-blue-100': item.type === 'savings' || ['exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out'].includes(item.type),
+                                         'bg-amber-50 text-amber-700 ring-amber-100': item.type === 'invoice' || item.ocr_merchant,
+                                         'bg-slate-100 text-slate-500 ring-slate-200': !['income','expense','savings','exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out','return','invoice'].includes(item.type) && !item.ocr_merchant
                                      }">
-                                    <!-- OCR invoice icon override -->
                                     <span class="material-icons text-lg"
                                           x-text="item.ocr_merchant ? 'receipt' : getCategoryIcon(item.category_name, item.category_icon)"></span>
-                                    <!-- OCR dot badge -->
                                     <span x-show="item.ocr_merchant"
                                           class="absolute -top-0.5 -right-0.5 w-3 h-3 bg-amber-400 border-2 border-white rounded-full"></span>
                                 </div>
 
-                                <!-- Info -->
                                 <div class="min-w-0 flex-1">
-                                    <p class="font-bold text-slate-800 text-xs truncate leading-tight"
+                                    <div class="flex items-center gap-1.5 mb-0.5 min-w-0">
+                                        <span class="text-[8px] leading-none font-black uppercase tracking-wider px-1.5 py-1 rounded-md shrink-0"
+                                              :class="{
+                                                  'bg-emerald-100 text-emerald-800': item.type === 'income' || item.type === 'return',
+                                                  'bg-rose-100 text-rose-800': item.type === 'expense',
+                                                  'bg-blue-100 text-blue-800': item.type === 'savings' || item.type?.includes('exchange') || item.type?.includes('transfer'),
+                                                  'bg-slate-100 text-slate-600': !['income','return','expense','savings'].includes(item.type) && !item.type?.includes('exchange') && !item.type?.includes('transfer')
+                                              }"
+                                              x-text="movementTypeLabel(item)"></span>
+                                        <span class="text-[9px] font-bold text-slate-400 truncate" x-text="item.category_name || 'General'"></span>
+                                        <span x-show="item.ocr_invoice_number" class="text-[8px] font-black text-amber-700 bg-amber-50 px-1 py-0.5 rounded shrink-0" x-text="'#' + item.ocr_invoice_number"></span>
+                                    </div>
+                                    <p class="font-extrabold text-slate-800 text-[11px] sm:text-xs leading-tight line-clamp-2"
                                        x-text="item.description || item.ocr_merchant || item.category_name || 'Transacción'"></p>
-                                    <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                        <span class="text-[9px] font-semibold text-slate-500 truncate max-w-[80px]"
-                                              x-text="item.account_name || 'Cuenta'"></span>
-                                        <span class="text-slate-300 text-[8px]">•</span>
-                                        <span class="text-[9px] text-slate-400" x-text="formatTime(item.created_at)"></span>
-                                        <!-- OCR invoice number -->
-                                        <template x-if="item.ocr_invoice_number">
-                                            <span class="text-[8px] font-bold bg-amber-100 text-amber-700 px-1 py-0.5 rounded-md leading-none"
-                                                  x-text="'#' + item.ocr_invoice_number"></span>
-                                        </template>
+                                    <div class="flex items-center gap-1 mt-1 text-[9px] font-semibold text-slate-400 min-w-0">
+                                        <span class="material-icons text-[11px]">account_balance_wallet</span>
+                                        <span class="truncate max-w-[95px]" x-text="item.account_name || 'Cuenta'"></span>
+                                        <span class="text-slate-300">•</span>
+                                        <span class="shrink-0" x-text="formatTime(item.created_at)"></span>
                                     </div>
                                 </div>
 
-                                <!-- Amount -->
-                                <div class="text-right shrink-0">
-                                    <p class="font-black text-xs tracking-tight"
-                                       :class="{
-                                           'text-emerald-700': item.type === 'income' || item.type === 'return',
-                                           'text-rose-700': item.type === 'expense',
-                                           'text-blue-700': item.type === 'savings' || ['exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out'].includes(item.type),
-                                           'text-amber-700': item.type === 'invoice',
-                                           'text-slate-700': !['income','expense','savings','exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out','return','invoice'].includes(item.type)
-                                       }"
-                                       x-text="(item.type === 'income' || item.type === 'return' ? '+ ' : (item.type === 'savings' ? '★ ' : (['exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out'].includes(item.type) ? '↔ ' : '- '))) + formatMoney(item.display_amount_bs ?? item.amount)"></p>
-                                    <p class="text-[9px] text-slate-400 font-medium"
-                                       x-show="(item.display_amount_usd ?? item.amount_usd) > 0"
-                                       x-text="'$ ' + parseFloat(item.display_amount_usd ?? item.amount_usd ?? 0).toFixed(2)"></p>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <div class="text-right max-w-[105px]">
+                                        <p class="font-black text-[11px] sm:text-xs tracking-tight whitespace-nowrap"
+                                           :class="movementAmountClass(item)"
+                                           x-text="movementPrefix(item) + formatMoney(item.display_amount_bs ?? item.amount)"></p>
+                                        <p class="text-[9px] text-slate-400 font-bold whitespace-nowrap"
+                                           x-show="(item.display_amount_usd ?? item.amount_usd) > 0"
+                                           x-text="'$ ' + parseFloat(item.display_amount_usd ?? item.amount_usd ?? 0).toFixed(2)"></p>
+                                    </div>
+                                    <a :href="'<?= base_url('history') ?>?transaction_id=' + item.id"
+                                       class="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 flex items-center justify-center transition-all active:scale-90"
+                                       :aria-label="'Ir al movimiento ' + item.id" title="Ver este movimiento en el historial">
+                                        <span class="material-icons text-base">arrow_forward</span>
+                                    </a>
                                 </div>
-                            </div>
+                            </article>
                         </template>
 
                         <!-- Empty state -->
@@ -1827,6 +1830,31 @@
                     } catch(e) {
                         return dateStr;
                     }
+                },
+
+                movementTypeLabel(item) {
+                    if ((item.description || '').toUpperCase().includes('[ANULADA]')) return 'Anulado';
+                    const labels = {
+                        income: 'Ingreso', return: 'Reintegro', expense: 'Gasto', savings: 'Ahorro',
+                        exchange_out: 'Compra USD', exchange_in: 'Recepción USD',
+                        transfer_out: 'Traslado', transfer_in: 'Recepción',
+                        currency_reversal_in: 'Reverso', currency_reversal_out: 'Reverso'
+                    };
+                    return labels[item.type] || (item.ocr_merchant ? 'Factura' : 'Movimiento');
+                },
+
+                movementPrefix(item) {
+                    if (['income', 'return'].includes(item.type)) return '+ ';
+                    if (item.type === 'savings') return '★ ';
+                    if (['exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out'].includes(item.type)) return '↔ ';
+                    return '− ';
+                },
+
+                movementAmountClass(item) {
+                    if (['income', 'return'].includes(item.type)) return 'text-emerald-700';
+                    if (item.type === 'expense') return 'text-rose-700';
+                    if (item.type === 'savings' || item.type?.includes('exchange') || item.type?.includes('transfer')) return 'text-blue-700';
+                    return item.ocr_merchant ? 'text-amber-700' : 'text-slate-700';
                 },
 
                 getCategoryIcon(catName, iconName) {
