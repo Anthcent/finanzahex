@@ -63,8 +63,14 @@ $routes->get('metrics/export', 'MetricsController::export');
 // OCR Invoice Scanner
 $routes->get('ocr', 'OcrController::index');
 $routes->post('ocr/process', 'OcrController::process');
+$routes->post('ocr/quick-process', 'OcrController::quickProcess');
 $routes->post('ocr/save', 'OcrController::save');
 $routes->post('ocr/settings', 'OcrController::saveSettings');
+$routes->get('ocr/pending', 'OcrController::getPending');
+$routes->post('ocr/approve/(:num)', 'OcrController::approveInvoice/$1');
+$routes->post('ocr/update-pending/(:num)', 'OcrController::updatePendingInvoice/$1');
+$routes->post('ocr/cancel/(:num)', 'OcrController::cancelInvoice/$1');
+$routes->get('ocr/history', 'OcrController::history');
 
 // Routes for Printing Module
 $routes->get('printing', 'PrintingController::index');
