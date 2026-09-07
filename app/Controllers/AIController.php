@@ -16,6 +16,7 @@ class AIController extends BaseController
         $json = $this->request->getJSON();
         $query = $json->query ?? '';
         $apiKey = $json->apiKey ?? '';
+        $history = is_array($json->history ?? null) ? array_slice($json->history, -8) : [];
         
         if (empty($query) || empty($apiKey)) {
             return $this->response->setJSON([
@@ -28,7 +29,7 @@ class AIController extends BaseController
         $context = $this->getFinancialContext();
         
         // Call Gemini API
-        $aiResponse = $this->callGeminiAPI($query, $context, $apiKey);
+        $aiResponse = $this->callGeminiAPI($query, $context, $apiKey, $history);
         
         return $this->response->setJSON([
             'status' => 'success',
@@ -40,55 +41,72 @@ class AIController extends BaseController
     {
         $db = \Config\Database::connect();
         
-        // Get recent transactions
+        // Compact, relevant context. Keep payload bounded so the model can focus
+        // on the answer instead of repeating raw records.
         $transactions = $db->table('transactions t')
             ->select('t.*, c.name as category_name, a.name as account_name')
             ->join('categories c', 'c.id = t.category_id', 'left')
             ->join('accounts a', 'a.id = t.account_id', 'left')
             ->orderBy('t.created_at', 'DESC')
-            ->limit(100)
+            ->limit(60)
             ->get()
             ->getResultArray();
         
         // Get accounts summary
         $accounts = $db->table('accounts')
-            ->select('name, type, balance')
+            ->select('name, type, balance, currency, tenure_type')
             ->where('status', 'active')
             ->get()
             ->getResultArray();
         
-        // Get categories
-        $categories = $db->table('categories')
-            ->select('name, type')
-            ->get()
-            ->getResultArray();
-        
-        // Get recent sales
-        $sales = $db->table('sales')
+        $sales = $db->tableExists('sales') ? $db->table('sales')
             ->select('*')
             ->orderBy('date', 'DESC')
-            ->limit(50)
+            ->limit(30)
             ->get()
-            ->getResultArray();
+            ->getResultArray() : [];
 
         // Get debts (partial sales)
-        $debts = $db->table('sales')
+        $debts = $db->tableExists('sales') ? $db->table('sales')
             ->select('*')
             ->where('status', 'partial')
             ->orderBy('date', 'ASC')
             ->get()
-            ->getResultArray();
+            ->getResultArray() : [];
+
+        $printing = $db->tableExists('print_orders') ? $db->table('print_orders')
+            ->select('id, customer_name, total_bs, total_usd, paid_bs, paid_usd, status, due_date, created_at')
+            ->orderBy('created_at', 'DESC')->limit(30)->get()->getResultArray() : [];
+        $pendingInvoices = $db->tableExists('ocr_invoices') ? $db->table('ocr_invoices')
+            ->select('id, merchant, total_bs, total_usd, status, invoice_date, created_at')
+            ->whereIn('status', ['pending', 'review'])->orderBy('created_at', 'DESC')->limit(20)->get()->getResultArray() : [];
+        $currencyOperations = $db->tableExists('currency_operations') ? $db->table('currency_operations')
+            ->select('id, operation_type, total_bs, amount_usd, effective_rate, status, operation_date')
+            ->orderBy('operation_date', 'DESC')->limit(20)->get()->getResultArray() : [];
+
+        $monthStart = date('Y-m-01 00:00:00');
+        $monthTransactions = $db->table('transactions')->select('type, amount, amount_usd, exchange_rate')
+            ->where('created_at >=', $monthStart)->get()->getResultArray();
+        $monthly = ['income_bs' => 0.0, 'expense_bs' => 0.0, 'savings_bs' => 0.0, 'records' => count($monthTransactions)];
+        foreach ($monthTransactions as $row) {
+            $key = ($row['type'] ?? '') . '_bs';
+            if (isset($monthly[$key])) $monthly[$key] += (float) ($row['amount'] ?? 0);
+        }
         
         return [
             'transactions' => $transactions,
             'accounts' => $accounts,
-            'categories' => $categories,
             'sales' => $sales,
-            'debts' => $debts
+            'debts' => $debts,
+            'printing_orders' => $printing,
+            'pending_ocr_invoices' => $pendingInvoices,
+            'currency_operations' => $currencyOperations,
+            'current_month' => $monthly,
+            'generated_at' => date(DATE_ATOM),
         ];
     }
     
-    private function callGeminiAPI($query, $context, $apiKey)
+    private function callGeminiAPI($query, $context, $apiKey, array $history = [])
     {
         $systemPrompt = "Eres un asistente financiero experto con capacidades de análisis predictivo. Tienes acceso a DOS módulos principales:
 1.  **Finanzas Personales/Negocio**: Transacciones de gastos e ingresos.
@@ -138,18 +156,18 @@ Muestra de Datos:
 - Ventas (últimas 20): " . json_encode(array_slice($context['sales'], 0, 20)) . "
 - Deudas (Todas): " . json_encode($context['debts']);
 
+        $systemPrompt = $this->buildAssistantPrompt($query, $context, $history);
         $payload = [
             'contents' => [
                 [
                     'parts' => [
-                        ['text' => $systemPrompt],
-                        ['text' => "Consulta del usuario: " . $query]
+                        ['text' => $systemPrompt]
                     ]
                 ]
             ],
             'generationConfig' => [
                 'temperature' => 0.4,
-                'maxOutputTokens' => 2048,
+                'maxOutputTokens' => 4096,
                 'responseMimeType' => 'application/json'
             ]
         ];
@@ -164,11 +182,49 @@ Muestra de Datos:
         ];
     }
 
+    private function buildAssistantPrompt(string $query, array $context, array $history): string
+    {
+        $conversation = [];
+        foreach ($history as $message) {
+            $role = ($message['role'] ?? '') === 'assistant' ? 'ASISTENTE' : 'USUARIO';
+            $content = $message['content'] ?? '';
+            if ($content === '' && is_array($message['data'] ?? null)) {
+                $content = $message['data']['answer'] ?? $message['data']['title'] ?? '';
+            }
+            if ($content !== '') $conversation[] = $role . ': ' . mb_substr((string) $content, 0, 500);
+        }
+
+        $contract = [
+            'type' => 'summary|cards|table|list|comparison|progress|timeline|forecast|text',
+            'title' => 'Título breve',
+            'answer' => 'Respuesta directa y conversacional, máximo 3 frases',
+            'data' => 'Datos adecuados al tipo elegido',
+            'insights' => ['Hallazgo concreto basado en datos'],
+            'suggestions' => ['Pregunta breve que el usuario podría hacer después'],
+            'actions' => [['label' => 'Ver registros', 'module' => 'history']],
+        ];
+
+        return "Eres el copiloto financiero de Finanzahex. Responde en español claro, con cifras de los datos suministrados. "
+            . "Puedes analizar cuentas, gastos, ingresos, ahorro, ventas, deudas, órdenes de impresión, facturas OCR y operaciones en divisas. "
+            . "No inventes valores ni afirmes que ejecutaste cambios. Si faltan datos, dilo. Distingue Bs de USD. "
+            . "Devuelve EXCLUSIVAMENTE un objeto JSON completo, compacto y válido; nunca markdown ni JSON parcial. "
+            . "Usa máximo 6 elementos por lista/tabla y máximo 4 insights. Contrato: "
+            . json_encode($contract, JSON_UNESCAPED_UNICODE) . ". "
+            . "Para data: summary={total,count,average,period}; cards=[{title,amount,description,color}]; "
+            . "table={headers,rows}; list=[{title,description,amount,color}]; comparison={period1,period2,difference,differencePercent}; "
+            . "progress=[{label,value,percentage,color}]; timeline=[{date,title,description,amount,color}]; "
+            . "forecast={current,projected,change,trend,breakdown}. "
+            . "Los únicos módulos permitidos en actions son history, metrics, accounts, printing, ocr y currency. "
+            . "Conversación reciente:\n" . implode("\n", $conversation) . "\n"
+            . "Datos actuales:\n" . json_encode($context, JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION) . "\n"
+            . "Consulta actual: " . $query;
+    }
+
     private function processResponse($response) {
         $data = json_decode($response, true);
         
-        if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
-            $aiText = $data['candidates'][0]['content']['parts'][0]['text'];
+        if (isset($data['candidates'][0]['content']['parts'])) {
+            $aiText = implode('', array_map(static fn(array $part): string => (string) ($part['text'] ?? ''), $data['candidates'][0]['content']['parts']));
             
             // CLEANING STRATEGY
             
@@ -192,11 +248,11 @@ Muestra de Datos:
             $parsed = json_decode($aiText, true);
             if ($parsed) return $this->normalizeResponse($parsed);
             
-            // Fallback: Return raw text but warn about parsing failure
+            // Never expose broken/truncated JSON as if it were a useful answer.
             return [
-                'type' => 'text',
-                'content' => $aiText,
-                'debug_parsing_error' => json_last_error_msg()
+                'type' => 'error',
+                'message' => 'Gemini devolvió una respuesta incompleta. Intenta nuevamente; tu consulta no se perdió.',
+                'details' => json_last_error_msg(),
             ];
         }
         
@@ -209,9 +265,33 @@ Muestra de Datos:
     
     // Normalizes the AI response to match Frontend expectations
     private function normalizeResponse($parsed) {
+        $allowedTypes = ['summary', 'cards', 'table', 'list', 'comparison', 'progress', 'timeline', 'forecast', 'text'];
+        if (!in_array($parsed['type'] ?? '', $allowedTypes, true)) $parsed['type'] = 'text';
+        $parsed['title'] = trim((string) ($parsed['title'] ?? 'Análisis financiero'));
+        $parsed['answer'] = trim((string) ($parsed['answer'] ?? ''));
+        $parsed['insights'] = array_slice(array_values(array_filter((array) ($parsed['insights'] ?? []), 'is_string')), 0, 4);
+        $parsed['suggestions'] = array_slice(array_values(array_filter((array) ($parsed['suggestions'] ?? []), 'is_string')), 0, 4);
+        $allowedModules = ['history', 'metrics', 'accounts', 'printing', 'ocr', 'currency'];
+        $parsed['actions'] = array_values(array_filter((array) ($parsed['actions'] ?? []), static function ($action) use ($allowedModules): bool {
+            return is_array($action) && in_array($action['module'] ?? '', $allowedModules, true) && !empty($action['label']);
+        }));
+
         // Ensure 'data' exists
         if (!isset($parsed['data'])) {
             $parsed['data'] = [];
+        }
+        if (in_array($parsed['type'], ['cards', 'list', 'progress', 'timeline'], true) && !array_is_list($parsed['data'])) {
+            $nestedKey = $parsed['type'] === 'cards' ? 'cards' : ($parsed['type'] === 'list' ? 'items' : $parsed['type']);
+            $parsed['data'] = array_values((array) ($parsed['data'][$nestedKey] ?? []));
+        }
+        if ($parsed['type'] === 'table') {
+            $parsed['data'] = [
+                'headers' => array_values((array) ($parsed['data']['headers'] ?? [])),
+                'rows' => array_values((array) ($parsed['data']['rows'] ?? [])),
+            ];
+        }
+        if ($parsed['type'] === 'text' && $parsed['answer'] === '') {
+            $parsed['answer'] = trim((string) ($parsed['content'] ?? 'Análisis completado.'));
         }
         
         // Handle 'comparison' type specific structure

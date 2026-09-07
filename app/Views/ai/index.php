@@ -39,33 +39,36 @@
     <!-- Executive Header -->
     <header class="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 border-b border-emerald-500/20 sticky top-0 z-40 backdrop-blur-xl bg-opacity-95 safe-top shadow-lg shadow-black/20">
         <div class="max-w-5xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="<?= base_url() ?>" class="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 active:scale-95 border border-white/10 flex items-center justify-center text-slate-200 hover:text-white transition-all shadow-inner">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <a href="<?= base_url() ?>" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/10 hover:bg-white/15 active:scale-95 border border-white/10 flex items-center justify-center text-slate-200 hover:text-white transition-all shadow-inner shrink-0">
                     <span class="material-icons text-xl">arrow_back</span>
                 </a>
                 <div>
                     <div class="flex items-center gap-2">
-                        <h1 class="font-extrabold text-base sm:text-lg text-white tracking-tight leading-none flex items-center">
+                        <h1 class="font-extrabold text-xs sm:text-lg text-white tracking-tight leading-none flex items-center whitespace-nowrap">
                             AI Asistente
                         </h1>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                        <span class="hidden sm:flex px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 items-center gap-1">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                             Gemini Flash
                         </span>
                     </div>
-                    <p class="text-[11px] text-slate-400 font-medium mt-0.5">Diagnóstico y analítica financiera inteligente</p>
+                    <p class="hidden sm:block text-[11px] text-slate-400 font-medium mt-0.5">Diagnóstico y analítica financiera inteligente</p>
                 </div>
             </div>
             
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+                <button @click="newConversation()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white transition-all" title="Nueva conversación">
+                    <span class="material-icons text-lg">add_comment</span>
+                </button>
                 <button @click="showHistory = !showHistory" 
-                        class="w-10 h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white transition-all relative" 
+                        class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white transition-all relative"
                         title="Historial de Chats">
                     <span class="material-icons text-lg">history</span>
                     <span x-show="savedConversations.length > 0" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400"></span>
                 </button>
                 <button @click="showApiKeyModal = true" 
-                        class="w-10 h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white transition-all" 
+                        class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 border border-slate-700/60 flex items-center justify-center text-slate-300 hover:text-white transition-all"
                         title="Configuración API">
                     <span class="material-icons text-lg">settings</span>
                 </button>
@@ -297,6 +300,10 @@
                     <!-- AI Assistant Response Card -->
                     <div x-show="msg.role === 'assistant'" 
                          class="bg-slate-800/95 border border-slate-700/80 rounded-2xl rounded-tl-sm p-4 sm:p-6 max-w-3xl shadow-xl w-full text-slate-100">
+
+                        <div x-show="msg.data?.answer" class="mb-4 pb-3 border-b border-slate-700/60">
+                            <p class="text-xs sm:text-sm text-slate-200 leading-relaxed whitespace-pre-line" x-text="msg.data?.answer"></p>
+                        </div>
                         
                         <!-- Summary Type -->
                         <div x-show="msg.data?.type === 'summary'">
@@ -319,7 +326,7 @@
                                     <p class="text-xs font-bold text-slate-200 mt-1 truncate" x-text="msg.data.data?.period || 'N/A'"></p>
                                 </div>
                             </div>
-                            <div x-show="msg.data.insights" class="bg-slate-900/60 border border-slate-700/50 rounded-xl p-3.5">
+                            <div x-show="msg.data.insights?.length" class="bg-slate-900/60 border border-slate-700/50 rounded-xl p-3.5">
                                 <p class="text-[10px] font-black text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1">
                                     <span class="material-icons text-xs">insights</span> Diagnóstico Clave
                                 </p>
@@ -341,7 +348,7 @@
                                 <template x-for="card in msg.data.data">
                                     <div class="rounded-xl p-3.5 border bg-slate-900/80 border-slate-700/60 relative overflow-hidden">
                                         <p class="font-bold text-white text-xs" x-text="card.title"></p>
-                                        <p class="text-lg font-black my-1 font-mono text-emerald-400" x-text="formatMoney(card.amount)"></p>
+                                        <p class="text-lg font-black my-1 font-mono text-emerald-400" x-text="formatSmartValue(card.amount, card)"></p>
                                         <p class="text-[11px] text-slate-400" x-text="card.description"></p>
                                     </div>
                                 </template>
@@ -374,7 +381,7 @@
                         </div>
                         
                         <!-- Text / Error Type -->
-                        <div x-show="msg.data?.type === 'text' || msg.data?.type === 'error'">
+                        <div x-show="msg.data?.type === 'error' || (msg.data?.type === 'text' && !msg.data?.answer)">
                             <p class="text-xs sm:text-sm text-slate-200 whitespace-pre-wrap leading-relaxed" 
                                :class="msg.data?.type === 'error' ? 'text-rose-300' : ''"
                                x-text="msg.data.content || msg.data.message"></p>
@@ -393,7 +400,7 @@
                                                 <p class="text-[10px] text-slate-400" x-text="item.description"></p>
                                             </div>
                                         </div>
-                                        <p class="font-mono font-bold text-sm" :class="item.amount < 0 ? 'text-rose-400' : 'text-emerald-400'" x-text="formatMoney(item.amount)"></p>
+                                        <p class="font-mono font-bold text-sm" :class="item.amount < 0 ? 'text-rose-400' : 'text-emerald-400'" x-text="formatSmartValue(item.amount, item)"></p>
                                     </div>
                                 </template>
                             </div>
@@ -461,6 +468,36 @@
                             </div>
                         </div>
 
+                        <!-- Timeline Type -->
+                        <div x-show="msg.data?.type === 'timeline'">
+                            <h3 class="text-sm sm:text-base font-extrabold text-white mb-3" x-text="msg.data.title"></h3>
+                            <div class="space-y-0">
+                                <template x-for="item in (Array.isArray(msg.data.data) ? msg.data.data : [])">
+                                    <div class="grid grid-cols-[18px_1fr_auto] gap-2.5 pb-3 relative">
+                                        <div class="flex flex-col items-center"><span class="w-2.5 h-2.5 mt-1 rounded-full bg-emerald-400 ring-4 ring-emerald-500/10"></span><span class="w-px flex-1 bg-slate-700 mt-1"></span></div>
+                                        <div><p class="text-[9px] font-black uppercase text-emerald-400" x-text="item.date"></p><p class="text-xs font-bold text-white" x-text="item.title"></p><p class="text-[10px] text-slate-400" x-text="item.description"></p></div>
+                                        <b class="text-[11px] text-slate-200" x-text="formatSmartValue(item.amount, item)"></b>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Shared insights, navigation and follow-ups -->
+                        <div x-show="msg.data?.type !== 'summary' && msg.data?.insights?.length" class="mt-4 bg-emerald-950/25 border border-emerald-500/20 rounded-xl p-3">
+                            <p class="text-[9px] font-black uppercase tracking-wider text-emerald-400 mb-2">Hallazgos</p>
+                            <template x-for="insight in msg.data.insights"><p class="text-[11px] text-slate-300 flex gap-1.5 mb-1"><span class="text-emerald-400">•</span><span x-text="insight"></span></p></template>
+                        </div>
+                        <div x-show="msg.data?.actions?.length" class="flex flex-wrap gap-2 mt-3">
+                            <template x-for="action in msg.data.actions"><a :href="moduleUrl(action.module)" class="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-[10px] font-black text-emerald-300 flex items-center gap-1"><span x-text="action.label"></span><span class="material-icons text-xs">arrow_forward</span></a></template>
+                        </div>
+                        <div x-show="msg.data?.suggestions?.length" class="flex gap-2 mt-3 overflow-x-auto customize-scrollbar pb-1">
+                            <template x-for="suggestion in msg.data.suggestions"><button @click="runQuick(suggestion)" class="shrink-0 max-w-[230px] truncate px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-[10px] font-bold text-slate-300" x-text="suggestion"></button></template>
+                        </div>
+                        <div class="flex justify-end gap-1 mt-3 pt-2 border-t border-slate-700/40">
+                            <button @click="copyResponse(msg.data)" class="w-7 h-7 rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-slate-700 flex items-center justify-center" title="Copiar respuesta"><span class="material-icons text-sm">content_copy</span></button>
+                            <button @click="retryMessage(idx)" class="w-7 h-7 rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-slate-700 flex items-center justify-center" title="Volver a consultar"><span class="material-icons text-sm">refresh</span></button>
+                        </div>
+
                     </div>
                 </div>
             </template>
@@ -514,6 +551,11 @@
     <!-- Input Bar (Fixed Bottom) -->
     <div class="fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 z-30 safe-bottom">
         <div class="max-w-5xl mx-auto px-4 py-2.5 sm:py-3.5">
+            <div class="flex gap-1.5 overflow-x-auto customize-scrollbar pb-2">
+                <template x-for="item in quickPrompts" :key="item.label">
+                    <button @click="runQuick(item.prompt)" :disabled="!apiKey || loading" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-40 text-[9px] font-bold text-slate-400 hover:text-emerald-300 hover:border-emerald-700 flex items-center gap-1"><span class="material-icons text-[11px]" x-text="item.icon"></span><span x-text="item.label"></span></button>
+                </template>
+            </div>
             <form @submit.prevent="sendMessage()" class="flex items-center gap-2">
                 <input type="text" 
                        x-model="query" 
@@ -546,6 +588,13 @@
                 query: '',
                 messages: [],
                 loading: false,
+                quickPrompts: [
+                    {label:'Resumen', icon:'dashboard', prompt:'Dame un resumen financiero del mes actual con ingresos, gastos y ahorro.'},
+                    {label:'Deudas', icon:'payments', prompt:'¿Qué deudas de ventas o impresiones requieren atención primero?'},
+                    {label:'Impresiones', icon:'print', prompt:'Analiza el estado del módulo de impresiones, cobros y pendientes.'},
+                    {label:'Anomalías', icon:'warning', prompt:'Detecta movimientos inusuales, duplicados o gastos fuera de patrón.'},
+                    {label:'Flujo', icon:'waterfall_chart', prompt:'Analiza mi flujo de caja y dime qué puedo mejorar.'}
+                ],
                 
                 init() {
                     if (!this.apiKey) {
@@ -578,6 +627,19 @@
                 removeToast(index) {
                     this.toasts.splice(index, 1);
                 },
+
+                newConversation() {
+                    if (this.messages.length && !confirm('¿Iniciar una conversación nueva?')) return;
+                    this.messages = [];
+                    this.query = '';
+                    this.saveTitle = '';
+                },
+
+                runQuick(prompt) {
+                    if (!this.apiKey || this.loading) return;
+                    this.query = prompt;
+                    this.$nextTick(() => this.sendMessage());
+                },
                 
                 saveApiKey() {
                     if (this.tempApiKey.trim()) {
@@ -609,7 +671,8 @@
                             headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({
                                 query: userQuery,
-                                apiKey: this.apiKey
+                                apiKey: this.apiKey,
+                                history: this.messages.slice(0, -1).slice(-8)
                             })
                         });
                         
@@ -618,7 +681,7 @@
                         if (data.status === 'success') {
                             this.messages.push({
                                 role: 'assistant',
-                                data: data.response
+                                data: this.normalizeAssistantResponse(data.response)
                             });
                         } else {
                             this.messages.push({
@@ -680,7 +743,57 @@
                 },
                 
                 formatMoney(value) {
-                    return new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'VES' }).format(value);
+                    const number = Number(String(value ?? 0).replace(/[^0-9.-]/g, '')) || 0;
+                    return new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'VES' }).format(number);
+                },
+
+                formatSmartValue(value, item = {}) {
+                    const number = Number(String(value ?? 0).replace(/[^0-9.-]/g, '')) || 0;
+                    if (String(item.currency || item.format || '').toUpperCase().includes('USD')) {
+                        return new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'}).format(number);
+                    }
+                    if (String(item.format || '').toLowerCase().includes('percent')) return number.toFixed(1) + '%';
+                    return this.formatMoney(number);
+                },
+
+                normalizeAssistantResponse(response) {
+                    if (typeof response === 'string') {
+                        try { response = JSON.parse(response.replace(/```(?:json)?/gi, '').trim()); }
+                        catch (_) { return {type:'error', message:'La respuesta llegó incompleta. Vuelve a intentarlo.'}; }
+                    }
+                    if (!response || typeof response !== 'object') return {type:'error', message:'Gemini no devolvió una respuesta válida.'};
+                    if (response.type === 'text' && typeof response.content === 'string' && response.content.trim().startsWith('{')) {
+                        try { response = JSON.parse(response.content.replace(/```(?:json)?/gi, '').trim()); } catch (_) {}
+                    }
+                    const allowed = ['summary','cards','table','list','comparison','progress','timeline','forecast','text','error'];
+                    if (!allowed.includes(response.type)) response.type = response.answer ? 'text' : 'error';
+                    if (['cards','list','progress','timeline'].includes(response.type) && !Array.isArray(response.data)) response.data = [];
+                    if (response.type === 'table' && (!response.data || typeof response.data !== 'object')) response.data = {headers:[],rows:[]};
+                    response.insights = Array.isArray(response.insights) ? response.insights : [];
+                    response.suggestions = Array.isArray(response.suggestions) ? response.suggestions : [];
+                    response.actions = Array.isArray(response.actions) ? response.actions : [];
+                    return response;
+                },
+
+                moduleUrl(module) {
+                    const routes = {
+                        history: '<?= base_url('history') ?>', metrics: '<?= base_url('metrics') ?>',
+                        accounts: '<?= base_url('accounts') ?>', printing: '<?= base_url('printing') ?>',
+                        ocr: '<?= base_url('ocr') ?>', currency: '<?= base_url('divisas') ?>'
+                    };
+                    return routes[module] || '#';
+                },
+
+                async copyResponse(data) {
+                    const text = [data.title, data.answer, ...(data.insights || [])].filter(Boolean).join('\n');
+                    try { await navigator.clipboard.writeText(text); this.showToast('Respuesta copiada', 'success'); }
+                    catch (_) { this.showToast('No se pudo copiar', 'error'); }
+                },
+
+                retryMessage(index) {
+                    for (let i = index - 1; i >= 0; i--) {
+                        if (this.messages[i]?.role === 'user') { this.runQuick(this.messages[i].content); return; }
+                    }
                 },
 
                 confirmLoad(id) {
@@ -698,7 +811,7 @@
                         const data = await res.json();
                         
                         if(data.status === 'success') {
-                            this.messages = data.data.messages;
+                            this.messages = (data.data.messages || []).map(msg => msg.role === 'assistant' ? {...msg, data: this.normalizeAssistantResponse(msg.data)} : msg);
                             this.saveTitle = data.data.title;
                             this.showHistory = false;
                             this.showToast('Conversación cargada', 'success');
