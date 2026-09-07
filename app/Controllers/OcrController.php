@@ -323,6 +323,7 @@ class OcrController extends BaseController
             'base64Image' => $base64Image,
             'language' => 'spa',
             'isOverlayRequired' => 'false',
+            'isTable' => 'true',
             'OCREngine' => '2',
             'scale' => 'true',
             'detectOrientation' => 'true'

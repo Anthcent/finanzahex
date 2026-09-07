@@ -171,13 +171,11 @@ class InvoiceParserService
         $currencyInfo = $this->extractCurrencyAndRate($lines, $defaultExchangeRate, $model);
         $taxes = $this->extractTaxes($lines);
         $totalBs = $this->extractTotal($lines, $taxes, $model);
-        $paymentMethods = $this->extractPaymentMethods($lines);
-
-        // USD total
         $totalUsd = $currencyInfo['amount_usd'];
         if ($totalUsd <= 0 && $totalBs > 0 && $currencyInfo['exchange_rate'] > 0) {
             $totalUsd = round($totalBs / $currencyInfo['exchange_rate'], 2);
         }
+        $paymentMethods = $this->extractPaymentMethods($lines);
 
         $items = $this->extractItemsByModel($lines, $currencyInfo['exchange_rate'], $model, [
             'merchant' => $merchant,
@@ -185,6 +183,56 @@ class InvoiceParserService
             'total_usd' => $totalUsd,
             'invoice_number' => $invoiceNumber
         ]);
+
+        // Auto-reconcile subtotal and taxes from items if missing or zero
+        if (!empty($items) && ($taxes['subtotal'] == 0 || $totalBs == 0)) {
+            $calcSubtotal = 0.0;
+            $calcExento = 0.0;
+            $calcBaseImp = 0.0;
+
+            foreach ($items as $it) {
+                $p = (float) ($it['price'] ?? 0);
+                $calcSubtotal += $p;
+                if (($it['tax_type'] ?? 'G') === 'E') {
+                    $calcExento += $p;
+                } else {
+                    $calcBaseImp += $p;
+                }
+            }
+
+            if ($taxes['subtotal'] == 0 && $calcSubtotal > 0) {
+                $taxes['subtotal'] = round($calcSubtotal, 2);
+            }
+            if ($taxes['exento'] == 0 && $calcExento > 0) {
+                $taxes['exento'] = round($calcExento, 2);
+            }
+            if ($taxes['base_imponible'] == 0 && $calcBaseImp > 0) {
+                $taxes['base_imponible'] = round($calcBaseImp, 2);
+            }
+            if ($taxes['base_imponible'] > 0) {
+                if ($taxes['iva_amount'] == 0 || abs($taxes['iva_amount'] - $taxes['base_imponible']) < 0.02 || $taxes['iva_amount'] > ($taxes['base_imponible'] * 0.20)) {
+                    $taxes['iva_amount'] = round($taxes['base_imponible'] * 0.16, 2);
+                }
+            } elseif ($totalBs > 0 && $taxes['subtotal'] > 0 && ($totalBs - $taxes['subtotal']) > 0) {
+                $diff = round($totalBs - $taxes['subtotal'], 2);
+                if ($taxes['iva_amount'] == 0 || $taxes['iva_amount'] > $diff) {
+                    $taxes['iva_amount'] = $diff;
+                }
+            }
+            if ($totalBs == 0 && $taxes['subtotal'] > 0) {
+                $totalBs = round($taxes['subtotal'] + $taxes['iva_amount'] + ($taxes['igtf_amount'] ?? 0), 2);
+            }
+        }
+
+        // Final tax reconciliation if IVA still matches base imponible or total - subtotal mismatch
+        if ($taxes['base_imponible'] > 0 && ($taxes['iva_amount'] == 0 || abs($taxes['iva_amount'] - $taxes['base_imponible']) < 0.02 || $taxes['iva_amount'] > ($taxes['base_imponible'] * 0.20))) {
+            $taxes['iva_amount'] = round($taxes['base_imponible'] * 0.16, 2);
+        }
+
+        // Recalculate USD total if zero
+        if ($totalUsd <= 0 && $totalBs > 0 && $currencyInfo['exchange_rate'] > 0) {
+            $totalUsd = round($totalBs / $currencyInfo['exchange_rate'], 2);
+        }
 
         return [
             'model_type' => $model['type'],
@@ -392,6 +440,15 @@ class InvoiceParserService
             }
         }
 
+        // Pass 3: Look for standalone fiscal 8-digit or 6-8 digit sequential number (e.g. 00200743)
+        foreach ($lines as $line) {
+            if (preg_match('/^(00\d{5,8}|\d{7,8})$/', $line, $m)) {
+                if (!preg_match('/^(?:20\d{2}|0412|0414|0416|0424|0426)/', $m[1])) {
+                    return $m[1];
+                }
+            }
+        }
+
         return null;
     }
 
@@ -485,11 +542,17 @@ class InvoiceParserService
             }
             if (preg_match('/(?:EXENTO|TOTAL\s*EXENTO)[\s:#]*(?:BS\.?|BSS)?[\s:#]*([0-9\s,\.]+)/i', $line, $m)) {
                 $exento = $this->parseMoney($m[1]);
+            } elseif (preg_match('/(?:Bs\.?|BSS)?\s*([0-9\s,\.]+)\s*(?:EXENTO)/i', $line, $m)) {
+                $exento = $this->parseMoney($m[1]);
             }
             if (preg_match('/(?:BASE\s*IM?P(?:ONIBLE)?|BI\s*G)[\s\d,\.%()]*[:\s]+(?:BS\.?|BSS)?[\s:#]*([0-9\s,\.]+)/i', $line, $m)) {
                 $baseImponible = $this->parseMoney($m[1]);
+            } elseif (preg_match('/(?:Bs\.?|BSS)?\s*([0-9\s,\.]+)\s*(?:BASE\s*IM?P|BI\s*G)/i', $line, $m)) {
+                $baseImponible = $this->parseMoney($m[1]);
             }
             if (preg_match('/(?:IVA|ALICUOTAS?\s*IVA|IVA\s*G)[\s\d,\.%()]*[:\s]+(?:BS\.?|BSS)?[\s:#]*([0-9\s,\.]+)/i', $line, $m)) {
+                $ivaAmount = $this->parseMoney($m[1]);
+            } elseif (preg_match('/(?:Bs\.?|BSS)?\s*([0-9\s,\.]+)\s*(?:IVA|ALICUOTAS?\s*IVA|IVA\s*G)/i', $line, $m)) {
                 $ivaAmount = $this->parseMoney($m[1]);
             }
             if (preg_match('/(?:IGTF|PERCEPCION\s*3%|IMPUESTO\s*IGTF)[\s\d,\.%()]*[:\s]+(?:BS\.?|BSS)?[\s:#]*([0-9\s,\.]+)/i', $line, $m)) {
@@ -530,7 +593,7 @@ class InvoiceParserService
             }
         }
 
-        // Check for TOTAL in reversed lines to capture the bottom final summary
+        // Pass 1: Check for TOTAL in reversed lines to capture the bottom final summary
         $reversed = array_reverse($lines);
         foreach ($reversed as $line) {
             if (preg_match('/(?:TOTAL(?:\s+A\s+PAGAR)?(?:\s+(?:BS\.?|BSS|GENERAL|FACTURA))?|MONTO\s*A\s*PAGAR)[\s:#]*(?:BS\.?|BSS)?[\s:#]*([0-9\s,\.]+)/i', $line, $m)) {
@@ -541,12 +604,72 @@ class InvoiceParserService
             }
         }
 
+        // Pass 2: If TOTAL was on a line alone, check next 3 lines
+        for ($i = 0; $i < count($lines); $i++) {
+            if (preg_match('/^TOTAL\b/i', $lines[$i])) {
+                for ($j = $i + 1; $j <= min(count($lines) - 1, $i + 3); $j++) {
+                    if (preg_match('/^(?:BS\.?|BSS)?\s*([0-9\s,\.]{3,})$/i', $lines[$j], $m)) {
+                        $val = $this->parseMoney($m[1]);
+                        if ($val > 0) return $val;
+                    }
+                }
+            }
+        }
+
+        // Pass 3: Currency amounts cluster (columnar format)
+        $priceBlock = $this->findCurrencyAmountsBlock($lines);
+        if (!empty($priceBlock)) {
+            $vals = array_column($priceBlock, 'val');
+            for ($a = 0; $a < count($vals); $a++) {
+                for ($b = $a + 1; $b < count($vals); $b++) {
+                    $sum = round($vals[$a] + $vals[$b], 2);
+                    if (in_array($sum, $vals)) {
+                        return $sum;
+                    }
+                }
+            }
+            return max($vals);
+        }
+
         // Calculation fallback
         if ($taxes['subtotal'] > 0) {
             return round($taxes['subtotal'] + $taxes['iva_amount'] + $taxes['igtf_amount'], 2);
         }
 
         return 0.0;
+    }
+
+    /**
+     * Find contiguous or near-contiguous blocks of currency amounts (Bs. XXX,XX)
+     * which happens when OCR engines read columnar thermal receipts vertically.
+     */
+    protected function findCurrencyAmountsBlock(array $lines): array
+    {
+        $blocks = [];
+        $current = [];
+        foreach ($lines as $idx => $line) {
+            if (preg_match('/^(?:Bs\.?|BSS)\s*([0-9\s,\.]+)/i', $line, $m)) {
+                $val = $this->parseMoney($m[1]);
+                if ($val > 0) {
+                    $current[] = ['idx' => $idx, 'val' => $val, 'raw' => $line];
+                    continue;
+                }
+            }
+            if (!empty($current)) {
+                $blocks[] = $current;
+                $current = [];
+            }
+        }
+        if (!empty($current)) {
+            $blocks[] = $current;
+        }
+
+        foreach ($blocks as $b) {
+            if (count($b) >= 3) {
+                return $b;
+            }
+        }
+        return !empty($blocks) ? $blocks[0] : [];
     }
 
     /**
@@ -784,6 +907,83 @@ class InvoiceParserService
             }
         }
 
+        // Columnar Split Fallback (thermal paper with items first, prices at bottom)
+        if (empty($items) && $model['type'] !== 'POS_VOUCHER' && $model['type'] !== 'PAGO_MOVIL') {
+            $priceBlock = $this->findCurrencyAmountsBlock($lines);
+            $itemCandidates = [];
+            $inItems = false;
+
+            for ($i = 0; $i < count($lines); $i++) {
+                $line = $lines[$i];
+                if (preg_match('/(?:FACTURA|FECHA|REGISTRO)/i', $line)) {
+                    $inItems = true;
+                    continue;
+                }
+                if (preg_match('/(?:SUBTOTAL|SUBTTL|EXENTO|BI\s*G|TOTAL|Z1F)/i', $line)) {
+                    $inItems = false;
+                    break;
+                }
+                if ($inItems) {
+                    if (preg_match('/^([\d,\.]+)$/', $line, $mQty) && isset($lines[$i+1])) {
+                        $qty = (float) str_replace(',', '.', $mQty[1]);
+                        $nextLine = $lines[$i+1];
+                        if (($nextLine === 'X' || $nextLine === 'x') && isset($lines[$i+2], $lines[$i+3])) {
+                            $unitPrice = $this->parseMoney($lines[$i+2]);
+                            $desc = $lines[$i+3];
+                            $tax = preg_match('/\(([EGR])\)/i', $desc, $tm) ? strtoupper($tm[1]) : 'G';
+                            $name = trim(preg_replace('/\s*\([EGR]\)/i', '', $desc));
+                            $itemCandidates[] = [
+                                'quantity' => $qty,
+                                'unit_price' => $unitPrice,
+                                'name' => $name,
+                                'tax_type' => $tax
+                            ];
+                            $i += 3;
+                            continue;
+                        } elseif (preg_match('/^([\d,\.]+)\s+(.+)$/', $nextLine, $m2)) {
+                            $unitPrice = $this->parseMoney($m2[1]);
+                            $desc = $m2[2];
+                            $tax = preg_match('/\(([EGR])\)/i', $desc, $tm) ? strtoupper($tm[1]) : 'G';
+                            $name = trim(preg_replace('/\s*\([EGR]\)/i', '', $desc));
+                            $itemCandidates[] = [
+                                'quantity' => $qty,
+                                'unit_price' => $unitPrice,
+                                'name' => $name,
+                                'tax_type' => $tax
+                            ];
+                            $i++;
+                            continue;
+                        }
+                    }
+                    if (preg_match('/^(?:\*|[A-Z0-9]{3,})/', $line) && !preg_match('/^(?:AU|AV|CALLE|URB|EDIF|DATOS|REGISTRO|CAJERO|RIF|RTF|SUCURSAL)/i', $line)) {
+                        $tax = preg_match('/\(([EGR])\)/i', $line, $tm) ? strtoupper($tm[1]) : 'G';
+                        $name = trim(preg_replace('/\s*\([EGR]\)/i', '', $line));
+                        $itemCandidates[] = [
+                            'quantity' => 1.0,
+                            'unit_price' => 0.0,
+                            'name' => $name,
+                            'tax_type' => $tax
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($itemCandidates) && !empty($priceBlock) && count($priceBlock) >= count($itemCandidates)) {
+                $columnarItems = [];
+                foreach ($itemCandidates as $k => $cand) {
+                    $price = $priceBlock[$k]['val'];
+                    $columnarItems[] = [
+                        'name' => $cand['name'],
+                        'quantity' => $cand['quantity'],
+                        'price' => $price,
+                        'price_usd' => $exchangeRate > 0 ? round($price / $exchangeRate, 2) : 0,
+                        'tax_type' => $cand['tax_type']
+                    ];
+                }
+                return $columnarItems;
+            }
+        }
+
         // Fallback: If no items found, synthesize one from total
         if (empty($items) && $meta['total_bs'] > 0) {
             $items[] = [
@@ -805,8 +1005,8 @@ class InvoiceParserService
     public function parseMoney(string $str): float
     {
         $clean = trim($str);
-        $clean = preg_replace('/(?<=\d)\s+(?=[\.,\d])/', '', $clean);
-        $clean = preg_replace('/(?<=[\.,])\s+(?=\d)/', '', $clean);
+        $clean = preg_replace('/(?<=[,\.])\s+(?=\d)/', '', $clean);
+        $clean = preg_replace('/(?<=\d)\s+(?=[,\.\d])/', '', $clean);
         $clean = preg_replace('/[^\d,\.]/', '', $clean);
 
         if (empty($clean)) return 0.0;
