@@ -31,6 +31,8 @@ def request(path, data=None):
 for path in ['', 'accounts', 'history', 'metrics', 'config', 'printing',
              'printing/debts', 'sales', 'sales/create', 'sales/debts', 'inventory',
              'inventory/items', 'inventory/movements', 'audit', 'ai',
+             'reconciliation', 'reconciliation/batches', 'reconciliation/items',
+             'reconciliation/debts',
              'transaction/stats', 'sales/get-statuses', 'sales/get-active-orders']:
     request(path)
 

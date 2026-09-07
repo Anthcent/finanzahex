@@ -12,13 +12,6 @@ class ReconciliationController extends BaseController
     public function index()
     {
         $this->ensureTables();
-        $normalizedRows = [];
-        foreach ($rows as $row) {
-            $normalized = $this->normalizeRow($row, $accountId, $type);
-            if ((float) $normalized['amount'] > 0) $normalizedRows[] = [$normalized, $row];
-        }
-        if (!$normalizedRows) return $this->failJson('No se detectó ningún monto mayor que cero.', 422);
-
         $db = \Config\Database::connect();
         return view('reconciliation/index', [
             'accounts' => $db->table('accounts')->where('status', 'active')->orderBy('name')->get()->getResultArray(),
@@ -52,6 +45,15 @@ class ReconciliationController extends BaseController
             }
         }
         if (!$rows) return $this->failJson('No se detectaron movimientos válidos. Verifica que monto y fecha sean legibles.', 422);
+
+        $normalizedRows = [];
+        foreach ($rows as $row) {
+            $normalized = $this->normalizeRow($row, $accountId, $type);
+            if ((float) $normalized['amount'] > 0) {
+                $normalizedRows[] = [$normalized, $row];
+            }
+        }
+        if (!$normalizedRows) return $this->failJson('No se detectó ningún monto mayor que cero.', 422);
 
         $db = \Config\Database::connect();
         $now = date('Y-m-d H:i:s');
@@ -126,7 +128,10 @@ class ReconciliationController extends BaseController
         try {
             $item = $db->query('SELECT * FROM financial_import_items WHERE id = ?' . ($db->DBDriver !== 'SQLite3' ? ' FOR UPDATE' : ''), [$id])->getRowArray();
             if (!$item) throw new \InvalidArgumentException('Movimiento no encontrado.');
-            if ($item['status'] === 'applied') return $this->response->setJSON(['status' => 'success', 'duplicate' => true, 'message' => 'Este movimiento ya fue aplicado.']);
+            if ($item['status'] === 'applied') {
+                $db->transRollback();
+                return $this->response->setJSON(['status' => 'success', 'duplicate' => true, 'message' => 'Este movimiento ya fue aplicado.']);
+            }
             if (!in_array($item['status'], ['pending','duplicate'], true)) throw new \InvalidArgumentException('Este movimiento ya no está pendiente.');
             $action = (string) ($payload['action'] ?? $item['suggested_action']);
             if ($action === 'ignore') {
@@ -284,7 +289,8 @@ class ReconciliationController extends BaseController
     private function normalizeRow(array $row, int $accountId, string $type): array
     {
         $direction = strtolower((string)($row['direction'] ?? ($type==='payment_capture'?'credit':'debit')));
-        if (!in_array($direction,['credit','debit'],true)) $direction = str_contains($direction,'ingres')||str_contains($direction,'credit') ? 'credit':'debit';
+        $direction = strtr($direction, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u']);
+        if (!in_array($direction,['credit','debit'],true)) $direction = preg_match('/credit|ingres|entrada|abono|deposit/', $direction) ? 'credit':'debit';
         $currency = strtoupper((string)($row['currency'] ?? 'BS')); if (!in_array($currency,['BS','USD','EUR'],true)) $currency='BS';
         $amount = abs($this->number($row['amount'] ?? $row['monto'] ?? 0));
         $reference=trim((string)($row['reference']??$row['referencia']??''));
@@ -312,8 +318,8 @@ class ReconciliationController extends BaseController
     {
         $raw=base64_decode(substr($url,strpos($url,',')+1),true); if ($raw===false) return [];
         $lines=preg_split('/\r\n|\n|\r/',trim($raw)); if (!$lines) return [];
-        $delimiter=substr_count($lines[0],';')>substr_count($lines[0],',')?';':','; $headers=array_map(fn($v)=>$this->header($v),str_getcsv(array_shift($lines),$delimiter)); $rows=[];
-        foreach($lines as $line){if(trim($line)==='')continue;$vals=str_getcsv($line,$delimiter);$r=[];foreach($headers as $i=>$h)$r[$h]=$vals[$i]??'';$amount=$r['amount']??$r['credit']??$r['debit']??0;$direction=!empty($r['credit'])?'credit':(!empty($r['debit'])?'debit':($r['direction']??'debit'));$rows[]=['date'=>$r['date']??'','description'=>$r['description']??'','reference'=>$r['reference']??'','amount'=>$amount,'direction'=>$direction,'currency'=>$r['currency']??'BS','counterparty'=>$r['counterparty']??'','bank'=>$r['bank']??'','confidence'=>100];}
+        $delimiter=substr_count($lines[0],';')>substr_count($lines[0],',')?';':','; $headers=array_map(fn($v)=>$this->header($v),str_getcsv(array_shift($lines),$delimiter,'"','\\')); $rows=[];
+        foreach($lines as $line){if(trim($line)==='')continue;$vals=str_getcsv($line,$delimiter,'"','\\');$r=[];foreach($headers as $i=>$h)$r[$h]=$vals[$i]??'';$credit=trim((string)($r['credit']??''));$debit=trim((string)($r['debit']??''));$amount=trim((string)($r['amount']??''));if($amount==='')$amount=$credit!==''?$credit:($debit!==''?$debit:0);$direction=$credit!==''?'credit':($debit!==''?'debit':($r['direction']??'debit'));$rows[]=['date'=>$r['date']??'','description'=>$r['description']??'','reference'=>$r['reference']??'','amount'=>$amount,'direction'=>$direction,'currency'=>$r['currency']??'BS','counterparty'=>$r['counterparty']??'','bank'=>$r['bank']??'','confidence'=>100];}
         return $rows;
     }
 
