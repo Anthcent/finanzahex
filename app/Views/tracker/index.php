@@ -300,7 +300,7 @@
                       @click="showMenu = false"></div>
 
                  <!-- Menu Content Card (Compact & Centered) -->
-                 <div class="relative w-full max-w-sm bg-white/98 backdrop-blur-2xl rounded-[2.2rem] shadow-2xl border border-emerald-100/80 ring-1 ring-black/10 overflow-hidden flex flex-col max-h-[88vh] transition-all transform pointer-events-auto"
+                 <div class="relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl shadow-slate-950/30 border border-white/80 ring-1 ring-slate-900/10 overflow-hidden flex flex-col max-h-[92vh] transition-all transform pointer-events-auto"
                       x-transition:enter="duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)"
                       x-transition:enter-start="opacity-0 scale-90 translate-y-8"
                       x-transition:enter-end="opacity-100 scale-100 translate-y-0"
@@ -309,9 +309,9 @@
                       x-transition:leave-end="opacity-0 scale-90 translate-y-8">
                       
                       <!-- Compact Header -->
-                      <div class="px-5 pt-5 pb-3 flex justify-between items-center border-b border-slate-100 shrink-0">
+                      <div class="px-5 py-4 flex justify-between items-center border-b border-slate-100 bg-gradient-to-r from-white via-emerald-50/50 to-indigo-50/50 shrink-0">
                           <div class="flex items-center gap-2.5">
-                              <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-xs">
+                              <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-900/20">
                                   <span class="material-icons text-base">grid_view</span>
                               </div>
                               <div>
@@ -319,13 +319,13 @@
                                   <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mt-0.5">Acceso a Módulos</p>
                               </div>
                           </div>
-                          <button type="button" @click="showMenu = false" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors">
+                          <button type="button" @click="showMenu = false" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 transition-colors active:scale-95">
                               <span class="material-icons text-sm">close</span>
                           </button>
                       </div>
 
                       <!-- Scrollable Modules Body -->
-                      <div class="p-4 space-y-4 overflow-y-auto customize-scrollbar flex-1">
+                      <div class="p-5 space-y-5 overflow-y-auto customize-scrollbar flex-1 bg-slate-50/60">
                           
                           <!-- Group: Finanzas -->
                           <div class="space-y-2">
@@ -333,7 +333,13 @@
                                   <span class="w-1 h-3 bg-emerald-500 rounded-full inline-block"></span>
                                   Finanzas
                               </span>
-                              <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                              <div class="grid grid-cols-3 gap-2.5">
+                                  <a href="<?= base_url('printing') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-cyan-50/50 border border-slate-100 hover:border-cyan-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-cyan-50 group-hover:bg-cyan-100 text-cyan-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">print</span>
+                                      </div>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-cyan-950 text-center leading-tight">Impresiones</span>
+                                  </a>
                                   <a href="<?= base_url('history') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
                                       <div class="w-12 h-12 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs transition-colors">
                                           <span class="material-icons text-2xl">list</span>
@@ -363,34 +369,6 @@
                                           <span class="material-icons text-2xl">document_scanner</span>
                                       </div>
                                       <span class="text-[11px] font-black text-slate-800 group-hover:text-emerald-950 text-center leading-tight">Escáner OCR</span>
-                                  </a>
-                              </div>
-                          </div>
-
-                          <!-- Group: Gestión -->
-                          <div class="space-y-2">
-                              <span class="text-[9.5px] font-black text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-1">
-                                  <span class="w-1 h-3 bg-teal-600 rounded-full inline-block"></span>
-                                  Gestión
-                              </span>
-                              <div class="grid grid-cols-3 gap-2">
-                                  <a href="<?= base_url('sales') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-teal-50/50 border border-slate-100 hover:border-teal-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
-                                      <div class="w-12 h-12 rounded-xl bg-teal-50 group-hover:bg-teal-100 text-teal-700 flex items-center justify-center shadow-xs transition-colors">
-                                          <span class="material-icons text-2xl">storefront</span>
-                                      </div>
-                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-teal-950 text-center leading-tight">Ventas</span>
-                                  </a>
-                                  <a href="<?= base_url('inventory') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-purple-50/50 border border-slate-100 hover:border-purple-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
-                                      <div class="w-12 h-12 rounded-xl bg-purple-50 group-hover:bg-purple-100 text-purple-700 flex items-center justify-center shadow-xs transition-colors">
-                                          <span class="material-icons text-2xl">inventory_2</span>
-                                      </div>
-                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-purple-950 text-center leading-tight">Inventario</span>
-                                  </a>
-                                  <a href="<?= base_url('printing') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
-                                      <div class="w-12 h-12 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs transition-colors">
-                                          <span class="material-icons text-2xl">print</span>
-                                      </div>
-                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-emerald-950 text-center leading-tight">Impresiones</span>
                                   </a>
                               </div>
                           </div>
@@ -425,7 +403,7 @@
                       </div>
 
                       <!-- Footer Info -->
-                      <div class="text-center py-2.5 bg-slate-50 border-t border-slate-100 shrink-0">
+                      <div class="text-center py-3 bg-white border-t border-slate-100 shrink-0">
                           <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center justify-center gap-1">
                               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
                               Fi-Hex Wallet • v2.5 Executive
