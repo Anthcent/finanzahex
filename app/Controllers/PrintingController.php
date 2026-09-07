@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Libraries\PrintingPaymentCalculator;
 use App\Models\PrintProductModel;
 use App\Models\TransactionModel;
 use App\Models\AccountModel;
@@ -735,138 +736,171 @@ class PrintingController extends BaseController
         return $this->response->setJSON(['status' => 'success', 'data' => $movements]);
     }
 
-    public function addPayment() {
-        $json = $this->request->getJSON();
+    public function addPayment()
+    {
+        $payload = $this->request->getJSON(true) ?? [];
         $db = \Config\Database::connect();
-        $transModel = new TransactionModel();
         $accountModel = new AccountModel();
-
-        $db->transStart();
+        $transactionStarted = false;
+        $orderId = (int) ($payload['order_id'] ?? 0);
+        $requestId = trim((string) ($payload['payment_request_id'] ?? ''));
 
         try {
-            $order = $db->table('print_orders')->where('id', $json->order_id)->get()->getRowArray();
-            if (!$order) throw new \Exception('Orden no encontrada');
-
-            $amountBs = floatval($json->amount_bs ?? 0);
-            $amountUsd = floatval($json->amount_usd ?? 0);
-            $rate = floatval($json->rate ?? 50);
-
-            // Validation: Must have an account if paying money
-            if (($amountBs > 0 || $amountUsd > 0) && empty($json->account_id)) {
-                throw new \Exception('Debe seleccionar una cuenta para registrar el pago');
+            if ($orderId <= 0) {
+                throw new \InvalidArgumentException('La orden indicada no es válida.');
+            }
+            if ($requestId === '') {
+                // Keep older cached clients functional; current clients always send a stable retry token.
+                $requestId = bin2hex(random_bytes(16));
+            } elseif (!preg_match('/^[A-Za-z0-9_-]{16,64}$/', $requestId)) {
+                throw new \InvalidArgumentException('No se pudo identificar de forma segura este abono. Recarga e intenta nuevamente.');
             }
 
-            // 1. Update Order Values
-            $newPaidBs = floatval($order['paid_bs']) + $amountBs;
-            $newPaidUsd = floatval($order['paid_usd']) + $amountUsd;
-            
-            // Check status
-            $totalAsUsd = floatval($order['total_usd']);
-            // Improved Status Check respecting original currency totals
-            $totalAsBs = floatval($order['total_bs']);
-            $totalAsUsd = floatval($order['total_usd']);
-            
-            $isPaid = false;
+            $accountId = (int) ($payload['account_id'] ?? 0);
+            if ($accountId <= 0) {
+                throw new \InvalidArgumentException('Debe seleccionar una cuenta para registrar el pago.');
+            }
+            $rate = (float) ($payload['rate'] ?? 0);
+            $payment = PrintingPaymentCalculator::normalize(
+                (float) ($payload['amount_bs'] ?? 0),
+                (float) ($payload['amount_usd'] ?? 0),
+                $rate,
+                isset($payload['payment_currency']) ? (string) $payload['payment_currency'] : null
+            );
 
-            if ($totalAsBs > 0) {
-                 // Check primarily against Bs Total
-                 // Calculate total paid value in Bs
-                 $paidValueBs = $newPaidBs + ($newPaidUsd * $rate);
-                 // Tolerance 0.50 Bs
-                 if ($paidValueBs >= ($totalAsBs - 0.50)) $isPaid = true;
-            } else {
-                 // Check against USD Total
-                 $paidValueUsd = $newPaidUsd + ($newPaidBs / $rate);
-                 if ($paidValueUsd >= ($totalAsUsd - 0.10)) $isPaid = true;
+            $existing = $db->table('transactions')->where('payment_request_id', $requestId)->get()->getRowArray();
+            if ($existing) {
+                if ((int) $existing['print_order_id'] !== $orderId) {
+                    throw new \InvalidArgumentException('El identificador del abono ya fue utilizado.');
+                }
+                return $this->printingPaymentResponse($db, $orderId, true);
             }
 
-            $status = $isPaid ? 'paid' : 'partial';
-
-            // Special case: If nothing paid, pending
-            if ($newPaidBs == 0 && $newPaidUsd == 0) $status = 'pending';
-
-            $db->table('print_orders')->where('id', $json->order_id)->update([
-                'paid_bs' => $newPaidBs,
-                'paid_usd' => $newPaidUsd,
-                'status' => $status
-            ]);
-
-            // 2. Transaction (Mandatory if amount > 0)
-            if ($amountBs > 0 || $amountUsd > 0) {
-                // Determine Category
-                $setting = $db->table('settings')->where('key', 'default_print_category')->get()->getRowArray();
-                $catId = $setting ? $setting['value'] : 3;
-                
-                // Verify Category Exists
-                if ($db->table('categories')->where('id', $catId)->countAllResults() == 0) {
-                     $catId = $db->table('categories')->limit(1)->get()->getRowArray()['id'] ?? 0;
-                }
-
-                $account = $accountModel->find($json->account_id);
-                if (!$account) throw new \Exception('Cuenta no encontrada');
-
-                // Use Query Builder to ensure no Model filtering issues
-                $transData = [
-                    'account_id' => $json->account_id,
-                    'category_id' => $catId,
-                    'print_order_id' => $order['id'],
-                    'amount' => $amountBs,
-                    'amount_usd' => $amountUsd,
-                    'exchange_rate' => $rate,
-                    'type' => 'income',
-                    'owner' => 'Negocio',
-                    'description' => "Abono Impresiones #{$order['id']} - {$order['customer_name']}",
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ];
-                
-                if (!$db->table('transactions')->insert($transData)) {
-                     throw new \Exception('Error al insertar transacción en base de datos.');
-                }
-
-                // Update Account Balance
-                $amountToAdd = 0;
-                $itemCurrency = $account['currency'] ?? 'Bs';
-                if ($itemCurrency === 'USD') {
-                    $amountToAdd = $amountUsd + ($amountBs / $rate);
-                } else {
-                    $amountToAdd = $amountBs + ($amountUsd * $rate);
-                }
-                $accountModel->update($json->account_id, ['balance' => $account['balance'] + $amountToAdd]);
-                
-                // AUDIT LOG
-                AuditLogModel::log('printing', 'payment', $json->order_id, null, $transData, ['amount_added' => $amountToAdd], "Abono a Orden #{$order['id']}");
+            $account = $accountModel->find($accountId);
+            if (!$account) {
+                throw new \InvalidArgumentException('La cuenta seleccionada ya no está disponible.');
             }
 
-            $db->transComplete();
-            
+            $db->transBegin();
+            $transactionStarted = true;
+
+            $orderSql = 'SELECT * FROM ' . $db->protectIdentifiers('print_orders')
+                . ' WHERE ' . $db->protectIdentifiers('id') . ' = ?';
+            if ($db->DBDriver !== 'SQLite3') {
+                $orderSql .= ' FOR UPDATE';
+            }
+            $order = $db->query($orderSql, [$orderId])->getRowArray();
+            if (!$order) {
+                throw new \InvalidArgumentException('Orden no encontrada.');
+            }
+
+            // Recheck after locking because another request may have completed while this one waited.
+            $existing = $db->table('transactions')->where('payment_request_id', $requestId)->get()->getRowArray();
+            if ($existing) {
+                $db->transRollback();
+                $transactionStarted = false;
+                return $this->printingPaymentResponse($db, $orderId, true);
+            }
+            if (($order['status'] ?? '') === 'paid') {
+                throw new \InvalidArgumentException('La deuda ya fue pagada.');
+            }
+
+            $updatedAmounts = PrintingPaymentCalculator::apply($order, $payment, $rate);
+            $setting = $db->table('settings')->where('key', 'default_print_category')->get()->getRowArray();
+            $categoryId = (int) ($setting['value'] ?? 3);
+            if ($categoryId <= 0 || $db->table('categories')->where('id', $categoryId)->countAllResults() === 0) {
+                $categoryId = (int) ($db->table('categories')->select('id')->orderBy('id', 'ASC')->get()->getRowArray()['id'] ?? 0);
+            }
+            if ($categoryId <= 0) {
+                throw new \RuntimeException('No existe una categoría válida para registrar el abono.');
+            }
+
+            $now = date('Y-m-d H:i:s');
+            $transData = [
+                'account_id' => $accountId,
+                'category_id' => $categoryId,
+                'print_order_id' => $orderId,
+                'payment_request_id' => $requestId,
+                'amount' => $payment['amount_bs'],
+                'amount_usd' => $payment['amount_usd'],
+                'exchange_rate' => $rate,
+                'type' => 'income',
+                'owner' => 'Negocio',
+                'description' => "Abono Impresiones #{$orderId} - {$order['customer_name']}",
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+            if (!$db->table('transactions')->insert($transData)) {
+                throw new \RuntimeException('No se pudo registrar el movimiento del abono.');
+            }
+
+            if (!$db->table('print_orders')->where('id', $orderId)->update([
+                'paid_bs' => $updatedAmounts['paid_bs'],
+                'paid_usd' => $updatedAmounts['paid_usd'],
+                'status' => $updatedAmounts['status'],
+            ])) {
+                throw new \RuntimeException('No se pudo actualizar el saldo pendiente.');
+            }
+
+            $amountToAdd = ($account['currency'] ?? 'Bs') === 'USD'
+                ? $payment['amount_usd'] + ($payment['amount_bs'] / $rate)
+                : $payment['amount_bs'] + ($payment['amount_usd'] * $rate);
+            if (!$db->table('accounts')->where('id', $accountId)
+                ->set('balance', 'balance + ' . $db->escape($amountToAdd), false)
+                ->update()) {
+                throw new \RuntimeException('No se pudo actualizar el saldo de la cuenta.');
+            }
+
             if ($db->transStatus() === false) {
-                 throw new \Exception('Error en transacción de base de datos.');
+                throw new \RuntimeException('La base de datos rechazó el abono.');
+            }
+            $db->transCommit();
+            $transactionStarted = false;
+
+            AuditLogModel::log('printing', 'payment', $orderId, null, $transData, [
+                'amount_added' => $amountToAdd,
+                'remaining_bs' => $updatedAmounts['remaining_bs'],
+            ], "Abono a Orden #{$orderId}");
+
+            return $this->printingPaymentResponse($db, $orderId, false);
+        } catch (\Throwable $e) {
+            if ($transactionStarted) {
+                $db->transRollback();
             }
 
-            // Fetch updated order
-            $updatedOrder = $db->table('print_orders')->where('id', $json->order_id)->get()->getRowArray();
-            
-            // Fetch updated payments history
-            $history = $db->table('transactions')
-                          ->select('transactions.*, accounts.name as account_name')
-                          ->join('accounts', 'accounts.id = transactions.account_id', 'left')
-                          ->where('print_order_id', $json->order_id)
-                          ->orderBy('created_at', 'DESC')
-                          ->get()->getResultArray();
+            // A concurrent request with the same token may have committed first.
+            if ($requestId !== '' && $db->fieldExists('payment_request_id', 'transactions')) {
+                $existing = $db->table('transactions')->where('payment_request_id', $requestId)->get()->getRowArray();
+                if ($existing && (int) $existing['print_order_id'] === $orderId) {
+                    return $this->printingPaymentResponse($db, $orderId, true);
+                }
+            }
 
-            return $this->response->setJSON([
-                'status' => 'success', 
-                'order' => $updatedOrder,
-                'history' => $history,
-                'message' => 'Abono registrado correctamente'
+            log_message('error', '[Printing::addPayment] ' . $e->getMessage());
+            return $this->response->setStatusCode($e instanceof \InvalidArgumentException ? 422 : 500)->setJSON([
+                'status' => 'error',
+                'message' => $e->getMessage(),
             ]);
-
-
-
-        } catch (\Exception $e) {
-             return $this->response->setJSON(['status' => 'error', 'message' => $e->getMessage()]);
         }
+    }
+
+    private function printingPaymentResponse($db, int $orderId, bool $duplicate)
+    {
+        $order = $db->table('print_orders')->where('id', $orderId)->get()->getRowArray();
+        $history = $db->table('transactions')
+            ->select('transactions.*, accounts.name as account_name')
+            ->join('accounts', 'accounts.id = transactions.account_id', 'left')
+            ->where('print_order_id', $orderId)
+            ->orderBy('created_at', 'DESC')
+            ->get()->getResultArray();
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'order' => $order,
+            'history' => $history,
+            'duplicate' => $duplicate,
+            'message' => $duplicate ? 'El abono ya había sido registrado.' : 'Abono registrado correctamente.',
+        ]);
     }
 
     // CRUD Settings

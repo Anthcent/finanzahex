@@ -1340,14 +1340,14 @@
 
     <!-- Pay Modal (Abonar a Deuda) -->
     <div x-show="payModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
-        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" @click="payModal.open = false"></div>
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" @click="if (!payModal.loading) payModal.open = false"></div>
         <div class="bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl w-full sm:max-w-md relative z-10 p-6 space-y-4 max-h-[92vh] overflow-y-auto customize-scrollbar animate-slide-up safe-bottom">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                 <div>
                     <h3 class="font-black text-lg text-slate-900">Abonar a Deuda</h3>
                     <p class="text-xs font-bold text-slate-400" x-text="'Cliente: ' + (payModal.customer || 'Sin nombre')"></p>
                 </div>
-                <button @click="payModal.open = false" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center">
+                <button @click="payModal.open = false" :disabled="payModal.loading" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center disabled:opacity-50">
                     <span class="material-icons text-base">close</span>
                 </button>
             </div>
@@ -1367,11 +1367,11 @@
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="text-[10px] font-bold text-slate-500 mb-1 block">Abono Bs.</label>
+                    <label class="text-[10px] font-bold mb-1 block" :class="payModal.currency === 'bs' ? 'text-emerald-700' : 'text-slate-500'">Abono Bs. <span x-show="payModal.currency === 'bs'">(moneda recibida)</span></label>
                     <input type="number" step="0.01" min="0" x-model.number="payModal.amount_bs" @input="syncPayModal('bs')" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 font-black text-sm text-slate-800 outline-none focus:border-emerald-500">
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-emerald-700 mb-1 block">Abono USD</label>
+                    <label class="text-[10px] font-bold mb-1 block" :class="payModal.currency === 'usd' ? 'text-emerald-700' : 'text-slate-500'">Abono USD <span x-show="payModal.currency === 'usd'">(moneda recibida)</span></label>
                     <input type="number" step="0.01" min="0" x-model.number="payModal.amount_usd" @input="syncPayModal('usd')" class="w-full bg-white border border-emerald-200 rounded-xl px-3 py-2.5 font-black text-sm text-emerald-700 outline-none focus:border-emerald-500">
                 </div>
             </div>
@@ -1398,8 +1398,9 @@
                 </div>
             </div>
 
-            <button @click="submitPayment()" :disabled="loading" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black py-3.5 rounded-2xl shadow-lg shadow-emerald-950/20 active:scale-98 transition-all disabled:opacity-50">
-                <span x-text="loading ? 'Registrando...' : 'Registrar Abono'"></span>
+            <p class="text-[10px] font-bold text-slate-400 text-center">El campo sincronizado es solo el equivalente. Se registrará una sola moneda.</p>
+            <button @click="submitPayment()" :disabled="payModal.loading" class="w-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black py-3.5 rounded-2xl shadow-lg shadow-emerald-950/20 active:scale-98 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <span x-text="payModal.loading ? 'Registrando...' : 'Registrar Abono'"></span>
             </button>
         </div>
     </div>
@@ -2153,7 +2154,7 @@
                 checkoutCollection: { customer_phone: '', due_date: '', collection_notes: '' },
                 
                 checkoutModal: { open: false },
-                payModal: { open: false, orderId: null, order: null, amount_bs: 0, amount_usd: 0, account_id: '<?= $accounts[0]['id'] ?? '' ?>', customer: '', history: [] },
+                payModal: { open: false, loading: false, orderId: null, order: null, amount_bs: 0, amount_usd: 0, currency: 'usd', payment_request_id: '', account_id: '<?= $accounts[0]['id'] ?? '' ?>', customer: '', history: [] },
                 deleteModal: { open: false, orderId: null, revert: false },
                 transDeleteModal: { open: false, transId: null },
                 detailsModal: { open: false, order: null, items: [], transactions: [], loading: false },
@@ -2450,6 +2451,7 @@
                 },
 
                 openPayModal(order) { 
+                    if (this.payModal.loading) return;
                     this.payModal.order = order; 
                     this.payModal.orderId = order.id; 
                     this.payModal.customer = order.customer_name; 
@@ -2458,6 +2460,9 @@
                     this.payModal.paid_usd = parseFloat(order.paid_usd); 
                     this.payModal.amount_bs = 0; 
                     this.payModal.amount_usd = 0; 
+                    this.payModal.currency = 'usd';
+                    this.payModal.payment_request_id = this.newPaymentRequestId();
+                    this.payModal.loading = false;
                     this.payModal.open = true; 
                     this.fetchPayHistory(order.id); 
                 },
@@ -2470,10 +2475,16 @@
                 },
                 
                 async submitPayment() {
+                    if (this.payModal.loading) return;
                     if ((this.payModal.amount_bs > 0 || this.payModal.amount_usd > 0) && !this.payModal.account_id) { 
                         alert('Seleccione una cuenta de destino'); 
                         return; 
                     }
+                    if (!(this.payModal.amount_bs > 0 || this.payModal.amount_usd > 0)) {
+                        alert('Ingrese un monto mayor que cero');
+                        return;
+                    }
+                    this.payModal.loading = true;
                     try {
                         let res = await fetch('<?= base_url('printing/add-payment') ?>', { 
                             method: 'POST', 
@@ -2483,6 +2494,8 @@
                                 account_id: this.payModal.account_id, 
                                 amount_bs: parseFloat(this.payModal.amount_bs || 0), 
                                 amount_usd: parseFloat(this.payModal.amount_usd || 0), 
+                                payment_currency: this.payModal.currency,
+                                payment_request_id: this.payModal.payment_request_id,
                                 rate: this.exchangeRate 
                             }) 
                         });
@@ -2494,13 +2507,15 @@
                                 if(idx !== -1) this.orders[idx] = data.order; 
                             }
                             this.fetchHistory(); 
-                            this.message = 'Abono registrado correctamente'; 
+                            this.message = data.message || 'Abono registrado correctamente';
                             setTimeout(() => this.message = '', 3000); 
                         } else { 
                             alert(data.message); 
                         }
                     } catch(e) {
                         alert('Error al registrar abono');
+                    } finally {
+                        this.payModal.loading = false;
                     }
                 },
 
@@ -3351,6 +3366,7 @@
                 },
                 syncPayModal(source) {
                     if (this.exchangeRate <= 0) return;
+                    this.payModal.currency = source;
                     if (source === 'usd') {
                         this.payModal.amount_bs = this.payModal.amount_usd === '' ? '' : Number((Number(this.payModal.amount_usd) * this.exchangeRate).toFixed(2));
                     } else if (source === 'bs') {
@@ -3363,6 +3379,11 @@
                     let targetUsd = Number(((remUsd * percentage) / 100).toFixed(2));
                     this.payModal.amount_usd = targetUsd;
                     this.payModal.amount_bs = Number((targetUsd * this.exchangeRate).toFixed(2));
+                    this.payModal.currency = 'usd';
+                },
+                newPaymentRequestId() {
+                    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+                    return 'pay_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 14);
                 },
                 useFullDebtBalance() {
                     this.setPaymentPercentage(100);
