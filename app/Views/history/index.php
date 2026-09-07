@@ -318,15 +318,15 @@
                     <div class="space-y-2.5">
                         
                         <!-- Day Group Sticky Header -->
-                        <div class="sticky top-16 z-10 py-1.5 px-3 bg-slate-100/90 backdrop-blur-md rounded-2xl border border-slate-200/70 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
-                            <div class="flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                <h3 class="text-xs font-black text-slate-800 tracking-tight" x-text="dayGroup.label"></h3>
-                                <span class="px-1.5 py-0.2 rounded-md bg-white border border-slate-200/80 text-[10px] font-black text-slate-500" x-text="dayGroup.items.length + ' mov'"></span>
+                        <div class="sticky top-[64px] z-10 py-1.5 px-3 bg-slate-100/90 backdrop-blur-md rounded-2xl border border-slate-200/70 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 shadow-2xs">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                                <h3 class="text-xs font-black text-slate-800 tracking-tight truncate" x-text="dayGroup.label"></h3>
+                                <span class="px-1.5 py-0.5 rounded-md bg-white border border-slate-200/80 text-[10px] font-black text-slate-500 shrink-0" x-text="dayGroup.items.length + ' mov'"></span>
                             </div>
 
                             <!-- Day Totals Mini Pills -->
-                            <div class="flex items-center gap-2 text-[10px] font-black">
+                            <div class="flex items-center flex-wrap gap-1.5 text-[10px] font-black">
                                 <span x-show="dayGroup.expenseTotal > 0" class="text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200/60" x-text="'-' + formatMoney(dayGroup.expenseTotal)"></span>
                                 <span x-show="dayGroup.incomeTotal > 0" class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60" x-text="'+' + formatMoney(dayGroup.incomeTotal)"></span>
                                 <span x-show="dayGroup.invoicesCount > 0" class="text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-lg border border-amber-300/80 flex items-center gap-0.5">
@@ -352,15 +352,15 @@
                                             'bg-slate-400': !['expense','income','savings'].includes(item.type) && !item.has_invoice
                                          }"></div>
                                     
-                                    <div class="p-3.5 pl-4.5">
+                                    <div class="p-3.5 pl-5">
                                         <!-- Header Row: Badges, Time & OCR Status -->
                                         <div class="flex items-center justify-between gap-2 mb-2">
-                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                            <div class="flex items-center gap-1.5 flex-wrap min-w-0">
                                                 <!-- Category Badge -->
                                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black tracking-wider uppercase"
                                                       :class="item.has_invoice ? 'bg-amber-100/80 text-amber-900 border border-amber-200/80' : 'bg-slate-100 text-slate-700'">
                                                     <span class="material-icons text-[11px]" x-text="item.category_icon || 'category'"></span>
-                                                    <span x-text="item.category_name || 'General'"></span>
+                                                    <span class="truncate max-w-[80px]" x-text="item.category_name || 'General'"></span>
                                                 </span>
 
                                                 <!-- OCR Fiscal Invoice Badge -->
@@ -393,11 +393,11 @@
                                                 <!-- If OCR Invoice, show merchant prominence -->
                                                 <template x-if="item.has_invoice && item.invoice_merchant">
                                                     <div class="mb-1">
-                                                        <div class="font-black text-slate-900 text-sm sm:text-base leading-tight truncate flex items-center gap-1">
-                                                            <span class="material-icons text-amber-600 text-sm">storefront</span>
-                                                            <span x-text="item.invoice_merchant"></span>
+                                                        <div class="font-black text-slate-900 text-sm leading-tight truncate flex items-center gap-1">
+                                                            <span class="material-icons text-amber-600 text-sm shrink-0">storefront</span>
+                                                            <span class="truncate" x-text="item.invoice_merchant"></span>
                                                         </div>
-                                                        <div class="flex items-center gap-2 text-[10px] font-bold text-slate-500 mt-0.5">
+                                                        <div class="flex items-center flex-wrap gap-2 text-[10px] font-bold text-slate-500 mt-0.5">
                                                             <span x-show="item.invoice_rif" x-text="'RIF: ' + item.invoice_rif"></span>
                                                             <span x-show="item.invoice_number" class="text-slate-700 bg-slate-100 px-1 rounded font-mono" x-text="'Fac: #' + item.invoice_number"></span>
                                                         </div>
@@ -427,12 +427,12 @@
                                         </div>
 
                                         <!-- Footer: Account, Owner & Interactive Buttons -->
-                                        <div class="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100 font-bold">
-                                            <div class="flex items-center gap-2.5 truncate">
+                                        <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 text-[11px] text-slate-500 pt-2 border-t border-slate-100 font-bold">
+                                            <div class="flex items-center gap-2 min-w-0 flex-wrap">
                                                 <!-- Account -->
-                                                <div class="flex items-center gap-1 truncate" title="Cuenta Bancaria">
-                                                    <span class="material-icons text-[13px] text-slate-400">account_balance_wallet</span>
-                                                    <span class="truncate" x-text="item.account_name || 'Sin cuenta'"></span>
+                                                <div class="flex items-center gap-1 min-w-0" title="Cuenta Bancaria">
+                                                    <span class="material-icons text-[13px] text-slate-400 shrink-0">account_balance_wallet</span>
+                                                    <span class="truncate max-w-[90px] sm:max-w-[140px]" x-text="item.account_name || 'Sin cuenta'"></span>
                                                 </div>
                                                 <!-- Owner -->
                                                 <div class="flex items-center gap-1 shrink-0" title="Dueño / Titular">
@@ -442,7 +442,7 @@
                                             </div>
 
                                             <!-- Actions Toolbar -->
-                                            <div class="flex items-center gap-1 shrink-0">
+                                            <div class="flex items-center gap-1 shrink-0 ml-auto">
                                                 <!-- View Detail / Fiscal Ticket Modal -->
                                                 <button @click="openDetail(item)" 
                                                         class="px-2 py-1 rounded-xl text-[11px] font-black transition-all flex items-center gap-1 shadow-2xs active:scale-95"
