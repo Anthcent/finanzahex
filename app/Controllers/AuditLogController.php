@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Libraries\GeminiClient;
+
 use App\Controllers\BaseController;
 use App\Models\AuditLogModel;
 
@@ -132,37 +134,10 @@ class AuditLogController extends BaseController
             ]
         ];
 
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" . $apiKey;
+        $result = (new GeminiClient())->generate($apiKey, $payload);
+        if (!$result['ok']) return ['type' => 'error', 'message' => $result['message'] ?? 'No se pudo consultar Gemini.'];
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_TIMEOUT => 60, // Increased timeout
-            CURLOPT_SSL_VERIFYPEER => false,
-        ]);
-
-        $response = curl_exec($ch);
-        
-        if (curl_errno($ch)) {
-             $error_msg = curl_error($ch);
-             curl_close($ch);
-             return ['type' => 'error', 'message' => 'Error de conexión (CURL): ' . $error_msg];
-        }
-        
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 200) {
-            return [
-                'type' => 'error',
-                'message' => 'Error de API (HTTP ' . $httpCode . '): ' . $response
-            ];
-        }
-
-        $parsed = json_decode($response, true);
+        $parsed = json_decode($result['body'], true);
         $text = $parsed['candidates'][0]['content']['parts'][0]['text'] ?? 'Sin respuesta (Estructura inesperada)';
 
         return [

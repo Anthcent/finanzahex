@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Libraries\GeminiClient;
+
 class AIController extends BaseController
 {
     public function index()
@@ -88,19 +90,6 @@ class AIController extends BaseController
     
     private function callGeminiAPI($query, $context, $apiKey)
     {
-        // ... (Debug info init) ...
-        $debugInfo = [];
-
-        // Models to try
-        $models = [
-            'gemini-2.0-flash-lite',
-            'gemini-2.0-flash',
-            'gemini-2.0-flash-exp',
-            'gemini-2.5-flash',
-            'gemini-1.5-flash'
-        ];
-        
-
         $systemPrompt = "Eres un asistente financiero experto con capacidades de análisis predictivo. Tienes acceso a DOS módulos principales:
 1.  **Finanzas Personales/Negocio**: Transacciones de gastos e ingresos.
 2.  **Gestión de Ventas**: Registro de ventas de mercancía y control de deudas (cuentas por cobrar).
@@ -160,68 +149,19 @@ Muestra de Datos:
             ],
             'generationConfig' => [
                 'temperature' => 0.4,
-                'maxOutputTokens' => 2048
+                'maxOutputTokens' => 2048,
+                'responseMimeType' => 'application/json'
             ]
         ];
-        
-        // Loop through models until one works
-        foreach ($models as $model) {
-            // Try both v1beta and v1
-            $versions = ['v1beta', 'v1'];
-            
-            foreach ($versions as $version) {
-                 $url = "https://generativelanguage.googleapis.com/{$version}/models/{$model}:generateContent?key=" . $apiKey;
-                 
-                 $ch = curl_init($url);
-                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                 curl_setopt($ch, CURLOPT_POST, true);
-                 curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-                 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                 
-                 $response = curl_exec($ch);
-                 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                 $curlError = curl_error($ch);
-                 curl_close($ch);
-                 
-                 if ($httpCode === 200) {
-                     return $this->processResponse($response);
-                 }
-                 
-                 $debugInfo[] = "Model: $model ($version) - Status: $httpCode";
-                 
-                 if ($httpCode === 429) {
-                     sleep(1); // Brief pause on rate limit
-                 }
-            }
-        }
-        
-        // Error handling...
-        $availableModels = $this->listAvailableModels($apiKey);
-        $errorDetails = implode("\n", array_slice($debugInfo, 0, 3));
-        
+
+        $result = (new GeminiClient())->generate($apiKey, $payload);
+        if ($result['ok']) return $this->processResponse($result['body']);
+        $details = array_map(static fn(array $attempt): string => "{$attempt['model']} (HTTP {$attempt['status']})", $result['attempts'] ?? []);
         return [
             'type' => 'error',
-            'message' => "❌ Fallo de Conexión\n\nModelos disponibles: [$availableModels]\n\nDetalles:\n$errorDetails",
-            'details' => implode(" | ", $debugInfo),
-            'available_models' => $availableModels
+            'message' => "❌ No se pudo consultar Gemini.\n\n" . ($result['message'] ?? 'Error desconocido.'),
+            'details' => implode(' | ', $details),
         ];
-    }
-
-    private function listAvailableModels($apiKey) {
-        $url = "https://generativelanguage.googleapis.com/v1beta/models?key=" . $apiKey;
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $response = curl_exec($ch);
-        curl_close($ch);
-        
-        $data = json_decode($response, true);
-        if (isset($data['models'])) {
-            $names = array_map(function($m) { return $m['name']; }, $data['models']);
-            return implode(", ", $names);
-        }
-        return "Error listing models";
     }
 
     private function processResponse($response) {

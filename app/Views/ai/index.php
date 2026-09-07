@@ -50,7 +50,7 @@
                         </h1>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                            Gemini Pro
+                            Gemini Flash
                         </span>
                     </div>
                     <p class="text-[11px] text-slate-400 font-medium mt-0.5">Diagnóstico y analítica financiera inteligente</p>
