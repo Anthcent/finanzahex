@@ -741,62 +741,8 @@
             </div>
 
             <div class="px-3.5 pb-2 pt-0" :class="compactLevel > 0 ? 'p-1.5' : 'px-3.5 pb-2 pt-0'">
-                <!-- Row 1: Primary Transaction Type Tabs & Owner Chip -->
-                <div class="flex items-center justify-between gap-1.5 mb-1 h-[30px]">
-                     <!-- Type Tabs (Gasto / Ingreso / Ahorro) - High-Visibility Tactile Controls -->
-                     <div class="flex-1 grid grid-cols-3 gap-1 p-0.5 bg-slate-100 rounded-xl shadow-inner h-full">
-                        <!-- Gasto (Darker Red / Crimson) -->
-                        <button type="button" @click="type = 'expense'" 
-                                :class="type === 'expense' 
-                                    ? 'bg-gradient-to-r from-red-800 via-rose-900 to-red-950 text-white font-black shadow-sm ring-1 ring-red-700/60 scale-[1.01]' 
-                                    : 'text-slate-500 hover:text-red-800 font-bold hover:bg-white/40'" 
-                                class="rounded-lg py-0 text-[10px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
-                            <span class="material-icons text-[12px]" :class="type === 'expense' ? 'text-white' : 'text-red-700'">trending_down</span>
-                            <span>Gasto</span>
-                        </button>
-
-                        <!-- Ingreso (Darker Emerald / Forest) -->
-                        <button type="button" @click="type = 'income'" 
-                                :class="type === 'income' 
-                                    ? 'bg-gradient-to-r from-emerald-800 via-teal-900 to-emerald-950 text-white font-black shadow-sm ring-1 ring-emerald-600/60 scale-[1.01]' 
-                                    : 'text-slate-500 hover:text-emerald-800 font-bold hover:bg-white/40'" 
-                                class="rounded-lg py-0 text-[10px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
-                            <span class="material-icons text-[12px]" :class="type === 'income' ? 'text-white' : 'text-emerald-800'">trending_up</span>
-                            <span>Ingreso</span>
-                        </button>
-
-                        <!-- Ahorro (Deep Royal Blue) -->
-                        <button type="button" @click="type = 'savings'" 
-                                :class="type === 'savings' 
-                                    ? 'bg-gradient-to-r from-blue-700 via-indigo-800 to-blue-950 text-white font-black shadow-sm ring-1 ring-blue-500/60 scale-[1.01]' 
-                                    : 'text-slate-500 hover:text-blue-800 font-bold hover:bg-white/40'" 
-                                class="rounded-lg py-0 text-[10px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
-                            <span class="material-icons text-[12px]" :class="type === 'savings' ? 'text-white' : 'text-blue-700'">savings</span>
-                            <span>Ahorro</span>
-                        </button>
-                     </div>
-
-                     <!-- Owner Chip (Quick Tap to Open Picker or Clear) -->
-                     <div class="h-full shrink-0">
-                        <button type="button" @click="showQuickOwnerPicker = !showQuickOwnerPicker" 
-                                title="Seleccionar quién registra"
-                                class="h-full px-2 rounded-xl border text-[10px] font-bold flex items-center gap-1 transition-all shadow-xs active:scale-95 select-none"
-                                :class="owner ? (owner === 'Arianny' ? 'bg-pink-50 text-pink-700 border-pink-200 shadow-pink-100' : (owner === 'Anthony' ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-emerald-100' : 'bg-purple-50 text-purple-700 border-purple-200 shadow-purple-100')) : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'">
-                            <span class="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black shrink-0"
-                                  :class="owner ? (owner === 'Arianny' ? 'bg-pink-500 text-white' : (owner === 'Anthony' ? 'bg-emerald-700 text-white' : 'bg-purple-600 text-white')) : 'bg-slate-200 text-slate-500'"
-                                  x-text="owner ? (owner === 'Arianny' ? 'Ar' : (owner === 'Anthony' ? 'An' : '🏢')) : '👤'"></span>
-                            <span class="truncate max-w-[48px]" x-text="owner || 'Dueño'"></span>
-                            <span x-show="owner" @click.stop="owner = null; ownerLockedInBar = false" 
-                                  class="text-slate-400 hover:text-rose-500 p-0.5 rounded-full transition-colors" title="Desasignar">
-                                <span class="material-icons text-[10px]">close</span>
-                            </span>
-                            <span x-show="!owner" class="material-icons text-[12px] text-slate-400">expand_more</span>
-                        </button>
-                     </div>
-                </div>
-
-                <!-- Row 2: Unified Note & Amount Display Card with Dynamic Type Feedback & Swipe Navigation -->
-                <div class="mb-1 relative rounded-xl px-2.5 py-1 border transition-all duration-200 shadow-inner select-none cursor-grab active:cursor-grabbing touch-pan-y"
+                <!-- Unified Note, Amount and Type Panel -->
+                <div class="mb-1.5 relative rounded-xl px-3 py-2 border transition-all duration-200 shadow-inner select-none cursor-grab active:cursor-grabbing touch-pan-y"
                      :class="{
                          'bg-red-950/[0.03] border-red-300/80 shadow-red-950/5': type === 'expense',
                          'bg-emerald-950/[0.03] border-emerald-300/80 shadow-emerald-950/5': type === 'income',
@@ -807,12 +753,12 @@
                      @mousedown="handleMouseDown($event)"
                      @mouseup="handleMouseUp($event)">
                      
-                     <div class="flex items-center justify-between gap-1.5 min-h-6">
+                     <div class="flex items-center justify-between gap-2 min-h-8">
                         <!-- Note Input -->
                         <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                            <span class="material-icons text-slate-400 text-sm">edit_note</span>
+                            <span class="material-icons text-slate-400 text-base">edit_note</span>
                             <input type="text" x-model="description" placeholder="Añadir nota o descripción..."
-                                   class="w-full text-[11px] font-semibold text-slate-700 placeholder-slate-400 outline-none bg-transparent cursor-text select-text">
+                                   class="w-full text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none bg-transparent cursor-text select-text">
                         </div>
                         
                         <!-- Currency Toggle & Main Amount with Dynamic Type Indicator -->
@@ -825,7 +771,7 @@
 
                             <!-- Amount with Dynamic +/-/★ prefix -->
                             <div class="flex items-baseline font-mono leading-none">
-                                <span class="font-black text-base mr-0.5 select-none transition-all duration-200"
+                                <span class="font-black text-lg mr-0.5 select-none transition-all duration-200"
                                       :class="{
                                           'text-red-700': type === 'expense',
                                           'text-emerald-800': type === 'income',
@@ -834,9 +780,9 @@
                                       x-text="type === 'expense' ? '-' : (type === 'income' ? '+' : '★')"></span>
                                 <div class="font-black text-slate-900 tracking-tight font-mono leading-none transition-all duration-200"
                                      :class="{
-                                         'text-xl': compactLevel === 0,
-                                         'text-lg': compactLevel === 1,
-                                         'text-base': compactLevel === 2
+                                         'text-2xl': compactLevel === 0,
+                                         'text-xl': compactLevel === 1,
+                                         'text-lg': compactLevel === 2
                                      }"
                                      x-text="display"></div>
                             </div>
@@ -847,9 +793,47 @@
                          <span class="text-[9px] font-bold text-emerald-700 bg-emerald-100/60 px-1.5 py-0.2 rounded" 
                                x-text="'≈ ' + (currency === 'Bs' ? '$ ' : 'Bs ') + formatMoney(currentConversion)"></span>
                      </div>
+
+                     <!-- Bottom controls: icon-only transaction types and owner -->
+                     <div class="mt-1.5 pt-1.5 border-t flex items-center justify-between gap-2"
+                          :class="{
+                              'border-red-200/70': type === 'expense',
+                              'border-emerald-200/70': type === 'income',
+                              'border-blue-200/70': type === 'savings'
+                          }">
+                         <div class="flex items-center gap-1 p-0.5 bg-white/70 rounded-xl border border-slate-200/70 shadow-xs">
+                             <button type="button" @click="type = 'expense'" title="Egreso" aria-label="Seleccionar egreso" :aria-pressed="type === 'expense'"
+                                     class="w-9 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90"
+                                     :class="type === 'expense' ? 'bg-gradient-to-br from-red-800 to-rose-950 text-white shadow-sm' : 'text-red-700 hover:bg-red-50'">
+                                 <span class="material-icons text-[16px]">trending_down</span>
+                             </button>
+                             <button type="button" @click="type = 'income'" title="Ingreso" aria-label="Seleccionar ingreso" :aria-pressed="type === 'income'"
+                                     class="w-9 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90"
+                                     :class="type === 'income' ? 'bg-gradient-to-br from-emerald-700 to-teal-950 text-white shadow-sm' : 'text-emerald-700 hover:bg-emerald-50'">
+                                 <span class="material-icons text-[16px]">trending_up</span>
+                             </button>
+                             <button type="button" @click="type = 'savings'" title="Ahorro" aria-label="Seleccionar ahorro" :aria-pressed="type === 'savings'"
+                                     class="w-9 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90"
+                                     :class="type === 'savings' ? 'bg-gradient-to-br from-blue-700 to-indigo-950 text-white shadow-sm' : 'text-blue-700 hover:bg-blue-50'">
+                                 <span class="material-icons text-[16px]">savings</span>
+                             </button>
+                         </div>
+
+                         <button type="button" @click="showQuickOwnerPicker = !showQuickOwnerPicker"
+                                 title="Seleccionar quién registra"
+                                 class="h-8 px-2.5 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95 select-none"
+                                 :class="owner ? (owner === 'Arianny' ? 'bg-pink-50 text-pink-700 border-pink-200' : (owner === 'Anthony' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-purple-50 text-purple-700 border-purple-200')) : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-white'">
+                             <span class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black shrink-0"
+                                   :class="owner ? (owner === 'Arianny' ? 'bg-pink-500 text-white' : (owner === 'Anthony' ? 'bg-emerald-700 text-white' : 'bg-purple-600 text-white')) : 'bg-slate-200 text-slate-500'"
+                                   x-text="owner ? (owner === 'Arianny' ? 'Ar' : (owner === 'Anthony' ? 'An' : '🏢')) : '👤'"></span>
+                             <span class="truncate max-w-[58px]" x-text="owner || 'Dueño'"></span>
+                             <span x-show="owner" @click.stop="owner = null; ownerLockedInBar = false" class="text-slate-400 hover:text-rose-500 rounded-full" title="Desasignar"><span class="material-icons text-[10px]">close</span></span>
+                             <span x-show="!owner" class="material-icons text-[12px] text-slate-400">expand_more</span>
+                         </button>
+                     </div>
                 </div>
 
-                <!-- Row 3: Attributes (Account + Category) & Action Tools -->
+                <!-- Attributes (Account + Category) & Action Tools -->
                 <div class="relative flex items-center gap-1.5 mb-1 h-8"
                      @click.outside="showAccountMenu = false; showCategoryMenu = false"
                      @keydown.escape.window="showAccountMenu = false; showCategoryMenu = false">
