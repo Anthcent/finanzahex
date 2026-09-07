@@ -742,7 +742,7 @@
 
             <div class="px-3.5 pb-2 pt-0" :class="compactLevel > 0 ? 'p-1.5' : 'px-3.5 pb-2 pt-0'">
                 <!-- Row 1: Primary Transaction Type Tabs & Owner Chip -->
-                <div class="flex items-center justify-between gap-1.5 mb-1.5 h-8.5">
+                <div class="flex items-center justify-between gap-1.5 mb-1 h-[30px]">
                      <!-- Type Tabs (Gasto / Ingreso / Ahorro) - High-Visibility Tactile Controls -->
                      <div class="flex-1 grid grid-cols-3 gap-1 p-0.5 bg-slate-100 rounded-xl shadow-inner h-full">
                         <!-- Gasto (Darker Red / Crimson) -->
@@ -750,8 +750,8 @@
                                 :class="type === 'expense' 
                                     ? 'bg-gradient-to-r from-red-800 via-rose-900 to-red-950 text-white font-black shadow-sm ring-1 ring-red-700/60 scale-[1.01]' 
                                     : 'text-slate-500 hover:text-red-800 font-bold hover:bg-white/40'" 
-                                class="rounded-lg py-0 text-[11px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
-                            <span class="material-icons text-[13px]" :class="type === 'expense' ? 'text-white' : 'text-red-700'">trending_down</span>
+                                class="rounded-lg py-0 text-[10px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
+                            <span class="material-icons text-[12px]" :class="type === 'expense' ? 'text-white' : 'text-red-700'">trending_down</span>
                             <span>Gasto</span>
                         </button>
 
@@ -760,8 +760,8 @@
                                 :class="type === 'income' 
                                     ? 'bg-gradient-to-r from-emerald-800 via-teal-900 to-emerald-950 text-white font-black shadow-sm ring-1 ring-emerald-600/60 scale-[1.01]' 
                                     : 'text-slate-500 hover:text-emerald-800 font-bold hover:bg-white/40'" 
-                                class="rounded-lg py-0 text-[11px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
-                            <span class="material-icons text-[13px]" :class="type === 'income' ? 'text-white' : 'text-emerald-800'">trending_up</span>
+                                class="rounded-lg py-0 text-[10px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
+                            <span class="material-icons text-[12px]" :class="type === 'income' ? 'text-white' : 'text-emerald-800'">trending_up</span>
                             <span>Ingreso</span>
                         </button>
 
@@ -770,8 +770,8 @@
                                 :class="type === 'savings' 
                                     ? 'bg-gradient-to-r from-blue-700 via-indigo-800 to-blue-950 text-white font-black shadow-sm ring-1 ring-blue-500/60 scale-[1.01]' 
                                     : 'text-slate-500 hover:text-blue-800 font-bold hover:bg-white/40'" 
-                                class="rounded-lg py-0 text-[11px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
-                            <span class="material-icons text-[13px]" :class="type === 'savings' ? 'text-white' : 'text-blue-700'">savings</span>
+                                class="rounded-lg py-0 text-[10px] transition-all flex items-center justify-center gap-1 select-none active:scale-95">
+                            <span class="material-icons text-[12px]" :class="type === 'savings' ? 'text-white' : 'text-blue-700'">savings</span>
                             <span>Ahorro</span>
                         </button>
                      </div>
@@ -796,7 +796,7 @@
                 </div>
 
                 <!-- Row 2: Unified Note & Amount Display Card with Dynamic Type Feedback & Swipe Navigation -->
-                <div class="mb-1.5 relative rounded-xl px-3 py-1.5 border transition-all duration-200 shadow-inner select-none cursor-grab active:cursor-grabbing touch-pan-y"
+                <div class="mb-1 relative rounded-xl px-2.5 py-1 border transition-all duration-200 shadow-inner select-none cursor-grab active:cursor-grabbing touch-pan-y"
                      :class="{
                          'bg-red-950/[0.03] border-red-300/80 shadow-red-950/5': type === 'expense',
                          'bg-emerald-950/[0.03] border-emerald-300/80 shadow-emerald-950/5': type === 'income',
@@ -807,36 +807,16 @@
                      @mousedown="handleMouseDown($event)"
                      @mouseup="handleMouseUp($event)">
                      
-                     <div class="flex items-center justify-between gap-2">
+                     <div class="flex items-center justify-between gap-1.5 min-h-6">
                         <!-- Note Input -->
                         <div class="flex items-center gap-1.5 flex-1 min-w-0">
                             <span class="material-icons text-slate-400 text-sm">edit_note</span>
-                            <input type="text" x-model="description" placeholder="Añadir nota..." 
-                                   class="w-full text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none bg-transparent cursor-text select-text">
+                            <input type="text" x-model="description" placeholder="Añadir nota o descripción..."
+                                   class="w-full text-[11px] font-semibold text-slate-700 placeholder-slate-400 outline-none bg-transparent cursor-text select-text">
                         </div>
                         
                         <!-- Currency Toggle & Main Amount with Dynamic Type Indicator -->
-                        <div class="flex items-baseline gap-1.5 shrink-0">
-                            <!-- Type Pill Badge & Swipe Indicator Dots -->
-                            <div class="flex items-center gap-1 cursor-pointer select-none active:scale-95 transition-transform" 
-                                 @click="nextType()" 
-                                 title="Desliza a los lados o toca para cambiar tipo">
-                                <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded select-none leading-tight border transition-all"
-                                      :class="{
-                                          'bg-red-100 text-red-900 border-red-200': type === 'expense',
-                                          'bg-emerald-100 text-emerald-900 border-emerald-200': type === 'income',
-                                          'bg-blue-100 text-blue-900 border-blue-200': type === 'savings'
-                                      }"
-                                      x-text="type === 'expense' ? 'Gasto' : (type === 'income' ? 'Ingreso' : 'Ahorro')"></span>
-
-                                <!-- Micro Carousel Dots showing position -->
-                                <div class="flex items-center gap-0.5">
-                                    <span class="h-1 rounded-full transition-all duration-300" :class="type === 'expense' ? 'w-2 bg-red-700' : 'w-1 bg-slate-300'"></span>
-                                    <span class="h-1 rounded-full transition-all duration-300" :class="type === 'income' ? 'w-2 bg-emerald-800' : 'w-1 bg-slate-300'"></span>
-                                    <span class="h-1 rounded-full transition-all duration-300" :class="type === 'savings' ? 'w-2 bg-blue-700' : 'w-1 bg-slate-300'"></span>
-                                </div>
-                            </div>
-
+                        <div class="flex items-baseline gap-1 shrink-0">
                             <!-- Currency Toggle Pill -->
                             <button type="button" @click="currency = (currency === 'Bs' ? 'USD' : 'Bs')"
                                     class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider transition-all border select-none"
@@ -845,32 +825,32 @@
 
                             <!-- Amount with Dynamic +/-/★ prefix -->
                             <div class="flex items-baseline font-mono leading-none">
-                                <span class="font-black text-lg mr-0.5 select-none transition-all duration-200"
+                                <span class="font-black text-base mr-0.5 select-none transition-all duration-200"
                                       :class="{
                                           'text-red-700': type === 'expense',
                                           'text-emerald-800': type === 'income',
                                           'text-blue-700': type === 'savings'
                                       }"
                                       x-text="type === 'expense' ? '-' : (type === 'income' ? '+' : '★')"></span>
-                                <div class="font-black text-slate-900 tracking-tight text-2xl font-mono leading-none transition-all duration-200" 
+                                <div class="font-black text-slate-900 tracking-tight font-mono leading-none transition-all duration-200"
                                      :class="{
-                                         'text-2xl': compactLevel === 0,
-                                         'text-xl': compactLevel === 1,
-                                         'text-lg': compactLevel === 2
+                                         'text-xl': compactLevel === 0,
+                                         'text-lg': compactLevel === 1,
+                                         'text-base': compactLevel === 2
                                      }"
                                      x-text="display"></div>
                             </div>
                         </div>
                      </div>
                      <!-- Conversion Sub-line -->
-                     <div x-show="parseFloat(amount) > 0" class="flex justify-end pt-0.5">
+                     <div x-show="parseFloat(amount) > 0" class="flex justify-end">
                          <span class="text-[9px] font-bold text-emerald-700 bg-emerald-100/60 px-1.5 py-0.2 rounded" 
                                x-text="'≈ ' + (currency === 'Bs' ? '$ ' : 'Bs ') + formatMoney(currentConversion)"></span>
                      </div>
                 </div>
 
                 <!-- Row 3: Attributes (Account + Category) & Action Tools -->
-                <div class="relative flex items-center gap-1.5 mb-1.5 h-8.5" 
+                <div class="relative flex items-center gap-1.5 mb-1 h-8"
                      @click.outside="showAccountMenu = false; showCategoryMenu = false"
                      @keydown.escape.window="showAccountMenu = false; showCategoryMenu = false">
 
@@ -1035,6 +1015,20 @@
                         <span class="material-icons text-slate-400 text-xs transition-transform duration-200" :class="{'rotate-180': showCategoryMenu}">expand_more</span>
                     </button>
 
+                    <!-- Prominent compact cart access -->
+                    <button type="button"
+                            @click="toggleMode(); showAccountMenu = false; showCategoryMenu = false"
+                            title="Abrir modo carrito"
+                            class="relative w-10 h-full rounded-xl flex items-center justify-center border text-white shadow-md shrink-0 active:scale-95 transition-all"
+                            :class="mode === 'cart'
+                                ? 'bg-gradient-to-br from-emerald-800 to-teal-900 border-emerald-700 ring-2 ring-emerald-300/70 shadow-emerald-900/30'
+                                : 'bg-gradient-to-br from-emerald-500 to-teal-700 border-emerald-500 hover:brightness-105 shadow-emerald-600/25'">
+                        <span class="material-icons text-[17px]" x-text="mode === 'cart' ? 'shopping_cart' : 'add_shopping_cart'"></span>
+                        <span x-show="cart.length > 0"
+                              class="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-amber-400 text-amber-950 border-2 border-white text-[8px] font-black flex items-center justify-center leading-none"
+                              x-text="cart.length"></span>
+                    </button>
+
                     <!-- Date Timer Toggle -->
                     <div class="relative w-8.5 h-full shrink-0">
                          <div :class="customDate ? 'bg-emerald-100 text-emerald-700 animate-pulse' : 'bg-slate-50 text-slate-400'" 
@@ -1046,33 +1040,6 @@
                     </div>
 
                 </div>
-
-                <!-- Cart Mode: visible, informative and separate from secondary tools -->
-                <button type="button"
-                        @click="if (mode === 'single') { toggleMode(); showAccountMenu = false; showCategoryMenu = false; }"
-                        class="w-full mb-1.5 min-h-9 px-2.5 py-1.5 rounded-xl border flex items-center justify-between gap-2 transition-all shadow-xs select-none"
-                        :class="mode === 'cart'
-                            ? 'bg-gradient-to-r from-emerald-800 to-teal-800 border-emerald-700 text-white shadow-emerald-900/20 cursor-default'
-                            : 'bg-emerald-50/70 hover:bg-emerald-100 border-emerald-200 text-emerald-900 active:scale-[0.99]'">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                             :class="mode === 'cart' ? 'bg-white/20 text-emerald-100' : 'bg-white text-emerald-700 border border-emerald-100'">
-                            <span class="material-icons text-[15px]" x-text="mode === 'cart' ? 'shopping_cart' : 'add_shopping_cart'"></span>
-                        </div>
-                        <div class="text-left min-w-0 leading-tight">
-                            <span class="block text-[10px] font-black" x-text="mode === 'cart' ? 'Carrito activo' : 'Usar carrito'"></span>
-                            <span class="block text-[8px] font-semibold truncate"
-                                  :class="mode === 'cart' ? 'text-emerald-200' : 'text-emerald-700/70'"
-                                  x-text="mode === 'cart' ? (cart.length + (cart.length === 1 ? ' producto' : ' productos') + ' · ' + formatMoney(cartTotal)) : 'Agrupa varios conceptos en un solo registro'"></span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                        <span x-show="mode === 'cart'" class="min-w-6 h-6 px-1.5 rounded-lg bg-amber-400 text-amber-950 text-[10px] font-black flex items-center justify-center shadow-xs" x-text="cart.length"></span>
-                        <span x-show="mode === 'single'" class="text-[9px] font-black">Activar</span>
-                        <span x-show="mode === 'single'" class="material-icons text-sm">arrow_forward</span>
-                        <span x-show="mode === 'cart'" class="text-[8px] font-bold text-emerald-200 uppercase tracking-wider">En uso</span>
-                    </div>
-                </button>
 
                 <!-- NEGOCIO: Purchase Mode Drawer (Conditional) -->
                 <div x-show="owner === 'Negocio'" x-transition class="mb-1.5 bg-purple-50/80 backdrop-blur rounded-xl p-2.5 border border-purple-100 shadow-xs">
