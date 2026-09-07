@@ -640,7 +640,7 @@ class InvoiceParserService
     }
 
     /**
-     * Find contiguous or near-contiguous blocks of currency amounts (Bs. XXX,XX)
+     * Find contiguous or near-contiguous blocks of currency amounts (Bs. XXX,XX or XXX,XX)
      * which happens when OCR engines read columnar thermal receipts vertically.
      */
     protected function findCurrencyAmountsBlock(array $lines): array
@@ -648,11 +648,17 @@ class InvoiceParserService
         $blocks = [];
         $current = [];
         foreach ($lines as $idx => $line) {
-            if (preg_match('/^(?:Bs\.?|BSS)\s*([0-9\s,\.]+)/i', $line, $m)) {
-                $val = $this->parseMoney($m[1]);
-                if ($val > 0) {
-                    $current[] = ['idx' => $idx, 'val' => $val, 'raw' => $line];
-                    continue;
+            $trimmed = trim($line);
+            // Match numbers with currency prefix (Bs. 1.234,56) OR clean monetary decimals (1.234,56 or 45,00)
+            if (preg_match('/^(?:(?:Bs\.?|BSS|\$)\s*)?([0-9]{1,3}(?:[\.\s][0-9]{3})*[\.,][0-9]{2}|[0-9]+[\.,][0-9]{2})$/i', $trimmed, $m) ||
+                preg_match('/^(?:Bs\.?|BSS)\s*([0-9\s,\.]+)/i', $trimmed, $m)) {
+                // Discard clock times (19:28) and dates
+                if (!preg_match('/^\d{1,2}:\d{2}$/', $trimmed) && !preg_match('/^\d{2,4}[-\/]\d{2}[-\/]\d{2,4}$/', $trimmed)) {
+                    $val = $this->parseMoney($m[1]);
+                    if ($val > 0) {
+                        $current[] = ['idx' => $idx, 'val' => $val, 'raw' => $line];
+                        continue;
+                    }
                 }
             }
             if (!empty($current)) {
@@ -664,10 +670,14 @@ class InvoiceParserService
             $blocks[] = $current;
         }
 
+        $largest = [];
         foreach ($blocks as $b) {
-            if (count($b) >= 3) {
-                return $b;
+            if (count($b) > count($largest)) {
+                $largest = $b;
             }
+        }
+        if (count($largest) >= 3) {
+            return $largest;
         }
         return !empty($blocks) ? $blocks[0] : [];
     }
@@ -774,21 +784,29 @@ class InvoiceParserService
             if (!$headerDone) {
                 if (preg_match('/(?:FACTURA|NUMERO|FECHA|CLIENTE|DIRECCION|CODIGO|C10|ESTA:|ITEM\s*\|)/i', $line)) {
                     $headerDone = true;
+                    continue;
                 }
-                continue;
+                // If line looks like a clear item row even before header marker, start immediately
+                if (preg_match('/^[\d,\.]+\s*(?:UN|PZ|KG)?\s*x\s*[\d,\.]+/i', $line) ||
+                    preg_match('/^\d+\s*\|\s*[\d,\.]+\s*\|/i', $line) ||
+                    preg_match('/^\[\s*\d+\s*\]/i', $line)) {
+                    $headerDone = true;
+                } else {
+                    continue;
+                }
             }
 
-            foreach ($endKeywords as $kw) {
-                if (stripos($line, $kw) !== false) {
-                    // Do not trigger totals block if line is a table column header
-                    if (preg_match('/(?:ITEM\s*\||CANT.*?PRECIO|PRECIO.*?TOTAL|DESCRIPCION.*?TOTAL)/i', $line)) {
-                        continue;
-                    }
+            // Check for Totals Section boundary (must match at start of line, not inside a product name)
+            if (preg_match('/^[\s*#\-]*\b(?:SUBTTL|SUBTOTAL|SUB-TOTAL|BASE\s*IMPONIBLE|BI\s*G\d*|TOTAL(?:\s*(?:A\s*PAGAR|GENERAL|BS\.?))?|ALICUOTAS?|IGTF|FORMAS?\s*DE\s*PAGO|ARTICULOS\s*VENDIDOS)\b/i', $line) ||
+                preg_match('/^[\s*#\-]*\b(?:TOTAL\s*EXENTO|EXENTO)\b[\s:#]*(?:BS\.?|BSS)?[\s:#]*[\d,\.]*$/i', $line) ||
+                preg_match('/^[\s*#\-]*\b(?:BIOPAGO|CASHEA\s*BS)\b[\s:#]*(?:BS\.?|BSS)?[\s:#]*[\d,\.]*$/i', $line)) {
+                
+                // Do not trigger totals block if line is a table column header
+                if (!preg_match('/(?:ITEM\s*\||CANT.*?PRECIO|PRECIO.*?TOTAL|DESCRIPCION.*?TOTAL)/i', $line)) {
                     $inTotalsBlock = true;
                     break;
                 }
             }
-            if ($inTotalsBlock) break;
 
             $skip = false;
             foreach ($skipPrefixes as $prefix) {
@@ -968,10 +986,10 @@ class InvoiceParserService
                 }
             }
 
-            if (!empty($itemCandidates) && !empty($priceBlock) && count($priceBlock) >= count($itemCandidates)) {
+            if (!empty($itemCandidates) && !empty($priceBlock)) {
                 $columnarItems = [];
                 foreach ($itemCandidates as $k => $cand) {
-                    $price = $priceBlock[$k]['val'];
+                    $price = isset($priceBlock[$k]) ? $priceBlock[$k]['val'] : ($cand['unit_price'] > 0 ? round($cand['unit_price'] * $cand['quantity'], 2) : 0);
                     $columnarItems[] = [
                         'name' => $cand['name'],
                         'quantity' => $cand['quantity'],
@@ -980,7 +998,9 @@ class InvoiceParserService
                         'tax_type' => $cand['tax_type']
                     ];
                 }
-                return $columnarItems;
+                if (!empty($columnarItems)) {
+                    return $columnarItems;
+                }
             }
         }
 

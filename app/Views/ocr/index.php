@@ -141,7 +141,7 @@
                         <span class="bg-white/20 border border-white/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-md" x-text="overdueCount + ' Factura(s) Vencida(s)'"></span>
                     </div>
                     <p class="text-[11px] sm:text-xs text-rose-100 font-semibold mt-0.5 leading-relaxed">
-                        Tienes facturas de <b>Carga Rápida</b> escaneadas hace más de 72 horas sin verificar. Por favor revisa y aprueba para asegurar la contabilidad exacta.
+                        Tienes facturas de <b>Carga Rápida</b> escaneadas hace más de 72 horas sin verificar. Por favor revisa y confirma para asegurar la contabilidad exacta.
                     </p>
                 </div>
             </div>
@@ -189,8 +189,8 @@
                                 </span>
                             </div>
                             <p class="text-[11px] text-slate-500 font-semibold mt-0.5">
-                                <span x-show="quickScanMode">Foto tomada ➔ OCR ➔ Débito automático en cuenta bancaria ➔ Queda en <b>Pendientes</b> para verificar después.</span>
-                                <span x-show="!quickScanMode">Escanea y permite revisar o editar los productos y totales antes de guardar.</span>
+                                <span x-show="quickScanMode">⚡ Foto ➔ OCR ➔ Débito automático en cuenta bancaria ➔ Queda en <b>Por Revisar</b> para verificar.</span>
+                                <span x-show="!quickScanMode">📝 Escanea y muestra todos los ítems y totales en pantalla para revisar y editar antes de guardar.</span>
                             </p>
                         </div>
                     </div>
@@ -242,10 +242,10 @@
                     <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
                         <button type="button" @click="filterMode = 'normal'" 
                                 :class="filterMode === 'normal' ? 'bg-white text-emerald-800 font-black shadow-xs' : 'text-slate-500 font-bold'"
-                                class="px-2 py-0.5 text-[10px] rounded-lg transition-all">Normal</button>
+                                class="px-2.5 py-1 text-[10px] rounded-lg transition-all">Normal</button>
                         <button type="button" @click="filterMode = 'thermal'" 
                                 :class="filterMode === 'thermal' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'text-slate-500 font-bold'"
-                                class="px-2 py-0.5 text-[10px] rounded-lg transition-all">Alto Contraste</button>
+                                class="px-2.5 py-1 text-[10px] rounded-lg transition-all">Alto Contraste</button>
                     </div>
                 </div>
             </div>
@@ -294,7 +294,7 @@
 
                 <!-- Image Thumbnails Grid -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <template x-for="(img, idx) in pendingImages" :key="idx">
+                    <template x-for="(img, idx) in pendingImages" :key="'pimg-' + idx">
                         <div class="relative group rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 aspect-3/4 flex items-center justify-center">
                             <img :src="img" class="w-full h-full object-cover">
                             <button @click="removePendingImage(idx)" class="absolute top-2 right-2 w-6 h-6 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-md active:scale-95">
@@ -315,19 +315,19 @@
                 </div>
             </div>
 
-            <!-- Active Loading Indicator for Quick Scan -->
-            <div x-show="isProcessing && quickScanMode" x-transition 
+            <!-- Active Loading Indicator -->
+            <div x-show="isProcessing" x-transition 
                  class="bg-slate-900 text-white rounded-3xl p-5 shadow-2xl flex items-center gap-4 border border-slate-800">
                 <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
                     <span class="material-icons text-2xl animate-spin">refresh</span>
                 </div>
                 <div class="min-w-0">
-                    <h4 class="text-sm font-black text-white">Procesando Carga Rápida...</h4>
-                    <p class="text-xs text-slate-400 font-semibold mt-0.5">Extrayendo datos con OCR.space y debitando de tu cuenta bancaria seleccionada.</p>
+                    <h4 class="text-sm font-black text-white" x-text="quickScanMode ? 'Procesando Carga Rápida...' : 'Digitalizando con OCR...'"></h4>
+                    <p class="text-xs text-slate-400 font-semibold mt-0.5">Extrayendo datos de la factura con OCR.space e identificando productos.</p>
                 </div>
             </div>
 
-            <!-- Manual Review Invoice Cards (When processed without quick mode) -->
+            <!-- Manual Review Invoice Cards (When processed in manual mode) -->
             <div x-show="invoices.length > 0 && !quickScanMode" class="space-y-4 sm:space-y-5">
                 
                 <div class="flex items-center justify-between">
@@ -336,7 +336,7 @@
                             <span>Facturas Escaneadas para Revisar</span>
                             <span class="bg-emerald-100 text-emerald-800 text-xs font-black px-2 py-0.5 rounded-full" x-text="invoices.length"></span>
                         </h3>
-                        <p class="text-[10px] sm:text-[11px] text-slate-400 font-bold">Verifica o edita antes de confirmar el gasto</p>
+                        <p class="text-[10px] sm:text-[11px] text-slate-400 font-bold">Verifica y ajusta los renglones antes de confirmar el gasto</p>
                     </div>
                     <button @click="invoices = []" class="text-xs font-bold text-rose-600 hover:text-rose-700">Descartar todo</button>
                 </div>
@@ -363,23 +363,18 @@
                                 </div>
                             </div>
 
-                            <div class="flex items-center gap-2 self-end sm:self-auto">
-                                <button type="button" @click="inv.showRaw = !inv.showRaw" class="text-slate-500 hover:text-slate-800 text-[11px] font-bold px-2 py-1 rounded-xl bg-slate-100">
-                                    <span x-text="inv.showRaw ? 'Ocultar OCR' : 'Ver OCR'"></span>
+                            <!-- Actions Header: Button to Open Dedicated OCR Text Modal + Delete -->
+                            <div class="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+                                <button type="button" @click="openOcrTextModal(inv.raw_text, inv.merchant)" 
+                                        class="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs font-black px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-xs active:scale-95">
+                                    <span class="material-icons text-sm">description</span>
+                                    <span>Ver Texto OCR</span>
                                 </button>
-                                <button @click="removeInvoice(iIdx)" class="text-rose-500 hover:text-rose-700 text-xs font-bold px-2 py-1">
-                                    <span class="material-icons text-sm">delete</span>
+                                
+                                <button @click="removeInvoice(iIdx)" class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 text-xs font-bold p-1.5 rounded-xl transition-all" title="Eliminar factura">
+                                    <span class="material-icons text-base">delete</span>
                                 </button>
                             </div>
-                        </div>
-
-                        <!-- Raw OCR Collapsible -->
-                        <div x-show="inv.showRaw" x-transition class="p-3 bg-slate-900 text-slate-200 rounded-2xl text-[10px] font-mono space-y-1 border border-slate-800">
-                            <div class="flex justify-between items-center text-slate-400 pb-1 border-b border-slate-800">
-                                <span>Texto en crudo</span>
-                                <button type="button" @click="navigator.clipboard.writeText(inv.raw_text); showToast('Copiado')" class="text-emerald-400 font-bold">Copiar</button>
-                            </div>
-                            <div class="max-h-36 overflow-y-auto whitespace-pre-wrap select-all customize-scrollbar" x-text="inv.raw_text"></div>
                         </div>
 
                         <!-- Form Fields Grid (Mobile Responsive) -->
@@ -393,7 +388,7 @@
                                 <input type="text" x-model="inv.rif" placeholder="J-XXXXXXXXX" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nro. Factura</label>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Nro. Factura / Control</label>
                                 <input type="text" x-model="inv.invoice_number" placeholder="00000000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white">
                             </div>
                             <div>
@@ -406,7 +401,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200/70">
                             <div>
                                 <label class="block text-[10px] font-black text-emerald-800 uppercase mb-1">Cuenta Banco *</label>
-                                <select x-model="inv.account_id" class="w-full bg-white border border-emerald-300 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-800 outline-none">
+                                <select x-model="inv.account_id" class="w-full bg-white border border-emerald-300 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-400">
                                     <option value="">Seleccionar cuenta...</option>
                                     <?php foreach ($accounts as $acc): ?>
                                         <option value="<?= $acc['id'] ?>"><?= esc($acc['name']) ?> (<?= esc($acc['currency']) ?> - Saldo: <?= number_format($acc['balance'], 2, ',', '.') ?>)</option>
@@ -425,62 +420,73 @@
                                 <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Tipo de Gasto</label>
                                 <div class="flex items-center gap-1">
                                     <button type="button" @click="inv.owner = 'Negocio'" 
-                                            :class="inv.owner === 'Negocio' ? 'bg-emerald-600 text-white font-black' : 'bg-white text-slate-600 font-bold border border-slate-200'"
+                                            :class="inv.owner === 'Negocio' ? 'bg-emerald-600 text-white font-black shadow-xs' : 'bg-white text-slate-600 font-bold border border-slate-200'"
                                             class="flex-1 py-1.5 text-xs rounded-xl transition-all">Negocio</button>
                                     <button type="button" @click="inv.owner = 'Personal'" 
-                                            :class="inv.owner === 'Personal' ? 'bg-blue-600 text-white font-black' : 'bg-white text-slate-600 font-bold border border-slate-200'"
+                                            :class="inv.owner === 'Personal' ? 'bg-blue-600 text-white font-black shadow-xs' : 'bg-white text-slate-600 font-bold border border-slate-200'"
                                             class="flex-1 py-1.5 text-xs rounded-xl transition-all">Personal</button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Items Section: Responsive Mobile Cards + Desktop Table -->
-                        <div class="space-y-2.5">
+                        <!-- Items Section: Guaranteed Rendering with No Alpine Template Clashing -->
+                        <div class="space-y-3 pt-1">
                             <div class="flex items-center justify-between">
-                                <h5 class="text-xs font-black text-slate-700 flex items-center gap-1">
+                                <h5 class="text-xs font-black text-slate-700 flex items-center gap-1.5">
                                     <span class="material-icons text-sm text-slate-400">shopping_cart</span>
                                     <span>Productos / Servicios Detectados</span>
-                                    <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded-md" x-text="inv.items.length"></span>
+                                    <span class="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full" x-text="inv.items.length + ' ítems'"></span>
                                 </h5>
                                 <div class="flex items-center gap-1.5">
-                                    <button type="button" @click="recalculateInvoiceTotal(inv); showToast('Totales recalculados')" class="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">Recalcular</button>
-                                    <button type="button" @click="addItemToInvoice(inv)" class="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg">+ Item</button>
+                                    <button type="button" @click="recalculateInvoiceTotal(inv); showToast('Totales recalculados')" class="text-[10px] font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1">
+                                        <span class="material-icons text-xs">calculate</span>
+                                        <span>Recalcular</span>
+                                    </button>
+                                    <button type="button" @click="addItemToInvoice(inv)" class="text-[10px] font-black text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1">
+                                        <span class="material-icons text-xs">add</span>
+                                        <span>Agregar Ítem</span>
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Mobile Cards (sm:hidden) -->
-                            <div class="block sm:hidden space-y-2">
-                                <template x-for="(item, itIdx) in inv.items" :key="itIdx">
-                                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                            <!-- Mobile Cards (Visible on screens < 640px) -->
+                            <div class="block sm:hidden space-y-2.5">
+                                <template x-for="(item, itIdx) in inv.items" :key="'mob-' + inv.uid + '-' + itIdx">
+                                    <div class="p-3 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-2 shadow-2xs">
                                         <div class="flex items-center justify-between gap-2">
-                                            <input type="text" x-model="item.name" placeholder="Nombre producto" class="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800">
-                                            <button @click="removeItemFromInvoice(inv, itIdx)" class="text-slate-300 hover:text-rose-500 p-1">
+                                            <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-black flex items-center justify-center shrink-0" x-text="itIdx + 1"></span>
+                                            <input type="text" x-model="item.name" placeholder="Nombre o descripción del producto" class="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500">
+                                            <button @click="removeItemFromInvoice(inv, itIdx)" class="text-slate-300 hover:text-rose-500 p-1.5 rounded-lg active:scale-95 transition-all">
                                                 <span class="material-icons text-base">close</span>
                                             </button>
                                         </div>
                                         <div class="grid grid-cols-3 gap-2 text-xs">
                                             <div>
-                                                <span class="text-[9px] font-bold text-slate-400 block">Cant</span>
-                                                <input type="number" step="0.01" x-model.number="item.quantity" class="w-full bg-white border border-slate-200 rounded-lg p-1 text-center font-bold">
+                                                <span class="text-[9px] font-bold text-slate-400 block mb-0.5">Cant</span>
+                                                <input type="number" step="0.01" x-model.number="item.quantity" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-center font-bold outline-none text-xs">
                                             </div>
                                             <div>
-                                                <span class="text-[9px] font-bold text-slate-400 block">Precio (Bs)</span>
-                                                <input type="number" step="0.01" x-model.number="item.price" @input="updateItemUsd(item, inv.exchange_rate); recalculateInvoiceTotal(inv)" class="w-full bg-white border border-slate-200 rounded-lg p-1 text-right font-black text-slate-800">
+                                                <span class="text-[9px] font-bold text-slate-400 block mb-0.5">Precio (Bs)</span>
+                                                <input type="number" step="0.01" x-model.number="item.price" @input="updateItemUsd(item, inv.exchange_rate); recalculateInvoiceTotal(inv)" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-right font-black text-slate-800 outline-none text-xs">
                                             </div>
                                             <div>
-                                                <span class="text-[9px] font-bold text-slate-400 block">Impuesto</span>
-                                                <select x-model="item.tax_type" @change="recalculateInvoiceTotal(inv)" class="w-full bg-white border border-slate-200 rounded-lg p-1 text-center font-bold">
+                                                <span class="text-[9px] font-bold text-slate-400 block mb-0.5">Impuesto</span>
+                                                <select x-model="item.tax_type" @change="recalculateInvoiceTotal(inv)" class="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-1 text-center font-bold text-xs outline-none">
                                                     <option value="G">G (16%)</option>
                                                     <option value="E">E (Exento)</option>
                                                     <option value="R">R (Reducido)</option>
                                                 </select>
                                             </div>
                                         </div>
+                                        <div class="flex items-center justify-between pt-1 border-t border-slate-200/50 text-[10px]">
+                                            <span class="text-slate-400 font-semibold">Ref. Dólar:</span>
+                                            <span class="font-black text-emerald-700" x-text="formatUsd(item.price_usd)"></span>
+                                        </div>
                                     </div>
                                 </template>
                             </div>
 
-                            <!-- Desktop Table (hidden sm:block) -->
+                            <!-- Desktop Table (Visible on screens >= 640px) -->
                             <div class="hidden sm:block overflow-x-auto">
                                 <table class="w-full text-left border-collapse">
                                     <thead>
@@ -489,34 +495,34 @@
                                             <th class="py-2 px-2">Descripción</th>
                                             <th class="py-2 px-2 text-right w-28">Precio (Bs)</th>
                                             <th class="py-2 px-2 text-right w-24">Precio ($)</th>
-                                            <th class="py-2 px-1 text-center w-14">IVA</th>
+                                            <th class="py-2 px-1 text-center w-20">IVA</th>
                                             <th class="py-2 px-1 text-right w-8"></th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100 text-xs font-bold">
-                                        <template x-for="(item, itIdx) in inv.items" :key="itIdx">
+                                        <template x-for="(item, itIdx) in inv.items" :key="'desk-' + inv.uid + '-' + itIdx">
                                             <tr>
                                                 <td class="py-1.5 px-1">
-                                                    <input type="number" step="0.01" x-model.number="item.quantity" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1 text-center font-bold text-xs">
+                                                    <input type="number" step="0.01" x-model.number="item.quantity" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-center font-bold text-xs outline-none focus:bg-white focus:border-emerald-500">
                                                 </td>
                                                 <td class="py-1.5 px-2">
-                                                    <input type="text" x-model="item.name" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1 font-bold text-xs">
+                                                    <input type="text" x-model="item.name" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 font-bold text-xs outline-none focus:bg-white focus:border-emerald-500">
                                                 </td>
                                                 <td class="py-1.5 px-2 text-right">
-                                                    <input type="number" step="0.01" x-model.number="item.price" @input="updateItemUsd(item, inv.exchange_rate); recalculateInvoiceTotal(inv)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1 text-right font-black text-xs text-slate-800">
+                                                    <input type="number" step="0.01" x-model.number="item.price" @input="updateItemUsd(item, inv.exchange_rate); recalculateInvoiceTotal(inv)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-right font-black text-xs text-slate-800 outline-none focus:bg-white focus:border-emerald-500">
                                                 </td>
                                                 <td class="py-1.5 px-2 text-right">
-                                                    <input type="number" step="0.01" x-model.number="item.price_usd" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1 text-right font-black text-xs text-emerald-700">
+                                                    <input type="number" step="0.01" x-model.number="item.price_usd" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-right font-black text-xs text-emerald-700 outline-none focus:bg-white">
                                                 </td>
                                                 <td class="py-1.5 px-1 text-center">
-                                                    <select x-model="item.tax_type" @change="recalculateInvoiceTotal(inv)" class="bg-slate-50 border border-slate-200 rounded p-1 text-[10px] font-black">
-                                                        <option value="G">G</option>
-                                                        <option value="E">E</option>
-                                                        <option value="R">R</option>
+                                                    <select x-model="item.tax_type" @change="recalculateInvoiceTotal(inv)" class="bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-[10px] font-black outline-none">
+                                                        <option value="G">G (16%)</option>
+                                                        <option value="E">E (Exento)</option>
+                                                        <option value="R">R (Red.)</option>
                                                     </select>
                                                 </td>
                                                 <td class="py-1.5 px-1 text-right">
-                                                    <button @click="removeItemFromInvoice(inv, itIdx)" class="text-slate-300 hover:text-rose-500">
+                                                    <button @click="removeItemFromInvoice(inv, itIdx)" class="text-slate-300 hover:text-rose-500 transition-colors">
                                                         <span class="material-icons text-sm">close</span>
                                                     </button>
                                                 </td>
@@ -524,6 +530,12 @@
                                         </template>
                                     </tbody>
                                 </table>
+                            </div>
+
+                            <!-- Empty Items Indicator if none found -->
+                            <div x-show="inv.items.length === 0" class="p-4 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-xs text-slate-400 font-bold space-y-1">
+                                <p>No se encontraron renglones separados automáticamente.</p>
+                                <button type="button" @click="addItemToInvoice(inv)" class="text-emerald-700 underline font-black">+ Agregar el primer producto</button>
                             </div>
                         </div>
 
@@ -657,6 +669,45 @@
                             </div>
                         </div>
 
+                        <!-- Item Breakdown Drawer inside Pending Card -->
+                        <div class="pt-2 border-t border-slate-100 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <button type="button" @click="pInv.showItems = !pInv.showItems" 
+                                        class="flex items-center gap-1.5 text-xs font-black text-slate-700 hover:text-emerald-700 transition-all">
+                                    <span class="material-icons text-sm transition-transform duration-200" :class="{'rotate-180': pInv.showItems}">expand_more</span>
+                                    <span>Ítems / Renglones de la Factura</span>
+                                    <span class="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full" 
+                                          x-text="(pInv.items && pInv.items.length ? pInv.items.length : 0) + ' ítem(s)'"></span>
+                                </button>
+                                <span class="text-[10px] font-bold text-slate-400" x-show="!pInv.showItems">Toca para ver</span>
+                            </div>
+
+                            <!-- List of items (Expanded by default or on click) -->
+                            <div x-show="pInv.showItems || (pInv.items && pInv.items.length <= 3 && pInv.showItems !== false)" x-transition class="space-y-1.5 pt-1">
+                                <template x-for="(it, itIdx) in (pInv.items || [])" :key="'pitem-' + pInv.id + '-' + itIdx">
+                                    <div class="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl text-xs transition-colors">
+                                        <div class="min-w-0 flex-1 pr-2">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                <span class="font-mono font-black text-slate-400 text-[11px]" x-text="(parseFloat(it.quantity || 1).toFixed(2)) + 'x'"></span>
+                                                <span class="font-bold text-slate-800 truncate" x-text="it.name"></span>
+                                                <span class="text-[9px] font-black px-1.5 py-0.2 rounded"
+                                                      :class="it.tax_type === 'E' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'"
+                                                      x-text="it.tax_type || 'G'"></span>
+                                            </div>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <span class="font-black text-slate-900 block" x-text="formatBs(it.price)"></span>
+                                            <span class="text-[10px] font-bold text-emerald-700 block" x-show="it.price_usd > 0" x-text="formatUsd(it.price_usd)"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                                
+                                <div x-show="!pInv.items || pInv.items.length === 0" class="p-2.5 text-center text-xs text-slate-400 font-bold bg-slate-50 rounded-xl">
+                                    Factura registrada por monto global sin desglose de renglones individuales.
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Card Actions Toolbar (Mobile-Friendly Flex) -->
                         <div class="flex items-center gap-2 pt-2 border-t border-slate-100 flex-wrap">
                             
@@ -667,21 +718,28 @@
                                 <span>Ver Ticket</span>
                             </button>
 
-                            <!-- 2. Editar -->
+                            <!-- 2. Ver Texto OCR -->
+                            <button type="button" @click="openOcrTextModal(pInv.raw_text, pInv.merchant)" 
+                                    class="flex-1 sm:flex-none px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 active:scale-95">
+                                <span class="material-icons text-sm">description</span>
+                                <span>Ver OCR</span>
+                            </button>
+
+                            <!-- 3. Editar -->
                             <button type="button" @click="editPendingInvoice(pInv)" 
                                     class="flex-1 sm:flex-none px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 active:scale-95">
                                 <span class="material-icons text-sm">edit</span>
                                 <span>Editar</span>
                             </button>
 
-                            <!-- 3. Aprobar / Confirmar -->
+                            <!-- 4. Aprobar / Confirmar -->
                             <button type="button" @click="approvePendingInvoice(pInv.id)" 
                                     class="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl transition-all shadow-md shadow-emerald-900/10 flex items-center justify-center gap-1.5 active:scale-95">
                                 <span class="material-icons text-sm">check</span>
                                 <span>Confirmar</span>
                             </button>
 
-                            <!-- 4. Cancelar / Anular -->
+                            <!-- 5. Cancelar / Anular -->
                             <button type="button" @click="cancelPendingInvoice(pInv)" 
                                     class="px-2.5 py-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all text-xs font-bold flex items-center justify-center gap-1">
                                 <span class="material-icons text-sm">cancel</span>
@@ -757,17 +815,24 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-                            <div class="text-left sm:text-right">
+                        <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                            <div class="text-left sm:text-right mr-1">
                                 <div class="text-sm sm:text-base font-black text-slate-900" x-text="formatBs(hInv.total_bs)"></div>
                                 <div class="text-[11px] font-black text-emerald-700" x-text="formatUsd(hInv.total_usd)"></div>
                             </div>
+
+                            <!-- Open OCR Modal Button -->
+                            <button type="button" @click="openOcrTextModal(hInv.raw_text, hInv.merchant)" 
+                                    class="w-9 h-9 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all shadow-xs"
+                                    title="Ver Texto OCR Crudo">
+                                <span class="material-icons text-base">description</span>
+                            </button>
 
                             <!-- Open Simulator Button -->
                             <button type="button" @click="openReceiptSimulator(hInv)" 
                                     class="w-9 h-9 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-all shadow-xs"
                                     title="Ver Simulación de Factura / Ticket Térmico">
-                                <span class="material-icons text-lg">receipt</span>
+                                <span class="material-icons text-base">receipt</span>
                             </button>
                         </div>
 
@@ -778,6 +843,61 @@
         </div>
 
     </main>
+
+    <!-- ========================================================================= -->
+    <!-- NEW MODAL: TEXTO EXTRAÍDO POR OCR (RAW TEXT MODAL) -->
+    <!-- ========================================================================= -->
+    <div x-show="ocrTextModal.show" x-transition x-cloak 
+         class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" 
+         @click.self="ocrTextModal.show = false">
+        
+        <div class="w-full max-w-xl bg-slate-950 text-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-800">
+            
+            <!-- Modal Header -->
+            <div class="p-4 sm:p-5 border-b border-slate-800/80 flex items-center justify-between gap-3 bg-slate-900/60">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                        <span class="material-icons text-xl">description</span>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-sm sm:text-base font-black tracking-tight text-white truncate">Texto Extraído por OCR</h3>
+                            <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-md"
+                                  x-text="ocrTextModal.lineCount + ' líneas'"></span>
+                            <span class="bg-slate-800 text-slate-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-md"
+                                  x-text="ocrTextModal.charCount + ' caract.'"></span>
+                        </div>
+                        <p class="text-xs text-slate-400 font-semibold truncate mt-0.5" x-text="ocrTextModal.merchant"></p>
+                    </div>
+                </div>
+
+                <button @click="ocrTextModal.show = false" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all">
+                    <span class="material-icons text-sm">close</span>
+                </button>
+            </div>
+
+            <!-- Modal Content: Raw Preformatted Text -->
+            <div class="p-4 sm:p-5 overflow-y-auto customize-scrollbar flex-1 bg-slate-950">
+                <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 font-ticket text-xs text-emerald-300 leading-relaxed max-h-[60vh] overflow-y-auto whitespace-pre-wrap select-all customize-scrollbar" 
+                     x-text="ocrTextModal.text"></div>
+            </div>
+
+            <!-- Modal Actions Bar -->
+            <div class="p-3.5 sm:p-4 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between gap-2 shrink-0">
+                <button type="button" @click="copyOcrText()" 
+                        class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-950/30">
+                    <span class="material-icons text-sm">content_copy</span>
+                    <span>Copiar Texto OCR</span>
+                </button>
+
+                <button type="button" @click="ocrTextModal.show = false" 
+                        class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold active:scale-95 transition-all">
+                    Cerrar
+                </button>
+            </div>
+
+        </div>
+    </div>
 
     <!-- ========================================================================= -->
     <!-- MODAL: SIMULACIÓN DE FACTURA / TICKET TÉRMICO DIGITAL -->
@@ -823,7 +943,7 @@
                         <span class="w-20 text-right">TOTAL BS</span>
                     </div>
 
-                    <template x-for="(it, idx) in (receiptModal.data?.items || [])" :key="idx">
+                    <template x-for="(it, idx) in (receiptModal.data?.items || [])" :key="'ritem-' + idx">
                         <div class="flex justify-between text-[11px] leading-tight py-0.5">
                             <span class="w-10 font-bold" x-text="parseFloat(it.quantity || 1).toFixed(2)"></span>
                             <span class="flex-1 px-1 truncate font-semibold" x-text="it.name + ' (' + (it.tax_type || 'G') + ')'"></span>
@@ -1036,8 +1156,8 @@
                 // Active Tab: 'scan' | 'pending' | 'history'
                 activeTab: '<?= $overdueCount > 0 ? "pending" : "scan" ?>',
 
-                // Carga Rápida Mode Toggle
-                quickScanMode: true,
+                // Carga Rápida Mode Toggle: Default to FALSE so items list is shown after scanning
+                quickScanMode: false,
                 quickAccountId: <?= !empty($accounts[0]['id']) ? $accounts[0]['id'] : 0 ?>,
                 quickOwner: 'Negocio',
                 filterMode: 'normal', // 'normal' | 'thermal'
@@ -1060,6 +1180,7 @@
                 historyFilter: { merchant: '', status: 'all' },
 
                 // Modals
+                ocrTextModal: { show: false, merchant: '', text: '', lineCount: 0, charCount: 0 },
                 receiptModal: { show: false, data: null },
                 editModal: { show: false, data: null },
                 previewModal: { show: false, src: '' },
@@ -1098,7 +1219,7 @@
                     event.target.value = '';
                 },
 
-                // Compress image on mobile client canvas
+                // Compress image on client canvas
                 compressAndProcessImage(file) {
                     const reader = new FileReader();
                     reader.onload = (e) => {
@@ -1136,8 +1257,12 @@
                                 // Direct Quick Mode: Auto-scan, auto-deduct, auto-save to pending!
                                 this.executeQuickScan([compressedDataUrl]);
                             } else {
-                                // Manual Mode: Add to queue
+                                // Manual Mode: Add to queue or process directly
                                 this.pendingImages.push(compressedDataUrl);
+                                // If user took 1 photo directly from camera, auto-process queue for fast experience!
+                                if (this.pendingImages.length === 1) {
+                                    this.processOcrQueue();
+                                }
                             }
                         };
                         img.src = e.target.result;
@@ -1166,7 +1291,7 @@
                                 this.pendingInvoices = result.pending_invoices;
                             }
                             this.overdueCount = result.overdue_count || 0;
-                            // Switch to pending tab so user sees it right away!
+                            // Switch to pending tab so user sees it right away with items
                             this.activeTab = 'pending';
                         } else {
                             alert(result.message || 'Error en Carga Rápida.');
@@ -1206,7 +1331,7 @@
                             });
 
                             this.pendingImages = [];
-                            this.showToast('¡Facturas escaneadas! Revisa los detalles abajo.');
+                            this.showToast('¡Factura escaneada! Revisa todos los renglones abajo.');
                         } else {
                             alert(result.message || 'Error al procesar con OCR');
                         }
@@ -1223,7 +1348,7 @@
                 async saveInvoices() {
                     for (let inv of this.invoices) {
                         if (!inv.account_id) {
-                            alert(`Selecciona la cuenta bancaria para la factura de ${inv.merchant}`);
+                            alert(`Por favor selecciona la cuenta bancaria de donde se pagó la factura de ${inv.merchant}`);
                             return;
                         }
                     }
@@ -1350,6 +1475,25 @@
 
                 filterHistory() {
                     // Reactive through filteredHistoryList getter
+                },
+
+                // Open Dedicated OCR Text Modal
+                openOcrTextModal(rawText, merchant) {
+                    const text = (rawText || '').trim() || 'No hay texto crudo extraído disponible para esta factura.';
+                    const lines = text.split('\n').filter(l => l.trim().length > 0);
+                    this.ocrTextModal = {
+                        show: true,
+                        merchant: merchant || 'Factura Escaneada',
+                        text: text,
+                        lineCount: lines.length,
+                        charCount: text.length
+                    };
+                },
+
+                copyOcrText() {
+                    if (!this.ocrTextModal.text) return;
+                    navigator.clipboard.writeText(this.ocrTextModal.text);
+                    this.showToast('¡Texto OCR copiado al portapapeles!');
                 },
 
                 // Open Thermal Receipt Simulator Modal
