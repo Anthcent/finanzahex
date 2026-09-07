@@ -60,6 +60,12 @@ $routes->get('metrics', 'MetricsController::index');
 $routes->post('metrics/fetch', 'MetricsController::fetch');
 $routes->get('metrics/export', 'MetricsController::export');
 
+// OCR Invoice Scanner
+$routes->get('ocr', 'OcrController::index');
+$routes->post('ocr/process', 'OcrController::process');
+$routes->post('ocr/save', 'OcrController::save');
+$routes->post('ocr/settings', 'OcrController::saveSettings');
+
 // Routes for Printing Module
 $routes->get('printing', 'PrintingController::index');
 $routes->get('printing/products', 'PrintingController::getProducts');

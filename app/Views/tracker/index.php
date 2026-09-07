@@ -130,6 +130,13 @@
                         </div>
                     </div>
                     
+                    <!-- Shortcut: OCR Scanner -->
+                    <a href="<?= base_url('ocr') ?>" 
+                       class="w-9 h-9 flex items-center justify-center bg-white/90 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-2xl border border-slate-200/80 hover:border-emerald-300 transition-all shadow-xs active:scale-95 group shrink-0" 
+                       title="Escanear Facturas (OCR)">
+                        <span class="material-icons text-base group-hover:scale-110 transition-transform">document_scanner</span>
+                    </a>
+
                     <!-- Shortcut: Printing Tool -->
                     <a href="<?= base_url('printing') ?>" 
                        class="w-9 h-9 flex items-center justify-center bg-white/90 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-2xl border border-slate-200/80 hover:border-emerald-300 transition-all shadow-xs active:scale-95 group shrink-0" 
@@ -180,21 +187,21 @@
                                   <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mt-0.5">Acceso a Módulos</p>
                               </div>
                           </div>
-                          <button @click="showMenu = false" class="w-8 h-8 rounded-xl bg-slate-100 text-slate-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-all active:scale-90">
-                              <span class="material-icons text-base">close</span>
+                          <button type="button" @click="showMenu = false" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors">
+                              <span class="material-icons text-sm">close</span>
                           </button>
                       </div>
 
-                      <!-- Compact Grid Content -->
-                      <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+                      <!-- Scrollable Modules Body -->
+                      <div class="p-4 space-y-4 overflow-y-auto customize-scrollbar flex-1">
                           
                           <!-- Group: Finanzas -->
                           <div class="space-y-2">
                               <span class="text-[9.5px] font-black text-emerald-800 uppercase tracking-widest pl-1 flex items-center gap-1">
-                                  <span class="w-1 h-3 bg-emerald-600 rounded-full inline-block"></span>
+                                  <span class="w-1 h-3 bg-emerald-500 rounded-full inline-block"></span>
                                   Finanzas
                               </span>
-                              <div class="grid grid-cols-3 gap-2">
+                              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                   <a href="<?= base_url('history') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
                                       <div class="w-12 h-12 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs transition-colors">
                                           <span class="material-icons text-2xl">list</span>
@@ -212,6 +219,12 @@
                                           <span class="material-icons text-2xl">bar_chart</span>
                                       </div>
                                       <span class="text-[11px] font-bold text-slate-700 group-hover:text-emerald-950 text-center leading-tight">Métricas</span>
+                                  </a>
+                                  <a href="<?= base_url('ocr') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-xs transition-transform group-hover:scale-105">
+                                          <span class="material-icons text-2xl">document_scanner</span>
+                                      </div>
+                                      <span class="text-[11px] font-black text-slate-800 group-hover:text-emerald-950 text-center leading-tight">Escáner OCR</span>
                                   </a>
                               </div>
                           </div>
