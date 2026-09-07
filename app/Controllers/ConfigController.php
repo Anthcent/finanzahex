@@ -12,7 +12,7 @@ class ConfigController extends BaseController
     public function index()
     {
         $db = \Config\Database::connect();
-        $accounts = $db->table('accounts')->where('status !=', 'deleted')->get()->getResultArray();
+        $accounts = $db->table('accounts')->whereIn('status', ['active', 'closed'])->get()->getResultArray();
         
         $settingsQuery = $db->table('settings')->get()->getResultArray();
         $settings = [];
@@ -52,7 +52,7 @@ class ConfigController extends BaseController
 
         return $this->response->setJSON([
             'categories' => $catModel->findAll(),
-            'accounts' => $accModel->where('status !=', 'deleted')->orderBy('type', 'ASC')->findAll()
+            'accounts' => $accModel->whereIn('status', ['active', 'closed'])->orderBy('type', 'ASC')->findAll()
         ]);
     }
 

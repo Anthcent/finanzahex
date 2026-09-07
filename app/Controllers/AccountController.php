@@ -18,7 +18,7 @@ class AccountController extends BaseController
 
     public function fetch()
     {
-        $accounts = (new AccountModel())->where('status !=', 'deleted')->orderBy('status', 'ASC')->findAll();
+        $accounts = (new AccountModel())->whereIn('status', ['active', 'closed'])->orderBy('status', 'ASC')->findAll();
         return $this->response->setJSON(['status' => 'success', 'data' => $accounts]);
     }
 

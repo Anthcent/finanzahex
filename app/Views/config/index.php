@@ -231,7 +231,7 @@
 
                 async fetchData() {
                     try {
-                        let res = await fetch('<?= base_url('config/get-data') ?>');
+                        let res = await fetch('<?= base_url('config/get-data') ?>?t=' + Date.now(), { cache: 'no-store' });
                         let data = await res.json();
                         this.accounts = data.accounts || [];
                         this.categories = data.categories || [];
@@ -258,6 +258,7 @@
                     const res = await fetch('<?= base_url('config/delete-account/') ?>' + id, { method: 'POST' });
                     const data = await res.json();
                     if (data.status !== 'success') return alert(data.message || 'No se pudo eliminar la cuenta.');
+                    this.accounts = this.accounts.filter(item => item.id != id);
                     await this.fetchData();
                 },
 

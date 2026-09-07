@@ -137,7 +137,7 @@
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                <template x-for="acc in accounts.filter(a => a.type === 'temporary' && (a.status === 'active' || showClosed))" :key="acc.id">
+                <template x-for="acc in accounts.filter(a => a.type === 'temporary' && a.status !== 'deleted' && (a.status === 'active' || (showClosed && a.status === 'closed')))" :key="acc.id">
                     <div :class="acc.status === 'closed' ? 'bg-slate-100/90 border-slate-200 opacity-75' : 'bg-gradient-to-br from-amber-50/60 to-orange-50/40 border-amber-200/70 shadow-2xs'" 
                          class="rounded-2xl p-4 border relative overflow-hidden transition-all duration-300">
                         
@@ -240,7 +240,7 @@
                 <h2 class="text-lg font-black text-slate-900">¿Eliminar Cuenta?</h2>
                 <p class="text-xs text-slate-500 mt-1">
                     Se eliminará la cuenta <span class="font-black text-slate-800" x-text="selectedAccount?.name"></span>.
-                    <span class="block mt-1 font-bold text-rose-600" x-text="selectedAccount?.type === 'temporary' ? 'El saldo disponible se devolverá al origen y el historial se conservará.' : 'Solo puede eliminarse si no tiene saldo.'"></span>
+                    <span class="block mt-1 font-bold text-rose-600" x-text="selectedAccount?.type === 'temporary' ? 'El fondo desaparecerá del historial visual; sus movimientos financieros seguirán auditados.' : 'La cuenta desaparecerá de los listados y su historial financiero se conservará.'"></span>
                 </p>
             </div>
             <div class="flex gap-2.5 pt-2">
@@ -497,7 +497,7 @@
 
                 async fetchAccounts() {
                     try {
-                        let res = await fetch('<?= base_url('accounts/fetch') ?>');
+                        let res = await fetch('<?= base_url('accounts/fetch') ?>?t=' + Date.now(), { cache: 'no-store' });
                         let data = await res.json();
                         if(data.status === 'success') {
                             this.accounts = data.data;
@@ -633,8 +633,10 @@
                         let res = await fetch(`<?= base_url('accounts/delete') ?>/${this.selectedAccount.id}`, { method: 'POST' });
                         let data = await res.json();
                         if (data.status === 'success') {
+                            const deletedId = this.selectedAccount.id;
                             this.showDeleteModal = false;
                             this.selectedAccount = null;
+                            this.accounts = this.accounts.filter(acc => acc.id != deletedId);
                             this.fetchAccounts();
                         } else {
                             alert('Error al eliminar: ' + (data.message || 'Error desconocido'));
