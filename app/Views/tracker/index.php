@@ -794,31 +794,8 @@
                                x-text="'≈ ' + (currency === 'Bs' ? '$ ' : 'Bs ') + formatMoney(currentConversion)"></span>
                      </div>
 
-                     <!-- Bottom controls: icon-only transaction types and owner -->
-                     <div class="mt-1.5 pt-1.5 border-t flex items-center justify-between gap-2"
-                          :class="{
-                              'border-red-200/70': type === 'expense',
-                              'border-emerald-200/70': type === 'income',
-                              'border-blue-200/70': type === 'savings'
-                          }">
-                         <div class="flex items-center gap-1 p-0.5 bg-white/70 rounded-xl border border-slate-200/70 shadow-xs">
-                             <button type="button" @click="type = 'expense'" title="Egreso" aria-label="Seleccionar egreso" :aria-pressed="type === 'expense'"
-                                     class="w-9 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90"
-                                     :class="type === 'expense' ? 'bg-gradient-to-br from-red-800 to-rose-950 text-white shadow-sm' : 'text-red-700 hover:bg-red-50'">
-                                 <span class="material-icons text-[16px]">trending_down</span>
-                             </button>
-                             <button type="button" @click="type = 'income'" title="Ingreso" aria-label="Seleccionar ingreso" :aria-pressed="type === 'income'"
-                                     class="w-9 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90"
-                                     :class="type === 'income' ? 'bg-gradient-to-br from-emerald-700 to-teal-950 text-white shadow-sm' : 'text-emerald-700 hover:bg-emerald-50'">
-                                 <span class="material-icons text-[16px]">trending_up</span>
-                             </button>
-                             <button type="button" @click="type = 'savings'" title="Ahorro" aria-label="Seleccionar ahorro" :aria-pressed="type === 'savings'"
-                                     class="w-9 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90"
-                                     :class="type === 'savings' ? 'bg-gradient-to-br from-blue-700 to-indigo-950 text-white shadow-sm' : 'text-blue-700 hover:bg-blue-50'">
-                                 <span class="material-icons text-[16px]">savings</span>
-                             </button>
-                         </div>
-
+                     <!-- Owner stays available without competing with the amount -->
+                     <div class="mt-1.5 flex justify-end">
                          <button type="button" @click="showQuickOwnerPicker = !showQuickOwnerPicker"
                                  title="Seleccionar quién registra"
                                  class="h-8 px-2.5 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95 select-none"
@@ -834,7 +811,7 @@
                 </div>
 
                 <!-- Attributes (Account + Category) & Action Tools -->
-                <div class="relative flex items-center gap-1.5 mb-1 h-8"
+                <div class="relative flex items-center gap-1 mb-1 h-8"
                      @click.outside="showAccountMenu = false; showCategoryMenu = false"
                      @keydown.escape.window="showAccountMenu = false; showCategoryMenu = false">
 
@@ -974,7 +951,7 @@
                     <!-- Account Select Button -->
                     <button type="button" 
                             @click="showAccountMenu = !showAccountMenu; showCategoryMenu = false; showQuickOwnerPicker = false" 
-                            class="flex-1 h-full px-2.5 flex items-center justify-between rounded-xl transition-all shadow-xs select-none active:scale-95 border"
+                            class="flex-1 min-w-0 h-full px-2 flex items-center justify-between rounded-xl transition-all shadow-xs select-none active:scale-95 border"
                             :class="showAccountMenu 
                                 ? 'bg-emerald-100 border-emerald-400 text-emerald-950 ring-2 ring-emerald-500/30 font-black' 
                                 : 'bg-emerald-50/80 hover:bg-emerald-100/70 border-emerald-200/90 text-emerald-950 font-bold'">
@@ -988,7 +965,7 @@
                     <!-- Category Select Button -->
                     <button type="button" 
                             @click="showCategoryMenu = !showCategoryMenu; showAccountMenu = false; showQuickOwnerPicker = false" 
-                            class="flex-1 h-full px-2.5 flex items-center justify-between rounded-xl transition-all shadow-xs select-none active:scale-95 border"
+                            class="flex-1 min-w-0 h-full px-2 flex items-center justify-between rounded-xl transition-all shadow-xs select-none active:scale-95 border"
                             :class="showCategoryMenu 
                                 ? 'bg-slate-200 border-slate-400 text-slate-900 ring-2 ring-slate-400/30 font-black' 
                                 : 'bg-slate-50 hover:bg-slate-100/90 border-slate-200 text-slate-800 font-bold'">
@@ -999,11 +976,30 @@
                         <span class="material-icons text-slate-400 text-xs transition-transform duration-200" :class="{'rotate-180': showCategoryMenu}">expand_more</span>
                     </button>
 
+                    <!-- Transaction type icons beside the selectors -->
+                    <div class="h-full flex items-center gap-0.5 p-0.5 bg-white rounded-xl border border-slate-200 shadow-xs shrink-0">
+                        <button type="button" @click="type = 'expense'" title="Egreso" aria-label="Seleccionar egreso" :aria-pressed="type === 'expense'"
+                                class="w-[22px] h-full rounded-lg flex items-center justify-center transition-all active:scale-90"
+                                :class="type === 'expense' ? 'bg-gradient-to-br from-red-800 to-rose-950 text-white shadow-sm' : 'text-red-700 hover:bg-red-50'">
+                            <span class="material-icons text-[14px]">trending_down</span>
+                        </button>
+                        <button type="button" @click="type = 'income'" title="Ingreso" aria-label="Seleccionar ingreso" :aria-pressed="type === 'income'"
+                                class="w-[22px] h-full rounded-lg flex items-center justify-center transition-all active:scale-90"
+                                :class="type === 'income' ? 'bg-gradient-to-br from-emerald-700 to-teal-950 text-white shadow-sm' : 'text-emerald-700 hover:bg-emerald-50'">
+                            <span class="material-icons text-[14px]">trending_up</span>
+                        </button>
+                        <button type="button" @click="type = 'savings'" title="Ahorro" aria-label="Seleccionar ahorro" :aria-pressed="type === 'savings'"
+                                class="w-[22px] h-full rounded-lg flex items-center justify-center transition-all active:scale-90"
+                                :class="type === 'savings' ? 'bg-gradient-to-br from-blue-700 to-indigo-950 text-white shadow-sm' : 'text-blue-700 hover:bg-blue-50'">
+                            <span class="material-icons text-[14px]">savings</span>
+                        </button>
+                    </div>
+
                     <!-- Prominent compact cart access -->
                     <button type="button"
                             @click="toggleMode(); showAccountMenu = false; showCategoryMenu = false"
                             title="Abrir modo carrito"
-                            class="relative w-10 h-full rounded-xl flex items-center justify-center border text-white shadow-md shrink-0 active:scale-95 transition-all"
+                            class="relative w-9 h-full rounded-xl flex items-center justify-center border text-white shadow-md shrink-0 active:scale-95 transition-all"
                             :class="mode === 'cart'
                                 ? 'bg-gradient-to-br from-emerald-800 to-teal-900 border-emerald-700 ring-2 ring-emerald-300/70 shadow-emerald-900/30'
                                 : 'bg-gradient-to-br from-emerald-500 to-teal-700 border-emerald-500 hover:brightness-105 shadow-emerald-600/25'">
@@ -1014,7 +1010,7 @@
                     </button>
 
                     <!-- Date Timer Toggle -->
-                    <div class="relative w-8.5 h-full shrink-0">
+                    <div class="relative w-8 h-full shrink-0">
                          <div :class="customDate ? 'bg-emerald-100 text-emerald-700 animate-pulse' : 'bg-slate-50 text-slate-400'" 
                               class="w-full h-full rounded-xl flex items-center justify-center border border-slate-200 shadow-xs transition-all relative">
                              <span class="material-icons text-[14px]" x-text="customDate ? 'timer' : 'calendar_today'"></span>
