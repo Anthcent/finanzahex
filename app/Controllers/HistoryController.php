@@ -16,9 +16,9 @@ class HistoryController extends BaseController
         $categoryModel = new CategoryModel();
         
         $data = [
-            'accounts' => $accountModel->findAll(),
-            'categories' => $categoryModel->findAll(),
-            'owners' => ['Arianny', 'Anthony', 'Negocio']
+            'accounts'   => $accountModel->orderBy('name', 'ASC')->findAll(),
+            'categories' => $categoryModel->orderBy('name', 'ASC')->findAll(),
+            'owners'     => ['Arianny', 'Anthony', 'Negocio']
         ];
 
         return view('history/index', $data);
@@ -32,7 +32,50 @@ class HistoryController extends BaseController
         $model = new TransactionModel();
         $records = $model->getFilteredRecords($filters);
 
-        return $this->response->setJSON(['status' => 'success', 'data' => $records]);
+        // Compute executive summary for the filtered result set
+        $totalIncome = 0.0;
+        $totalExpense = 0.0;
+        $totalSavings = 0.0;
+        $totalInvoicesBs = 0.0;
+        $totalInvoicesUsd = 0.0;
+        $invoicesCount = 0;
+
+        foreach ($records as $r) {
+            $type = $r['type'] ?? '';
+            $amountBs = (float)($r['amount'] ?? 0);
+            $amountUsd = (float)($r['amount_usd'] ?? 0);
+
+            if (in_array($type, ['income', 'return', 'exchange_in', 'transfer_in'])) {
+                $totalIncome += $amountBs;
+            } elseif (in_array($type, ['expense', 'exchange_out', 'transfer_out'])) {
+                $totalExpense += $amountBs;
+            } elseif ($type === 'savings') {
+                $totalSavings += $amountBs;
+            }
+
+            if (!empty($r['has_invoice']) && $r['has_invoice']) {
+                $invoicesCount++;
+                $totalInvoicesBs += $amountBs;
+                $totalInvoicesUsd += $amountUsd;
+            }
+        }
+
+        $summary = [
+            'total_income'       => $totalIncome,
+            'total_expense'      => $totalExpense,
+            'total_savings'      => $totalSavings,
+            'net_balance'        => ($totalIncome - $totalExpense),
+            'invoices_count'     => $invoicesCount,
+            'total_invoices_bs'  => $totalInvoicesBs,
+            'total_invoices_usd' => $totalInvoicesUsd,
+            'total_records'      => count($records),
+        ];
+
+        return $this->response->setJSON([
+            'status'  => 'success',
+            'data'    => $records,
+            'summary' => $summary
+        ]);
     }
     
     public function delete($id)
@@ -74,17 +117,34 @@ class HistoryController extends BaseController
 
                  // Log the balance change for audit
                  $auditImpact = [
-                    'account_id' => $transaction['account_id'],
-                    'balance_before' => $currentBalance,
-                    'balance_after' => $newBalance,
+                    'account_id'      => $transaction['account_id'],
+                    'balance_before'  => $currentBalance,
+                    'balance_after'   => $newBalance,
                     'reverted_amount' => $amountToRevert
                  ];
              }
 
-             // 4. Delete Transaction
+             // 4. Update linked OCR Invoice status if exists
+             if ($db->tableExists('ocr_invoices')) {
+                 $db->table('ocr_invoices')
+                    ->where('transaction_id', $id)
+                    ->update([
+                        'status'     => 'cancelled',
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ]);
+             }
+
+             // 5. Delete Transaction Items if exists
+             if ($db->tableExists('transaction_items')) {
+                 $db->table('transaction_items')
+                    ->where('transaction_id', $id)
+                    ->delete();
+             }
+
+             // 6. Delete Transaction
              $model->delete($id);
              
-             // 5. Audit Log
+             // 7. Audit Log
              AuditLogModel::log('transactions', 'delete', $id, $transaction, null, $auditImpact ?? [], "Eliminación con reverso de saldo");
 
              $db->transComplete();
@@ -104,9 +164,47 @@ class HistoryController extends BaseController
     public function getItems($transactionId)
     {
         $db = \Config\Database::connect();
-        $builder = $db->table('transaction_items');
-        $items = $builder->where('transaction_id', $transactionId)->get()->getResultArray();
         
-        return $this->response->setJSON(['status' => 'success', 'items' => $items]);
+        // 1. Get from transaction_items
+        $items = [];
+        if ($db->tableExists('transaction_items')) {
+            $items = $db->table('transaction_items')
+                        ->where('transaction_id', $transactionId)
+                        ->get()
+                        ->getResultArray();
+        }
+        
+        // 2. Get from ocr_invoices if linked
+        $invoice = null;
+        if ($db->tableExists('ocr_invoices')) {
+            $invoice = $db->table('ocr_invoices')
+                          ->where('transaction_id', $transactionId)
+                          ->get()
+                          ->getRowArray();
+        }
+
+        // Fallback: If transaction_items is empty but invoice has items_json
+        if (empty($items) && !empty($invoice['items_json'])) {
+            $decoded = json_decode($invoice['items_json'], true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $it) {
+                    $items[] = [
+                        'id'             => $it['id'] ?? null,
+                        'transaction_id' => $transactionId,
+                        'name'           => $it['name'] ?? 'Producto / Servicio',
+                        'description'    => !empty($it['tax_type']) ? "IVA: {$it['tax_type']}" : ($it['description'] ?? ''),
+                        'quantity'       => $it['quantity'] ?? 1,
+                        'price'          => $it['price'] ?? 0,
+                        'price_usd'      => $it['price_usd'] ?? 0,
+                    ];
+                }
+            }
+        }
+        
+        return $this->response->setJSON([
+            'status'  => 'success', 
+            'items'   => $items,
+            'invoice' => $invoice
+        ]);
     }
 }

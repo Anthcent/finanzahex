@@ -304,6 +304,28 @@ class TransactionController extends BaseController
             }
 
             $transModel->update($id, $updateData);
+
+            // Sync with ocr_invoices if this transaction is linked
+            if ($db->tableExists('ocr_invoices')) {
+                $linkedInvoice = $db->table('ocr_invoices')->where('transaction_id', $id)->get()->getRowArray();
+                if ($linkedInvoice) {
+                    $invUpdate = ['updated_at' => date('Y-m-d H:i:s')];
+                    if (isset($updateData['category_id'])) {
+                        $invUpdate['category_id'] = $updateData['category_id'];
+                    }
+                    if (isset($updateData['amount'])) {
+                        $invUpdate['total_bs'] = $updateData['amount'];
+                        if (!empty($updateData['amount_usd'])) {
+                            $invUpdate['total_usd'] = $updateData['amount_usd'];
+                        }
+                    }
+                    if (!empty($createdAt)) {
+                        $invUpdate['invoice_date'] = date('Y-m-d', strtotime($createdAt));
+                        $invUpdate['invoice_time'] = date('H:i', strtotime($createdAt));
+                    }
+                    $db->table('ocr_invoices')->where('id', $linkedInvoice['id'])->update($invUpdate);
+                }
+            }
             
             // AUDIT LOG
             $updatedTrans = $transModel->find($id);
