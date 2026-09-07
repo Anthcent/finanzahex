@@ -58,85 +58,57 @@
 
         <!-- Header Area (Executive Fintech Top Nav) -->
         <div class="flex-none pt-2.5 px-4 pb-2 z-50 relative lg:pt-6">
-            <div class="mb-2 transition-all duration-300" :class="compactLevel > 0 ? 'mb-1.5' : 'mb-2'">
-                <div class="flex justify-between items-center gap-2">
-                
-                <!-- Brand / Logo & Title -->
-                <div class="flex items-center gap-2.5 min-w-0" :class="compactLevel > 1 ? 'hidden' : 'flex'">
-                    <!-- Fintech Hexagon Monogram Badge -->
-                    <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-950 text-white flex items-center justify-center shadow-md shadow-emerald-950/20 ring-1 ring-emerald-400/40 shrink-0">
-                        <span class="material-icons text-lg">account_balance_wallet</span>
+            <div class="mb-1.5 transition-all duration-300">
+                <div class="flex items-center gap-1 sm:gap-1.5">
+                    <!-- Compact identity: icon only -->
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-950 text-white flex items-center justify-center shadow-md shadow-emerald-950/20 ring-1 ring-emerald-400/40 shrink-0" title="Resumen financiero">
+                        <span class="material-icons text-base">account_balance_wallet</span>
                     </div>
-                    
-                    <div class="leading-tight min-w-0">
-                        <h1 class="font-black text-slate-900 tracking-tight leading-none truncate" :class="compactLevel === 1 ? 'text-sm' : 'text-base'">
-                            Fi-Hex <span class="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-black">Wallet</span>
-                        </h1>
-                        <p class="text-[9px] font-bold text-slate-400 flex items-center gap-1 mt-0.5" x-show="compactLevel === 0">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                            <span>Resumen financiero</span>
-                        </p>
-                    </div>
-                </div>
-                
-                <!-- Ultra Mode Brand (Only visible in Level 2) -->
-                <div class="flex items-center gap-1.5 shrink-0" x-show="compactLevel > 1">
-                    <div class="w-7 h-7 bg-gradient-to-br from-emerald-600 to-teal-800 rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-xs">
-                        <span class="material-icons text-sm">account_balance_wallet</span>
-                    </div>
-                    <span class="font-black text-slate-800 text-xs">Fi-Hex</span>
-                </div>
 
-                <!-- Controls & Actions Toolbar -->
-                <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- BCV rate stays in the top row -->
+                    <div class="h-8 w-[92px] sm:w-[108px] min-w-0 flex items-center bg-white/90 border rounded-xl px-2 shadow-xs transition-all"
+                         :class="manualRate ? 'border-amber-300 bg-amber-50/50' : 'border-emerald-200/80'">
+                        <span class="w-1.5 h-1.5 rounded-full shrink-0 mr-1.5" :class="manualRate ? 'bg-amber-500' : 'bg-emerald-500'"></span>
+                        <div class="leading-none min-w-0 flex-1">
+                            <span class="text-[6px] font-black uppercase tracking-wide block truncate" :class="manualRate ? 'text-amber-700' : 'text-slate-400'" x-text="manualRate ? 'USD MANUAL' : 'DÓLAR BCV'"></span>
+                            <div class="flex items-baseline mt-0.5">
+                                <span class="text-[7px] font-black mr-0.5 text-slate-400">Bs</span>
+                                <input type="number" step="0.01" x-model.number="exchangeRate" :disabled="!manualRate"
+                                       class="bg-transparent font-mono font-black text-slate-800 focus:outline-none p-0 border-none h-auto w-full text-[10px]" placeholder="0.00">
+                            </div>
+                        </div>
+                        <button type="button" @click="toggleManualRate()" class="w-5 h-5 ml-0.5 flex items-center justify-center rounded-md shrink-0" :class="manualRate ? 'bg-amber-500 text-white' : 'text-slate-400'" :title="manualRate ? 'Guardar tasa' : 'Editar tasa'">
+                            <span class="material-icons text-[11px]" x-text="manualRate ? 'check' : 'edit'"></span>
+                        </button>
+                    </div>
+
+                    <!-- Controls & Actions Toolbar -->
+                    <div class="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
+                    <button type="button" @click="openCurrencyCalculator()" class="w-8 h-8 flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white border border-emerald-500 shadow-md shadow-emerald-900/20 active:scale-95 transition-all" title="Calculadora USD, EUR y Bs">
+                        <span class="material-icons text-base">calculate</span>
+                    </button>
+
                     <!-- Shortcut: OCR Scanner -->
-                    <a href="<?= base_url('ocr') ?>" 
-                       class="w-9 h-9 flex items-center justify-center bg-white/90 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-2xl border border-slate-200/80 hover:border-emerald-300 transition-all shadow-xs active:scale-95 group shrink-0" 
+                    <a href="<?= base_url('ocr') ?>"
+                       class="w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-xl border border-slate-200/80 hover:border-emerald-300 transition-all shadow-xs active:scale-95 group shrink-0"
                        title="Escanear Facturas (OCR)">
                         <span class="material-icons text-base group-hover:scale-110 transition-transform">document_scanner</span>
                     </a>
 
                     <!-- Shortcut: Printing Tool -->
-                    <a href="<?= base_url('printing') ?>" 
-                       class="w-9 h-9 flex items-center justify-center bg-white/90 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-2xl border border-slate-200/80 hover:border-emerald-300 transition-all shadow-xs active:scale-95 group shrink-0" 
+                    <a href="<?= base_url('printing') ?>"
+                       class="w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-xl border border-slate-200/80 hover:border-emerald-300 transition-all shadow-xs active:scale-95 group shrink-0"
                        title="Módulo de Impresiones">
                         <span class="material-icons text-base group-hover:scale-110 transition-transform">print</span>
                     </a>
 
                     <!-- Main Menu Hamburger Button -->
-                    <button type="button" @click="showMenu = !showMenu" 
-                            class="w-9 h-9 flex items-center justify-center bg-white/90 hover:bg-slate-100 text-slate-700 rounded-2xl border border-slate-200/80 hover:border-slate-300 shadow-xs active:scale-95 transition-all shrink-0" 
+                    <button type="button" @click="showMenu = !showMenu"
+                            class="w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-slate-100 text-slate-700 rounded-xl border border-slate-200/80 hover:border-slate-300 shadow-xs active:scale-95 transition-all shrink-0"
                             title="Menú Principal">
                         <span class="material-icons text-xl">menu</span>
                     </button>
-                </div>
-                </div>
-
-                <!-- Dedicated rate row: prevents header controls from overlapping -->
-                <div class="flex items-center gap-2 mt-2">
-                    <div class="h-9 min-w-0 flex-1 flex items-center justify-between bg-white/90 backdrop-blur-md border rounded-2xl px-3 py-1 shadow-xs transition-all"
-                         :class="manualRate ? 'border-amber-300 bg-amber-50/40 ring-1 ring-amber-400/20' : 'border-emerald-200/80 hover:border-emerald-300'">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-2 h-2 rounded-full shrink-0" :class="manualRate ? 'bg-amber-500' : (rateUpdated ? 'bg-emerald-400 animate-ping' : 'bg-emerald-500')"></span>
-                            <div class="leading-none min-w-0">
-                                <span class="text-[7.5px] font-black uppercase tracking-wider block" :class="manualRate ? 'text-amber-700' : 'text-slate-500'" x-text="rateUpdated ? 'ACTUALIZADO' : (manualRate ? 'TASA MANUAL USD' : 'DÓLAR BCV')"></span>
-                                <div class="flex items-baseline mt-0.5">
-                                    <span class="text-[9px] font-black mr-1 text-slate-500">Bs</span>
-                                    <input type="number" step="0.01" x-model.number="exchangeRate" :disabled="!manualRate"
-                                           class="bg-transparent font-mono font-black text-slate-800 focus:outline-none p-0 border-none h-auto w-24 text-sm transition-colors"
-                                           :class="{'text-emerald-700': rateUpdated && !manualRate, 'text-amber-900': manualRate}" placeholder="0.00">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 pl-2 border-l border-slate-100">
-                            <button type="button" @click="fetchRate(); manualRate = false; showMsg('Sincronizando tasa BCV...')" x-show="manualRate" class="w-6 h-6 flex items-center justify-center rounded-lg bg-amber-100 text-amber-700" title="Volver a tasa BCV"><span class="material-icons text-[13px]">sync</span></button>
-                            <button type="button" @click="toggleManualRate()" class="w-6 h-6 flex items-center justify-center rounded-lg transition-colors" :class="manualRate ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500'" :title="manualRate ? 'Guardar tasa' : 'Editar tasa'"><span class="material-icons text-[12px]" x-text="manualRate ? 'check' : 'edit'"></span></button>
-                        </div>
                     </div>
-                    <button type="button" @click="openCurrencyCalculator()" class="h-9 px-3 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 text-white border border-indigo-500 shadow-md shadow-indigo-900/20 flex items-center gap-1.5 shrink-0 active:scale-95 transition-all" title="Calculadora USD, EUR y Bs">
-                        <span class="material-icons text-base">calculate</span>
-                        <span class="text-[10px] font-black hidden min-[340px]:inline">Calcular</span>
-                    </button>
                 </div>
             </div>
             
