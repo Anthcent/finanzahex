@@ -109,7 +109,7 @@
                     <!-- Badge Counter -->
                     <template x-if="pendingInvoices.length > 0">
                         <span class="px-1.5 py-0.2 rounded-full text-[9px] font-black text-white"
-                              :class="overdueCount > 0 ? 'bg-rose-500 animate-pulse ring-2 ring-rose-400/60' : 'bg-amber-500'"
+                              :class="pendingFilterCounts.overdue > 0 ? 'bg-rose-500 animate-pulse ring-2 ring-rose-400/60' : 'bg-amber-500'"
                               x-text="pendingInvoices.length"></span>
                     </template>
                 </button>
@@ -129,7 +129,7 @@
     <main class="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 safe-bottom">
 
         <!-- CRITICAL OVERDUE 72-HOUR ALERT BANNER (If any pending invoice > 72h) -->
-        <div x-show="overdueCount > 0" x-transition
+        <div x-show="pendingFilterCounts.overdue > 0" x-transition
              class="bg-gradient-to-r from-rose-600 via-rose-700 to-red-800 text-white rounded-3xl p-4 sm:p-5 shadow-xl shadow-rose-950/20 border border-rose-400/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div class="flex items-start gap-3 min-w-0">
                 <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white shrink-0 animate-bounce">
@@ -138,7 +138,7 @@
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                         <h4 class="text-xs sm:text-sm font-black tracking-tight">¡ALERTA DE REVISIÓN PENDIENTE (> 72 HORAS)!</h4>
-                        <span class="bg-white/20 border border-white/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-md" x-text="overdueCount + ' Factura(s) Vencida(s)'"></span>
+                        <span class="bg-white/20 border border-white/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-md" x-text="pendingFilterCounts.overdue + ' Factura(s) Vencida(s)'"></span>
                     </div>
                     <p class="text-[11px] sm:text-xs text-rose-100 font-semibold mt-0.5 leading-relaxed">
                         Tienes facturas de <b>Carga Rápida</b> escaneadas hace más de 72 horas sin verificar. Por favor revisa y confirma para asegurar la contabilidad exacta.
@@ -610,18 +610,73 @@
         <!-- ========================================================================= -->
         <div x-show="activeTab === 'pending'" class="space-y-4">
             
-            <div class="flex items-center justify-between">
+            <div class="flex items-start sm:items-center justify-between gap-3">
                 <div>
                     <h3 class="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
                         <span>Facturas Pendientes por Revisar</span>
-                        <span class="bg-amber-100 text-amber-800 text-xs font-black px-2 py-0.5 rounded-full" x-text="pendingInvoices.length"></span>
+                        <span class="bg-amber-100 text-amber-800 text-xs font-black px-2 py-0.5 rounded-full" x-text="filteredPendingInvoices.length + '/' + pendingInvoices.length"></span>
                     </h3>
                     <p class="text-[11px] text-slate-500 font-semibold">Facturas registradas por Carga Rápida que requieren tu confirmación o ajuste</p>
                 </div>
-                <button type="button" @click="fetchPendingInvoices()" class="text-xs font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-1">
+                <button type="button" @click="fetchPendingInvoices()" class="h-9 px-3 rounded-xl bg-white border border-slate-200 text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-1 shrink-0">
                     <span class="material-icons text-sm">refresh</span>
-                    <span>Actualizar</span>
+                    <span class="hidden sm:inline">Actualizar</span>
                 </button>
+            </div>
+
+            <!-- Pending Review Summary & Filters -->
+            <div x-show="pendingInvoices.length > 0" class="space-y-3">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                    <button type="button" @click="pendingFilters.status = 'all'"
+                            :class="pendingFilters.status === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'"
+                            class="rounded-2xl border p-3 text-left transition-all">
+                        <span class="text-[9px] font-black uppercase tracking-wider opacity-70">Todas</span>
+                        <span class="block text-xl font-black mt-0.5" x-text="pendingFilterCounts.all"></span>
+                    </button>
+                    <button type="button" @click="pendingFilters.status = 'overdue'"
+                            :class="pendingFilters.status === 'overdue' ? 'bg-rose-600 text-white border-rose-600' : 'bg-rose-50 text-rose-700 border-rose-200 hover:border-rose-300'"
+                            class="rounded-2xl border p-3 text-left transition-all">
+                        <span class="text-[9px] font-black uppercase tracking-wider opacity-80">Vencidas</span>
+                        <span class="block text-xl font-black mt-0.5" x-text="pendingFilterCounts.overdue"></span>
+                    </button>
+                    <button type="button" @click="pendingFilters.status = 'due_soon'"
+                            :class="pendingFilters.status === 'due_soon' ? 'bg-amber-500 text-white border-amber-500' : 'bg-amber-50 text-amber-800 border-amber-200 hover:border-amber-300'"
+                            class="rounded-2xl border p-3 text-left transition-all">
+                        <span class="text-[9px] font-black uppercase tracking-wider opacity-80">Vencen en 24 h</span>
+                        <span class="block text-xl font-black mt-0.5" x-text="pendingFilterCounts.due_soon"></span>
+                    </button>
+                    <button type="button" @click="pendingFilters.status = 'incomplete'"
+                            :class="pendingFilters.status === 'incomplete' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-300'"
+                            class="rounded-2xl border p-3 text-left transition-all">
+                        <span class="text-[9px] font-black uppercase tracking-wider opacity-80">Datos incompletos</span>
+                        <span class="block text-xl font-black mt-0.5" x-text="pendingFilterCounts.incomplete"></span>
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/90 p-2.5 shadow-xs flex flex-col sm:flex-row gap-2">
+                    <div class="relative flex-1">
+                        <span class="material-icons text-base text-slate-400 absolute left-3 top-1/2 -translate-y-1/2">search</span>
+                        <input type="search" x-model.debounce.200ms="pendingFilters.search"
+                               aria-label="Buscar facturas pendientes"
+                               placeholder="Buscar comercio, RIF, factura o cuenta..."
+                               class="w-full h-10 pl-9 pr-9 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500">
+                        <button type="button" x-show="pendingFilters.search" @click="pendingFilters.search = ''"
+                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                            <span class="material-icons text-sm">close</span>
+                        </button>
+                    </div>
+                    <select x-model="pendingFilters.sort" class="h-10 sm:w-48 rounded-xl bg-slate-50 border border-slate-200 px-3 text-xs font-black text-slate-700 outline-none focus:border-emerald-500">
+                        <option value="priority">Más urgentes primero</option>
+                        <option value="newest">Más recientes primero</option>
+                        <option value="amount_desc">Mayor monto primero</option>
+                        <option value="merchant">Orden alfabético</option>
+                    </select>
+                    <button type="button" x-show="pendingFilters.search || pendingFilters.status !== 'all' || pendingFilters.sort !== 'priority'"
+                            @click="resetPendingFilters()" class="h-10 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black flex items-center justify-center gap-1">
+                        <span class="material-icons text-sm">restart_alt</span>
+                        Limpiar
+                    </button>
+                </div>
             </div>
 
             <!-- Empty State -->
@@ -635,33 +690,39 @@
                 </div>
             </div>
 
+            <div x-show="pendingInvoices.length > 0 && filteredPendingInvoices.length === 0" class="bg-white rounded-3xl p-8 text-center border border-slate-200/80 space-y-3">
+                <div class="w-14 h-14 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
+                    <span class="material-icons text-3xl">search_off</span>
+                </div>
+                <div>
+                    <h4 class="text-sm font-black text-slate-800">No hay coincidencias</h4>
+                    <p class="text-xs text-slate-400 font-semibold mt-1">Prueba otra búsqueda o limpia los filtros aplicados.</p>
+                </div>
+                <button type="button" @click="resetPendingFilters()" class="h-10 px-4 rounded-xl bg-slate-900 text-white text-xs font-black">Mostrar todas</button>
+            </div>
+
             <!-- List of Pending Cards -->
-            <div class="grid grid-cols-1 gap-3.5">
-                <template x-for="pInv in pendingInvoices" :key="pInv.id">
+            <div x-show="filteredPendingInvoices.length > 0" class="grid grid-cols-1 gap-3.5">
+                <template x-for="pInv in filteredPendingInvoices" :key="pInv.id">
                     <div class="bg-white rounded-3xl p-4 sm:p-5 shadow-xs border transition-all space-y-3.5"
-                         :class="pInv.is_overdue_72h ? 'border-rose-400/90 ring-1 ring-rose-300 bg-rose-50/10' : 'border-slate-200/90'">
+                         :class="pendingCardClass(pInv)">
                         
                         <!-- Card Top Bar: Overdue Pill & Date -->
                         <div class="flex items-center justify-between gap-2 flex-wrap pb-2 border-b border-slate-100">
                             <div class="flex items-center gap-1.5 flex-wrap">
-                                <!-- 72h Alert Pill -->
-                                <template x-if="pInv.is_overdue_72h">
-                                    <span class="bg-rose-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs animate-pulse">
-                                        <span class="material-icons text-[10px]">alarm</span>
-                                        <span x-text="'¡VENCIDA (' + pInv.elapsed_hours + 'h sin revisar)!'"></span>
-                                    </span>
-                                </template>
-                                <template x-if="!pInv.is_overdue_72h">
-                                    <span class="bg-amber-100 text-amber-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1">
-                                        <span class="material-icons text-[10px]">schedule</span>
-                                        <span x-text="'Hace ' + pInv.elapsed_hours + 'h (Quedan ' + pInv.hours_remaining + 'h)'"></span>
-                                    </span>
-                                </template>
+                                <span class="text-[9px] font-black uppercase px-2 py-1 rounded-lg flex items-center gap-1 border shadow-xs"
+                                      :class="pendingBadgeClass(pInv)">
+                                    <span class="material-icons text-[11px]" x-text="pendingUrgency(pInv) === 'overdue' ? 'alarm' : 'schedule'"></span>
+                                    <span x-text="pendingDeadlineLabel(pInv)"></span>
+                                </span>
 
                                 <span class="bg-slate-100 text-slate-600 text-[9px] font-bold px-2 py-0.5 rounded-md" x-text="pInv.model_label || 'Factura'"></span>
                             </div>
 
-                            <div class="text-[11px] font-bold text-slate-400" x-text="pInv.invoice_date + ' ' + (pInv.invoice_time || '')"></div>
+                            <div class="text-right">
+                                <div class="text-[11px] font-black text-slate-600" x-text="pendingAgeLabel(pInv)"></div>
+                                <div class="text-[10px] font-bold text-slate-400" x-text="pInv.invoice_date + ' ' + (pInv.invoice_time || '')"></div>
+                            </div>
                         </div>
 
                         <!-- Card Body -->
@@ -1187,6 +1248,9 @@
                 // Pending Invoices with 72h rule
                 pendingInvoices: <?= json_encode($pendingInvoices, JSON_UNESCAPED_UNICODE) ?>,
                 overdueCount: <?= $overdueCount ?>,
+                pendingFilters: { search: '', status: 'all', sort: 'priority' },
+                pendingNow: Date.now(),
+                pendingLoadedAt: Date.now(),
 
                 // History Invoices
                 historyInvoices: <?= json_encode($historyInvoices, JSON_UNESCAPED_UNICODE) ?>,
@@ -1202,6 +1266,7 @@
                 toast: { show: false, message: '' },
 
                 init() {
+                    setInterval(() => { this.pendingNow = Date.now(); }, 60000);
                     // Pre-select first account if not set
                     if (!this.quickAccountId && <?= !empty($accounts[0]['id']) ? 'true' : 'false' ?>) {
                         this.quickAccountId = <?= !empty($accounts[0]['id']) ? $accounts[0]['id'] : 0 ?>;
@@ -1209,6 +1274,123 @@
                     if (!this.quickCategoryId && <?= !empty($categories[0]['id']) ? 'true' : 'false' ?>) {
                         this.quickCategoryId = <?= !empty($categories[0]['id']) ? $categories[0]['id'] : 0 ?>;
                     }
+                },
+
+                get pendingFilterCounts() {
+                    const rows = this.pendingInvoices || [];
+                    return {
+                        all: rows.length,
+                        overdue: rows.filter(inv => this.pendingUrgency(inv) === 'overdue').length,
+                        due_soon: rows.filter(inv => ['critical', 'soon'].includes(this.pendingUrgency(inv))).length,
+                        incomplete: rows.filter(inv => this.pendingIsIncomplete(inv)).length,
+                    };
+                },
+
+                get filteredPendingInvoices() {
+                    const query = this.pendingFilters.search.trim().toLowerCase();
+                    let rows = (this.pendingInvoices || []).filter(inv => {
+                        const haystack = [
+                            inv.merchant,
+                            inv.rif,
+                            inv.invoice_number,
+                            inv.account_name,
+                            inv.category_name,
+                            inv.model_label,
+                        ].filter(Boolean).join(' ').toLowerCase();
+                        if (query && !haystack.includes(query)) return false;
+
+                        const urgency = this.pendingUrgency(inv);
+                        if (this.pendingFilters.status === 'overdue' && urgency !== 'overdue') return false;
+                        if (this.pendingFilters.status === 'due_soon' && !['critical', 'soon'].includes(urgency)) return false;
+                        if (this.pendingFilters.status === 'incomplete' && !this.pendingIsIncomplete(inv)) return false;
+                        return true;
+                    });
+
+                    return rows.sort((a, b) => {
+                        if (this.pendingFilters.sort === 'newest') {
+                            return this.pendingElapsedHours(a) - this.pendingElapsedHours(b);
+                        }
+                        if (this.pendingFilters.sort === 'amount_desc') {
+                            return Number(b.total_bs || 0) - Number(a.total_bs || 0);
+                        }
+                        if (this.pendingFilters.sort === 'merchant') {
+                            return String(a.merchant || '').localeCompare(String(b.merchant || ''), 'es');
+                        }
+                        // Oldest first means overdue invoices naturally stay at the top.
+                        return this.pendingElapsedHours(b) - this.pendingElapsedHours(a);
+                    });
+                },
+
+                pendingElapsedHours(inv) {
+                    const serverAge = Number(inv?.elapsed_hours || 0);
+                    const openPageHours = Math.max(0, this.pendingNow - this.pendingLoadedAt) / 3600000;
+                    return serverAge + openPageHours;
+                },
+
+                pendingUrgency(inv) {
+                    const elapsed = this.pendingElapsedHours(inv);
+                    if (elapsed >= 72) return 'overdue';
+                    const remaining = Math.max(0, 72 - elapsed);
+                    if (remaining <= 12) return 'critical';
+                    if (remaining <= 24) return 'soon';
+                    return 'normal';
+                },
+
+                pendingIsIncomplete(inv) {
+                    return Number(inv?.total_bs || 0) <= 0 || !inv?.merchant || inv.merchant === 'Comercio Desconocido';
+                },
+
+                formatPendingDuration(hours) {
+                    const totalMinutes = Math.max(0, Math.round(Number(hours || 0) * 60));
+                    if (totalMinutes < 1) return 'menos de 1 min';
+                    if (totalMinutes < 60) return totalMinutes + ' min';
+                    const wholeHours = Math.floor(totalMinutes / 60);
+                    const minutes = totalMinutes % 60;
+                    if (wholeHours < 24) return wholeHours + ' h' + (minutes ? ' ' + minutes + ' min' : '');
+                    const days = Math.floor(wholeHours / 24);
+                    const hoursLeft = wholeHours % 24;
+                    return days + ' d' + (hoursLeft ? ' ' + hoursLeft + ' h' : '');
+                },
+
+                pendingDeadlineLabel(inv) {
+                    const elapsed = this.pendingElapsedHours(inv);
+                    if (this.pendingUrgency(inv) === 'overdue') {
+                        return 'Vencida hace ' + this.formatPendingDuration(Math.max(0, elapsed - 72));
+                    }
+                    return 'Vence en ' + this.formatPendingDuration(Math.max(0, 72 - elapsed));
+                },
+
+                pendingAgeLabel(inv) {
+                    return 'Pendiente hace ' + this.formatPendingDuration(this.pendingElapsedHours(inv));
+                },
+
+                replacePendingInvoices(rows, overdueCount = 0) {
+                    this.pendingInvoices = rows || [];
+                    this.overdueCount = Number(overdueCount || 0);
+                    this.pendingLoadedAt = Date.now();
+                    this.pendingNow = this.pendingLoadedAt;
+                },
+
+                pendingBadgeClass(inv) {
+                    return {
+                        overdue: 'bg-rose-600 text-white border-rose-600',
+                        critical: 'bg-orange-100 text-orange-800 border-orange-200',
+                        soon: 'bg-amber-100 text-amber-800 border-amber-200',
+                        normal: 'bg-slate-100 text-slate-700 border-slate-200',
+                    }[this.pendingUrgency(inv)];
+                },
+
+                pendingCardClass(inv) {
+                    return {
+                        overdue: 'border-rose-400 ring-1 ring-rose-200 bg-rose-50/20',
+                        critical: 'border-orange-300 bg-orange-50/15',
+                        soon: 'border-amber-300 bg-amber-50/10',
+                        normal: 'border-slate-200/90',
+                    }[this.pendingUrgency(inv)];
+                },
+
+                resetPendingFilters() {
+                    this.pendingFilters = { search: '', status: 'all', sort: 'priority' };
                 },
 
                 get filteredHistoryList() {
@@ -1305,9 +1487,10 @@
                         if (result.status === 'success') {
                             this.showToast(result.message);
                             if (result.pending_invoices) {
-                                this.pendingInvoices = result.pending_invoices;
+                                this.replacePendingInvoices(result.pending_invoices, result.overdue_count);
+                            } else {
+                                this.overdueCount = result.overdue_count || 0;
                             }
-                            this.overdueCount = result.overdue_count || 0;
                             // Switch to pending tab so user sees it right away with items
                             this.activeTab = 'pending';
                         } else {
@@ -1402,8 +1585,7 @@
                         const result = await res.json();
                         if (result.status === 'success') {
                             this.showToast(result.message);
-                            this.pendingInvoices = result.pending_invoices;
-                            this.overdueCount = result.overdue_count || 0;
+                            this.replacePendingInvoices(result.pending_invoices, result.overdue_count);
                             this.fetchHistoryInvoices();
                         } else {
                             alert(result.message || 'Error al confirmar.');
@@ -1432,8 +1614,7 @@
                         if (result.status === 'success') {
                             this.showToast(result.message);
                             this.editModal.show = false;
-                            this.pendingInvoices = result.pending_invoices;
-                            this.overdueCount = result.overdue_count || 0;
+                            this.replacePendingInvoices(result.pending_invoices, result.overdue_count);
                             this.fetchHistoryInvoices();
                         } else {
                             alert(result.message || 'Error al actualizar.');
@@ -1454,8 +1635,7 @@
                         const result = await res.json();
                         if (result.status === 'success') {
                             this.showToast(result.message);
-                            this.pendingInvoices = result.pending_invoices;
-                            this.overdueCount = result.overdue_count || 0;
+                            this.replacePendingInvoices(result.pending_invoices, result.overdue_count);
                             if (result.history_invoices) {
                                 this.historyInvoices = result.history_invoices;
                             }
@@ -1473,8 +1653,7 @@
                         const res = await fetch('<?= base_url('ocr/pending') ?>');
                         const result = await res.json();
                         if (result.status === 'success') {
-                            this.pendingInvoices = result.data;
-                            this.overdueCount = result.overdue_count || 0;
+                            this.replacePendingInvoices(result.data, result.overdue_count);
                         }
                     } catch (e) {}
                 },
