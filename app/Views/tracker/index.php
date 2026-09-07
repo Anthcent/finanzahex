@@ -1035,13 +1035,6 @@
                         <span class="material-icons text-slate-400 text-xs transition-transform duration-200" :class="{'rotate-180': showCategoryMenu}">expand_more</span>
                     </button>
 
-                    <!-- Cart Mode Toggle -->
-                    <button @click="toggleMode(); showAccountMenu = false; showCategoryMenu = false" title="Modo Carrito"
-                            class="w-8.5 h-full rounded-xl flex items-center justify-center border shadow-xs transition-colors shrink-0 active:scale-95" 
-                            :class="mode === 'cart' ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-400'">
-                        <span class="material-icons text-[15px]" x-text="mode === 'cart' ? 'shopping_cart' : 'payments'"></span>
-                    </button>
-
                     <!-- Date Timer Toggle -->
                     <div class="relative w-8.5 h-full shrink-0">
                          <div :class="customDate ? 'bg-emerald-100 text-emerald-700 animate-pulse' : 'bg-slate-50 text-slate-400'" 
@@ -1053,6 +1046,33 @@
                     </div>
 
                 </div>
+
+                <!-- Cart Mode: visible, informative and separate from secondary tools -->
+                <button type="button"
+                        @click="if (mode === 'single') { toggleMode(); showAccountMenu = false; showCategoryMenu = false; }"
+                        class="w-full mb-1.5 min-h-9 px-2.5 py-1.5 rounded-xl border flex items-center justify-between gap-2 transition-all shadow-xs select-none"
+                        :class="mode === 'cart'
+                            ? 'bg-gradient-to-r from-emerald-800 to-teal-800 border-emerald-700 text-white shadow-emerald-900/20 cursor-default'
+                            : 'bg-emerald-50/70 hover:bg-emerald-100 border-emerald-200 text-emerald-900 active:scale-[0.99]'">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                             :class="mode === 'cart' ? 'bg-white/20 text-emerald-100' : 'bg-white text-emerald-700 border border-emerald-100'">
+                            <span class="material-icons text-[15px]" x-text="mode === 'cart' ? 'shopping_cart' : 'add_shopping_cart'"></span>
+                        </div>
+                        <div class="text-left min-w-0 leading-tight">
+                            <span class="block text-[10px] font-black" x-text="mode === 'cart' ? 'Carrito activo' : 'Usar carrito'"></span>
+                            <span class="block text-[8px] font-semibold truncate"
+                                  :class="mode === 'cart' ? 'text-emerald-200' : 'text-emerald-700/70'"
+                                  x-text="mode === 'cart' ? (cart.length + (cart.length === 1 ? ' producto' : ' productos') + ' · ' + formatMoney(cartTotal)) : 'Agrupa varios conceptos en un solo registro'"></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <span x-show="mode === 'cart'" class="min-w-6 h-6 px-1.5 rounded-lg bg-amber-400 text-amber-950 text-[10px] font-black flex items-center justify-center shadow-xs" x-text="cart.length"></span>
+                        <span x-show="mode === 'single'" class="text-[9px] font-black">Activar</span>
+                        <span x-show="mode === 'single'" class="material-icons text-sm">arrow_forward</span>
+                        <span x-show="mode === 'cart'" class="text-[8px] font-bold text-emerald-200 uppercase tracking-wider">En uso</span>
+                    </div>
+                </button>
 
                 <!-- NEGOCIO: Purchase Mode Drawer (Conditional) -->
                 <div x-show="owner === 'Negocio'" x-transition class="mb-1.5 bg-purple-50/80 backdrop-blur rounded-xl p-2.5 border border-purple-100 shadow-xs">
@@ -1222,6 +1242,8 @@
                             class="row-span-2 rounded-xl text-white shadow-lg flex flex-col items-center justify-center active:scale-95 transition-all relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 hover:brightness-105 shadow-emerald-600/35 cursor-pointer">
                         <span class="material-icons text-xl font-bold" 
                               x-text="mode === 'cart' ? (calculate() > 0 ? 'add_shopping_cart' : 'shopping_bag') : 'check'"></span>
+                        <span x-show="mode === 'cart'" class="text-[8px] font-black leading-none mt-0.5"
+                              x-text="calculate() > 0 ? 'Agregar' : 'Cobrar'"></span>
                         <!-- Micro indicator badge if owner is active -->
                         <span x-show="owner" 
                               x-text="owner === 'Arianny' ? 'Ar' : (owner === 'Anthony' ? 'An' : '🏢')"
@@ -1972,7 +1994,7 @@
                             amountUsd = (this.exchangeRate > 0) ? (enteredValue / this.exchangeRate) : 0;
                          }
                          
-                         this.cart.push({
+                            this.cart.push({
                                 name: this.description || ('Item ' + (this.cart.length + 1)),
                                 description: this.description,
                                 quantity: 1,
@@ -1981,6 +2003,7 @@
                                 currency: this.currency
                             });
                             this.clear();
+                            this.showMsg('Agregado al carrito · ' + this.cart.length + (this.cart.length === 1 ? ' producto' : ' productos'));
                             return;
                      }
 
