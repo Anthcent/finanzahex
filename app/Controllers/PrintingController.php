@@ -25,6 +25,8 @@ class PrintingController extends BaseController
         // Get Products grouped by category
         $products = $model->where('is_active', 1)->orderBy('category', 'ASC')->orderBy('name', 'ASC')->findAll();
         $products = array_map([$this, 'hydrateCatalogProduct'], $products);
+        $catalogCategories = (new PrintProductCategoryModel())->orderBy('sort_order', 'ASC')->orderBy('name', 'ASC')->findAll();
+        $products = $this->filterProductsByActiveCategories($products, $catalogCategories);
         
         // Get Accounts for income selection
         $accounts = $accountModel->where('status', 'active')->findAll();
@@ -39,6 +41,7 @@ class PrintingController extends BaseController
 
         return view('printing/index', [
             'products' => $products,
+            'catalogCategories' => $catalogCategories,
             'accounts' => $accounts,
             'defaultAccount' => $defaultAccount,
             'settings' => $settings,
@@ -56,6 +59,8 @@ class PrintingController extends BaseController
 
         $products = $model->where('is_active', 1)->orderBy('category', 'ASC')->orderBy('name', 'ASC')->findAll();
         $products = array_map([$this, 'hydrateCatalogProduct'], $products);
+        $catalogCategories = (new PrintProductCategoryModel())->orderBy('sort_order', 'ASC')->orderBy('name', 'ASC')->findAll();
+        $products = $this->filterProductsByActiveCategories($products, $catalogCategories);
         $accounts = $accountModel->where('status', 'active')->findAll();
 
         $settingsQuery = $db->table('settings')->get()->getResultArray();
@@ -68,6 +73,7 @@ class PrintingController extends BaseController
 
         return view('printing/index', [
             'products' => $products,
+            'catalogCategories' => $catalogCategories,
             'accounts' => $accounts,
             'defaultAccount' => $defaultAccount,
             'settings' => $settings,
@@ -1031,7 +1037,9 @@ class PrintingController extends BaseController
                 throw new \RuntimeException('No se pudo guardar la categoría.');
             }
             if ($id > 0) {
-                (new PrintProductModel())->where('category_id', $id)->set(['category' => $name])->update();
+                \Config\Database::connect()->table('print_products')
+                    ->where('category_id', $id)
+                    ->update(['category' => $name, 'updated_at' => date('Y-m-d H:i:s')]);
             }
             return $this->response->setJSON(['status' => 'success']);
         } catch (\Throwable $e) {
@@ -1066,6 +1074,28 @@ class PrintingController extends BaseController
         $product['is_active'] = (int) ($product['is_active'] ?? 1);
 
         return $product;
+    }
+
+    private function filterProductsByActiveCategories(array $products, array $categories): array
+    {
+        $activeIds = [];
+        $activeNames = [];
+        foreach ($categories as $category) {
+            if (empty($category['is_active'])) {
+                continue;
+            }
+            $activeIds[(int) $category['id']] = true;
+            $activeNames[(string) $category['name']] = true;
+        }
+
+        return array_values(array_filter($products, static function (array $product) use ($activeIds, $activeNames): bool {
+            $categoryId = (int) ($product['category_id'] ?? 0);
+            if ($categoryId > 0) {
+                return isset($activeIds[$categoryId]);
+            }
+
+            return isset($activeNames[(string) ($product['category'] ?? '')]);
+        }));
     }
 
     private function normalizeCharacteristics($characteristics): array

@@ -125,9 +125,26 @@
                     </div>
                     <div class="flex gap-2 overflow-x-auto no-scrollbar">
                         <button @click="activeCategory = 'all'" :class="activeCategory === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="px-3 py-1.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-colors">Todos</button>
-                        <?php foreach (array_values(array_unique(array_column($products, 'category'))) as $category): ?>
+                        <?php
+                        $productCategoryNames = array_values(array_unique(array_column($products, 'category')));
+                        $orderedProductCategories = [];
+                        foreach (($catalogCategories ?? []) as $catalogCategory) {
+                            if (!empty($catalogCategory['is_active']) && in_array($catalogCategory['name'], $productCategoryNames, true)) {
+                                $orderedProductCategories[] = $catalogCategory['name'];
+                            }
+                        }
+                        foreach ($productCategoryNames as $productCategoryName) {
+                            if (!in_array($productCategoryName, $orderedProductCategories, true)) {
+                                $orderedProductCategories[] = $productCategoryName;
+                            }
+                        }
+                        ?>
+                        <?php foreach ($orderedProductCategories as $category): ?>
                         <button @click="activeCategory = <?= htmlspecialchars(json_encode($category)) ?>" :class="activeCategory === <?= htmlspecialchars(json_encode($category)) ?> ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'" class="px-3 py-1.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-colors"><?= esc($category) ?></button>
                         <?php endforeach; ?>
+                        <button @click="openCategoryManager()" class="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 flex items-center justify-center shrink-0" title="Editar categorías">
+                            <span class="material-icons text-sm">edit</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1171,6 +1188,46 @@
 
     </main>
 
+    <!-- Quick category manager -->
+    <div x-show="categoryManager.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" @click="categoryManager.open = false"></div>
+        <div class="bg-white rounded-t-[2.25rem] sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl relative z-10 p-5 sm:p-6 max-h-[92vh] overflow-y-auto customize-scrollbar safe-bottom">
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div><p class="text-[10px] uppercase font-black text-amber-600">Catálogo</p><h3 class="font-black text-lg text-slate-900">Editar categorías</h3><p class="text-xs text-slate-400">Estas son las etiquetas que aparecen debajo del buscador.</p></div>
+                <button @click="categoryManager.open = false" class="w-8 h-8 rounded-full bg-slate-100 material-icons text-slate-500">close</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-[1fr_1.1fr] gap-4 py-4">
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between"><b class="text-xs text-slate-700">Categorías actuales</b><button @click="newPosCategory()" class="text-[10px] font-black text-amber-700 bg-amber-50 px-2 py-1 rounded-lg">+ Nueva</button></div>
+                    <div class="space-y-1.5 max-h-72 overflow-y-auto customize-scrollbar pr-1">
+                        <template x-for="category in catalogCategories" :key="category.id">
+                            <div class="flex items-center gap-2 rounded-xl border p-2.5" :class="Number(categoryForm.id) === Number(category.id) ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'">
+                                <span class="material-icons text-base text-slate-500" x-text="category.icon || 'category'"></span>
+                                <div class="min-w-0 flex-1"><p class="text-xs font-black text-slate-800 truncate" x-text="category.name"></p><p class="text-[9px] font-bold" :class="Number(category.is_active) === 1 ? 'text-emerald-600' : 'text-slate-400'" x-text="Number(category.is_active) === 1 ? 'Visible' : 'Oculta'"></p></div>
+                                <button @click="editPosCategory(category)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-amber-700 material-icons text-sm">edit</button>
+                                <button @click="removePosCategory(category)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-rose-500 material-icons text-sm">delete</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+                    <b class="text-xs text-slate-800" x-text="categoryForm.id ? 'Modificar categoría' : 'Crear categoría'"></b>
+                    <div><label class="text-[9px] font-black text-slate-500 uppercase">Nombre</label><input x-model="categoryForm.name" class="w-full mt-1 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:border-amber-400" placeholder="Ej. Sublimación"></div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div><label class="text-[9px] font-black text-slate-500 uppercase">Icono</label><select x-model="categoryForm.icon" class="w-full mt-1 bg-white border border-slate-200 rounded-lg px-2 py-2 text-[10px]"><template x-for="icon in categoryIcons"><option :value="icon" x-text="icon"></option></template></select></div>
+                        <div><label class="text-[9px] font-black text-slate-500 uppercase">Color</label><select x-model="categoryForm.color" class="w-full mt-1 bg-white border border-slate-200 rounded-lg px-2 py-2 text-[10px]"><template x-for="color in categoryColors"><option :value="color" x-text="color"></option></template></select></div>
+                        <div><label class="text-[9px] font-black text-slate-500 uppercase">Orden</label><input type="number" x-model.number="categoryForm.sort_order" class="w-full mt-1 bg-white border border-slate-200 rounded-lg px-2 py-2 text-xs"></div>
+                    </div>
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-600"><input type="checkbox" x-model="categoryForm.is_active" class="accent-amber-500"> Mostrar en el catálogo</label>
+                    <p x-show="categoryManager.error" x-text="categoryManager.error" class="text-[10px] font-bold text-rose-600 bg-rose-50 rounded-lg p-2"></p>
+                    <button @click="savePosCategory()" :disabled="categoryManager.saving" class="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl text-xs font-black shadow-sm" x-text="categoryManager.saving ? 'Guardando...' : 'Guardar categoría'"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Product configuration modal -->
     <div x-show="productModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
         <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" @click="productModal.open = false"></div>
@@ -2181,6 +2238,11 @@
                 totalBs: 0, totalUsd: 0, paidBs: 0, paidUsd: 0,
                 productSearch: '', activeCategory: 'all', paymentMode: 'full', checkoutError: '',
                 productModal: { open: false, product: null, selections: {}, error: '' },
+                catalogCategories: <?= json_encode($catalogCategories ?? [], JSON_UNESCAPED_UNICODE) ?>,
+                categoryManager: { open: false, saving: false, error: '' },
+                categoryForm: { id: null, name: '', icon: 'category', color: 'emerald', sort_order: 0, is_active: true },
+                categoryIcons: ['category', 'print', 'content_copy', 'description', 'layers', 'edit_note', 'checkroom', 'auto_awesome', 'design_services', 'inventory_2', 'palette', 'school'],
+                categoryColors: ['slate', 'red', 'orange', 'amber', 'green', 'emerald', 'teal', 'blue', 'indigo', 'violet', 'purple', 'pink', 'rose'],
                 checkoutCollection: { customer_phone: '', due_date: '', collection_notes: '' },
                 
                 checkoutModal: { open: false },
@@ -2318,6 +2380,53 @@
                     let matchesSearch = !query || name.toLowerCase().includes(query);
                     let matchesCategory = this.activeCategory === 'all' || category === this.activeCategory;
                     return matchesSearch && matchesCategory;
+                },
+
+                openCategoryManager() {
+                    this.newPosCategory();
+                    this.categoryManager.open = true;
+                },
+
+                newPosCategory() {
+                    this.categoryForm = { id: null, name: '', icon: 'category', color: 'emerald', sort_order: (this.catalogCategories.length + 1) * 10, is_active: true };
+                    this.categoryManager.error = '';
+                },
+
+                editPosCategory(category) {
+                    this.categoryForm = { ...category, is_active: Number(category.is_active) === 1 };
+                    this.categoryManager.error = '';
+                },
+
+                async savePosCategory() {
+                    if (!String(this.categoryForm.name || '').trim()) {
+                        this.categoryManager.error = 'Escribe el nombre de la categoría.';
+                        return;
+                    }
+                    this.categoryManager.saving = true;
+                    this.categoryManager.error = '';
+                    try {
+                        const response = await fetch('<?= base_url('printing/save-catalog-category') ?>', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.categoryForm) });
+                        const data = await response.json();
+                        if (data.status !== 'success') throw new Error(data.message || 'No se pudo guardar la categoría.');
+                        window.location.reload();
+                    } catch (error) {
+                        this.categoryManager.error = error.message || 'No se pudo guardar la categoría.';
+                    } finally {
+                        this.categoryManager.saving = false;
+                    }
+                },
+
+                async removePosCategory(category) {
+                    if (!window.confirm('¿Eliminar la categoría "' + category.name + '"?')) return;
+                    this.categoryManager.error = '';
+                    try {
+                        const response = await fetch('<?= base_url('printing/delete-catalog-category/') ?>' + category.id, { method: 'POST' });
+                        const data = await response.json();
+                        if (data.status !== 'success') throw new Error(data.message || 'No se pudo eliminar la categoría.');
+                        window.location.reload();
+                    } catch (error) {
+                        this.categoryManager.error = error.message || 'No se pudo eliminar la categoría.';
+                    }
                 },
 
                 cartQuantity(productId) {
