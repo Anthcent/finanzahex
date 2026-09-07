@@ -5,13 +5,14 @@ namespace App\Controllers;
 use App\Controllers\BaseController;
 use App\Models\CategoryModel;
 use App\Models\AccountModel;
+use App\Models\AuditLogModel;
 
 class ConfigController extends BaseController
 {
     public function index()
     {
         $db = \Config\Database::connect();
-        $accounts = $db->table('accounts')->get()->getResultArray();
+        $accounts = $db->table('accounts')->where('status !=', 'deleted')->get()->getResultArray();
         
         $settingsQuery = $db->table('settings')->get()->getResultArray();
         $settings = [];
@@ -51,7 +52,7 @@ class ConfigController extends BaseController
 
         return $this->response->setJSON([
             'categories' => $catModel->findAll(),
-            'accounts' => $accModel->findAll()
+            'accounts' => $accModel->where('status !=', 'deleted')->orderBy('type', 'ASC')->findAll()
         ]);
     }
 
@@ -74,14 +75,43 @@ class ConfigController extends BaseController
     {
         $json = $this->request->getJSON();
         $model = new AccountModel();
-        $model->insert(['name' => $json->name, 'balance' => 0]);
-        return $this->response->setJSON(['status' => 'success']);
+        $name = trim((string) ($json->name ?? ''));
+        if ($name === '') return $this->response->setJSON(['status' => 'error', 'message' => 'El nombre es obligatorio.']);
+        $id = $model->insert([
+            'name' => $name, 'balance' => 0, 'initial_balance' => 0,
+            'type' => 'general', 'status' => 'active', 'currency' => 'Bs', 'tenure_type' => 'none',
+        ]);
+        return $this->response->setJSON($id ? ['status' => 'success'] : ['status' => 'error', 'message' => 'No se pudo crear la cuenta.']);
     }
 
-    public function deleteAccount($id)
+    public function updateAccount($id)
     {
+        $json = $this->request->getJSON();
         $model = new AccountModel();
-        $model->delete($id);
+        $account = $model->find((int) $id);
+        if (!$account || ($account['status'] ?? '') === 'deleted') {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Cuenta no encontrada.']);
+        }
+
+        $name = trim((string) ($json->name ?? ''));
+        $currency = $account['type'] === 'temporary'
+            ? ($account['currency'] ?? 'Bs')
+            : (strtoupper((string) ($json->currency ?? 'BS')) === 'USD' ? 'USD' : 'Bs');
+        $tenure = in_array(($json->tenure_type ?? 'none'), ['none', 'digital', 'physical'], true)
+            ? $json->tenure_type : 'none';
+        if ($account['type'] === 'temporary') $tenure = $account['tenure_type'] ?? 'none';
+        if ($name === '') return $this->response->setJSON(['status' => 'error', 'message' => 'El nombre es obligatorio.']);
+
+        $changes = ['name' => $name, 'currency' => $currency, 'tenure_type' => $tenure];
+        if (!$model->update($id, $changes)) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'No se pudo actualizar la cuenta.']);
+        }
+        if ($account['type'] !== 'temporary' && $currency !== ($account['currency'] ?? 'Bs')) {
+            $model->where('parent_account_id', $id)->where('status', 'active')->set([
+                'currency' => $currency, 'tenure_type' => $tenure,
+            ])->update();
+        }
+        AuditLogModel::log('accounts', 'update', $id, $account, $changes, null, "Edición de cuenta: {$name}");
         return $this->response->setJSON(['status' => 'success']);
     }
 

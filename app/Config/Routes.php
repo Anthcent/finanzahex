@@ -112,8 +112,10 @@ $routes->get('config/get-data', 'ConfigController::getData');
 $routes->post('config/add-category', 'ConfigController::addCategory');
 $routes->get('config/delete-category/(:num)', 'ConfigController::deleteCategory/$1');
 $routes->post('config/add-account', 'ConfigController::addAccount');
-$routes->get('config/delete-account/(:num)', 'ConfigController::deleteAccount/$1');
-$routes->post('config/update-balance', 'ConfigController::updateBalance');
+$routes->get('config/delete-account/(:num)', 'AccountController::delete/$1');
+$routes->post('config/delete-account/(:num)', 'AccountController::delete/$1');
+$routes->post('config/update-account/(:num)', 'ConfigController::updateAccount/$1');
+$routes->post('config/update-balance', 'AccountController::updateBalance');
 $routes->get('config/export', 'ConfigController::export');
 
 // Accounts (Dedicated)

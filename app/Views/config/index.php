@@ -77,16 +77,23 @@
                             <div class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 shrink-0">
                                 <span class="material-icons text-sm">payments</span>
                             </div>
-                            <span class="font-bold text-xs sm:text-sm text-slate-200 truncate" x-text="acc.name"></span>
+                            <div class="min-w-0">
+                                <span class="font-bold text-xs sm:text-sm text-slate-200 truncate block" x-text="acc.name"></span>
+                                <span class="text-[9px] font-black uppercase text-slate-500" x-text="(acc.type === 'temporary' ? 'Fondo · ' : '') + (acc.currency || 'Bs')"></span>
+                            </div>
                         </div>
 
-                        <div class="flex items-center gap-2 shrink-0">
+                        <div class="flex items-center gap-1.5 shrink-0">
                             <!-- Balance Direct Editor -->
                             <div class="flex items-center bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
-                                <span class="text-[10px] font-bold text-slate-400 mr-1.5">Bs.</span>
+                                <span class="text-[10px] font-bold text-slate-400 mr-1.5" x-text="acc.currency === 'USD' ? '$' : 'Bs.'"></span>
                                 <input type="number" step="0.01" x-model="acc.balance" @change="updateBalance(acc)" 
-                                       class="w-24 sm:w-28 text-right text-xs sm:text-sm font-black font-mono text-emerald-400 bg-transparent focus:outline-none">
+                                       class="w-16 sm:w-28 text-right text-xs sm:text-sm font-black font-mono text-emerald-400 bg-transparent focus:outline-none">
                             </div>
+
+                            <button @click="openAccountEditor(acc)" class="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-emerald-950/60 border border-slate-700/60 hover:border-emerald-500/30 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-colors active:scale-95" title="Editar cuenta">
+                                <span class="material-icons text-base">edit</span>
+                            </button>
 
                             <!-- Delete Button -->
                             <button @click="deleteAccount(acc.id)" class="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-rose-950/60 border border-slate-700/60 hover:border-rose-500/30 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-colors active:scale-95" title="Eliminar cuenta">
@@ -184,6 +191,29 @@
 
     </main>
 
+    <!-- Account editor -->
+    <div x-cloak x-show="showAccountEditor" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="showAccountEditor = false"></div>
+        <div class="relative w-full sm:max-w-md bg-slate-800 border border-slate-700 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 safe-bottom">
+            <div class="flex items-center justify-between">
+                <div><h3 class="font-black text-white">Editar cuenta</h3><p class="text-[10px] text-slate-400">Actualiza nombre, moneda y tipo de tenencia.</p></div>
+                <button @click="showAccountEditor = false" class="w-8 h-8 rounded-xl bg-slate-700 text-slate-300"><span class="material-icons text-base">close</span></button>
+            </div>
+            <div class="space-y-3">
+                <div><label class="block text-[9px] font-black uppercase text-slate-400 mb-1">Nombre</label><input x-model="accountForm.name" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none focus:border-emerald-500"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="block text-[9px] font-black uppercase text-slate-400 mb-1">Moneda</label><select x-model="accountForm.currency" :disabled="accountForm.type === 'temporary'" class="w-full disabled:opacity-50 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-emerald-500"><option value="Bs">Bolívares</option><option value="USD">Dólares</option></select></div>
+                    <div><label class="block text-[9px] font-black uppercase text-slate-400 mb-1">Tenencia</label><select x-model="accountForm.tenure_type" :disabled="accountForm.type === 'temporary'" class="w-full disabled:opacity-50 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-emerald-500"><option value="none">General</option><option value="digital">Digital</option><option value="physical">Efectivo físico</option></select></div>
+                </div>
+                <p x-show="accountForm.balance != 0" class="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5">Cambiar la moneda no convierte el saldo; úsalo únicamente para corregir el tipo de cuenta.</p>
+            </div>
+            <div class="flex gap-2">
+                <button @click="showAccountEditor = false" class="flex-1 py-3 rounded-xl bg-slate-700 text-slate-300 text-xs font-bold">Cancelar</button>
+                <button @click="saveAccount()" :disabled="savingAccount" class="flex-1 py-3 rounded-xl bg-emerald-600 disabled:opacity-50 text-white text-xs font-black" x-text="savingAccount ? 'Guardando…' : 'Guardar cambios'"></button>
+            </div>
+        </div>
+    </div>
+
     <script>
         function configApp() {
             return {
@@ -191,6 +221,9 @@
                 categories: [],
                 newAccount: '',
                 newCategory: '',
+                showAccountEditor: false,
+                savingAccount: false,
+                accountForm: { id: null, name: '', currency: 'Bs', tenure_type: 'none', balance: 0, type: 'general' },
 
                 init() {
                     this.fetchData();
@@ -218,14 +251,39 @@
                 },
 
                 async deleteAccount(id) {
-                    if(!confirm('¿Estás seguro de eliminar esta cuenta?')) return;
-                    await fetch('<?= base_url('config/delete-account/') ?>' + id);
-                    this.fetchData();
+                    const acc = this.accounts.find(item => item.id == id);
+                    const balance = Number(acc?.balance || 0);
+                    const warning = balance !== 0 ? `\n\nSaldo actual: ${acc?.currency === 'USD' ? '$' : 'Bs. '}${balance.toFixed(2)}. La cuenta dejará de participar en los totales, pero el historial se conservará.` : '';
+                    if(!confirm(`¿Eliminar la cuenta "${acc?.name || ''}"?${warning}`)) return;
+                    const res = await fetch('<?= base_url('config/delete-account/') ?>' + id, { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status !== 'success') return alert(data.message || 'No se pudo eliminar la cuenta.');
+                    await this.fetchData();
+                },
+
+                openAccountEditor(acc) {
+                    this.accountForm = { id: acc.id, name: acc.name, currency: acc.currency || 'Bs', tenure_type: acc.tenure_type || 'none', balance: Number(acc.balance || 0), type: acc.type || 'general' };
+                    this.showAccountEditor = true;
+                },
+
+                async saveAccount() {
+                    if (!this.accountForm.name.trim() || this.savingAccount) return;
+                    this.savingAccount = true;
+                    try {
+                        const res = await fetch('<?= base_url('config/update-account/') ?>' + this.accountForm.id, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.accountForm)
+                        });
+                        const data = await res.json();
+                        if (data.status !== 'success') return alert(data.message || 'No se pudo editar la cuenta.');
+                        this.showAccountEditor = false;
+                        await this.fetchData();
+                    } finally { this.savingAccount = false; }
                 },
 
                 async updateBalance(acc) {
                     await fetch('<?= base_url('config/update-balance') ?>', {
                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ id: acc.id, balance: acc.balance })
                     });
                 },

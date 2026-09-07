@@ -131,11 +131,13 @@ class AccountController extends BaseController
         if ($accounts->where('parent_account_id', $id)->where('status', 'active')->countAllResults() > 0) {
             return $this->error('Primero liquida o elimina los fondos temporales vinculados a esta cuenta.');
         }
-        if (abs((float) $account['balance']) > 0.009) return $this->error('Transfiere el saldo restante antes de eliminar esta cuenta.');
-
         // Preserve its ledger: a deleted account is hidden, not physically erased.
+        // The last balance remains in the audit record but no longer participates
+        // in active totals, which also lets Configuration remove obsolete accounts.
         $accounts->update($id, ['status' => 'deleted', 'closed_at' => date('Y-m-d H:i:s')]);
-        AuditLogModel::log('accounts', 'delete', $id, $account, null, ['soft_deleted' => true], "Eliminación de cuenta: {$account['name']}");
+        AuditLogModel::log('accounts', 'delete', $id, $account, null, [
+            'soft_deleted' => true, 'deleted_balance' => (float) $account['balance'],
+        ], "Eliminación de cuenta: {$account['name']}");
         return $this->response->setJSON(['status' => 'success']);
     }
 
