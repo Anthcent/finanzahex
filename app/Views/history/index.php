@@ -931,9 +931,9 @@
                         }
                         groups[key].items.push(item);
                         const amt = parseFloat(item.display_amount_bs ?? item.amount ?? 0);
-                        if (['income', 'return', 'exchange_in', 'transfer_in'].includes(item.type)) {
+                        if (['income', 'return'].includes(item.type)) {
                             groups[key].incomeTotal += amt;
-                        } else if (['expense', 'exchange_out', 'transfer_out'].includes(item.type)) {
+                        } else if (item.type === 'expense') {
                             groups[key].expenseTotal += amt;
                         }
                         if (item.has_invoice) {
@@ -1228,7 +1228,7 @@
                          description: item.description,
                          created_at: editDate,
                          category_id: item.category_id,
-                         isComplex: ['exchange_out', 'exchange_in', 'transfer_out', 'transfer_in'].includes(item.type)
+                         isComplex: ['exchange_out', 'exchange_in', 'transfer_out', 'transfer_in', 'currency_reversal_in', 'currency_reversal_out'].includes(item.type)
                      };
                 },
                 

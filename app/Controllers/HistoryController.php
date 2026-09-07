@@ -45,9 +45,9 @@ class HistoryController extends BaseController
             $amountBs = (float)($r['display_amount_bs'] ?? $r['amount'] ?? 0);
             $amountUsd = (float)($r['display_amount_usd'] ?? $r['amount_usd'] ?? 0);
 
-            if (in_array($type, ['income', 'return', 'exchange_in', 'transfer_in'])) {
+            if (in_array($type, ['income', 'return'])) {
                 $totalIncome += $amountBs;
-            } elseif (in_array($type, ['expense', 'exchange_out', 'transfer_out'])) {
+            } elseif ($type === 'expense') {
                 $totalExpense += $amountBs;
             } elseif ($type === 'savings') {
                 $totalSavings += $amountBs;
@@ -91,6 +91,14 @@ class HistoryController extends BaseController
              
              if (!$transaction) {
                  return $this->response->setJSON(['status' => 'error', 'message' => 'Transacción no encontrada']);
+             }
+
+             if (!empty($transaction['currency_operation_id'])) {
+                 $db->transRollback();
+                 return $this->response->setStatusCode(409)->setJSON([
+                     'status' => 'error',
+                     'message' => 'Esta transacción forma parte de una operación de divisas. Anúlala desde el módulo Divisas para conservar ambos saldos y la auditoría.',
+                 ]);
              }
 
              // 1. Calculate Amount to Revert

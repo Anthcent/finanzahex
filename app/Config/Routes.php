@@ -48,6 +48,11 @@ $routes->post('transaction/update/(:num)', 'TransactionController::update/$1');
 $routes->get('transaction/stats', 'TransactionController::stats');
 $routes->get('currency/get-rate', 'CurrencyController::getBCVRate');
 
+// Currency operations
+$routes->get('divisas', 'CurrencyOperationsController::index');
+$routes->post('divisas/store', 'CurrencyOperationsController::store');
+$routes->post('divisas/reverse/(:num)', 'CurrencyOperationsController::reverse/$1');
+
 // History
 $routes->get('history', 'HistoryController::index');
 $routes->post('history/fetch', 'HistoryController::fetch');

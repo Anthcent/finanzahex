@@ -333,7 +333,7 @@
                                   <span class="w-1 h-3 bg-emerald-500 rounded-full inline-block"></span>
                                   Finanzas
                               </span>
-                              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                   <a href="<?= base_url('history') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
                                       <div class="w-12 h-12 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs transition-colors">
                                           <span class="material-icons text-2xl">list</span>
@@ -345,6 +345,12 @@
                                           <span class="material-icons text-2xl">account_balance_wallet</span>
                                       </div>
                                       <span class="text-[11px] font-bold text-slate-700 group-hover:text-emerald-950 text-center leading-tight">Cuentas</span>
+                                  </a>
+                                  <a href="<?= base_url('divisas') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-indigo-50/50 border border-slate-100 hover:border-indigo-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-indigo-50 group-hover:bg-indigo-100 text-indigo-700 flex items-center justify-center shadow-xs transition-colors">
+                                          <span class="material-icons text-2xl">currency_exchange</span>
+                                      </div>
+                                      <span class="text-[11px] font-bold text-slate-700 group-hover:text-indigo-950 text-center leading-tight">Divisas</span>
                                   </a>
                                   <a href="<?= base_url('metrics') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
                                       <div class="w-12 h-12 rounded-xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs transition-colors">
@@ -685,9 +691,9 @@
                                      :class="{
                                          'bg-emerald-50 text-emerald-700': item.type === 'income' || item.type === 'return',
                                          'bg-rose-50 text-rose-700': item.type === 'expense',
-                                         'bg-blue-50 text-blue-700': item.type === 'savings' || item.type === 'exchange',
+                                         'bg-blue-50 text-blue-700': item.type === 'savings' || ['exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out'].includes(item.type),
                                          'bg-amber-50 text-amber-700': item.type === 'invoice',
-                                         'bg-slate-100 text-slate-500': !['income','expense','savings','exchange','return','invoice'].includes(item.type)
+                                         'bg-slate-100 text-slate-500': !['income','expense','savings','exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out','return','invoice'].includes(item.type)
                                      }">
                                     <!-- OCR invoice icon override -->
                                     <span class="material-icons text-lg"
@@ -720,11 +726,11 @@
                                        :class="{
                                            'text-emerald-700': item.type === 'income' || item.type === 'return',
                                            'text-rose-700': item.type === 'expense',
-                                           'text-blue-700': item.type === 'savings',
+                                           'text-blue-700': item.type === 'savings' || ['exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out'].includes(item.type),
                                            'text-amber-700': item.type === 'invoice',
-                                           'text-slate-700': !['income','expense','savings','return','invoice'].includes(item.type)
+                                           'text-slate-700': !['income','expense','savings','exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out','return','invoice'].includes(item.type)
                                        }"
-                                       x-text="(item.type === 'income' || item.type === 'return' ? '+ ' : (item.type === 'savings' ? '★ ' : '- ')) + formatMoney(item.display_amount_bs ?? item.amount)"></p>
+                                       x-text="(item.type === 'income' || item.type === 'return' ? '+ ' : (item.type === 'savings' ? '★ ' : (['exchange_out','exchange_in','transfer_out','transfer_in','currency_reversal_in','currency_reversal_out'].includes(item.type) ? '↔ ' : '- '))) + formatMoney(item.display_amount_bs ?? item.amount)"></p>
                                     <p class="text-[9px] text-slate-400 font-medium"
                                        x-show="(item.display_amount_usd ?? item.amount_usd) > 0"
                                        x-text="'$ ' + parseFloat(item.display_amount_usd ?? item.amount_usd ?? 0).toFixed(2)"></p>
@@ -1048,12 +1054,6 @@
                         <span class="material-icons text-slate-400 text-xs transition-transform duration-200" :class="{'rotate-180': showCategoryMenu}">expand_more</span>
                     </button>
 
-                    <!-- Divisas Modal Button -->
-                    <button @click="showDivisasModal = true; showAccountMenu = false; showCategoryMenu = false" title="Operaciones Divisas"
-                            class="w-8.5 h-full rounded-xl flex items-center justify-center border border-pink-200 bg-pink-50 hover:bg-pink-100 text-pink-500 shadow-xs transition-colors shrink-0 active:scale-95">
-                        <span class="material-icons text-[15px]">savings</span>
-                    </button>
-
                     <!-- Cart Mode Toggle -->
                     <button @click="toggleMode(); showAccountMenu = false; showCategoryMenu = false" title="Modo Carrito"
                             class="w-8.5 h-full rounded-xl flex items-center justify-center border shadow-xs transition-colors shrink-0 active:scale-95" 
@@ -1071,12 +1071,6 @@
                          <input type="datetime-local" @change="startTimer($event.target.value)" class="absolute inset-0 opacity-0 z-10 cursor-pointer w-full h-full">
                     </div>
 
-                    <!-- Bubble Toggle -->
-                    <button @click="showBubbles = !showBubbles; showAccountMenu = false; showCategoryMenu = false" title="Burbujas de Actividad"
-                            class="w-8.5 h-full rounded-xl flex items-center justify-center border transition-all shadow-xs shrink-0 active:scale-95"
-                            :class="showBubbles ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-slate-50 text-slate-400 border-slate-200'">
-                       <span class="material-icons text-[14px]">bubble_chart</span>
-                    </button>
                 </div>
 
                 <!-- NEGOCIO: Purchase Mode Drawer (Conditional) -->
@@ -1293,7 +1287,8 @@
             </div>
         </div>
 
-        <!-- Divisas Modal -->
+        <?php /* El flujo de divisas ahora vive en /divisas; se conserva temporalmente este marcado fuera del render para facilitar despliegues con vistas cacheadas. */ if (false): ?>
+        <!-- Divisas Modal (retirado) -->
         <div x-show="showDivisasModal" class="fixed inset-0 z-[90] flex items-center justify-center px-4" x-cloak>
             <div class="fixed inset-0 bg-black bg-opacity-60 transition-opacity" @click="showDivisasModal = false"></div>
             <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl relative z-10">
@@ -1380,6 +1375,8 @@
             </div>
         </div>
 
+        <?php endif; ?>
+
         <!-- Feedback Toast (Moved here to ensure Top Z-Index) -->
         <!-- Minimalist Alert (Dynamic) -->
         <div x-show="message" x-cloak
@@ -1402,7 +1399,8 @@
             </div>
         </div>
 
-        <!-- Recent Bubbles Overlay -->
+        <?php /* Las burbujas de actividad fueron retiradas de la pantalla principal. */ if (false): ?>
+        <!-- Recent Bubbles Overlay (retirado) -->
         <div x-show="showBubbles" x-cloak class="absolute top-20 inset-x-0 bottom-0 pointer-events-none z-[60]">
             
             <!-- LEFT COLUMN: Income & Savings -->
@@ -1502,6 +1500,7 @@
                 </template>
             </div>
         </div>
+        <?php endif; ?>
 
     </div> <!-- End App Container -->
 
@@ -1535,18 +1534,8 @@
                 touchStartTime: 0,
                 isSwiping: false,
                 isMouseDown: false,
-                showDivisasModal: false,
-                divisasMode: 'exchange',
-                divSource: '',
-                divDest: '',
-                divAmountBs: '',
-                divAmountUsd: '',
                 accounts: <?= json_encode($accounts ?? []) ?>,
                 categories: <?= json_encode($categories ?? []) ?>,
-                
-                // Bubbles
-                showBubbles: false,
-                recentBubbles: [],
                 
                 // Inventory Logic
                 inventoryItems: <?= json_encode($inventory_items ?? []) ?>,
@@ -2123,7 +2112,6 @@
                         let data = await res.json();
                         if (data.status === 'success') {
                             this.showMsg('Guardado Exitosamente');
-                            this.addBubbleUI(payload); // Add bubble
                             this.fetchStats();
                             this.fetchConfig();
                         } else {
@@ -2135,36 +2123,6 @@
                     }
                 },
                 
-                addBubbleUI(payload) {
-                    const categoryName = this.categories.find(c => c.id == payload.category_id)?.name || 'General';
-                    const newBubble = {
-                        id: Date.now(),
-                        amount: payload.amount, 
-                        currency: 'Bs', // Default
-                        category: categoryName,
-                        type: payload.type,
-                        desc: payload.description,
-                        expanded: false
-                    };
-                    
-                    // Handle USD currency display override
-                    // If the payload was constructed from USD input, let's try to show USD if preferable, 
-                    // but the payload to save only has amount (Bs) and amount_usd (USD).
-                    
-                    if (this.currency === 'USD' && payload.amount_usd > 0) {
-                        newBubble.amount = payload.amount_usd;
-                        newBubble.currency = 'USD';
-                    }
-                    
-                    this.recentBubbles.unshift(newBubble);
-                    // if (this.recentBubbles.length > 5) this.recentBubbles.pop(); // Remove limit or increase it since they are now scrollable? Let's keep a reasonable history like 20
-                    if (this.recentBubbles.length > 30) this.recentBubbles.pop();
-                    
-                    // Auto-show bubbles if not already shown? 
-                    // User said "quiero que al ir ingresando salgan burbujas" -> Implies auto-show or just show if active.
-                    // If button is off, they shouldn't show.
-                },
-
                 async fetchStats() {
                     try {
                         let res = await fetch('<?= base_url('transaction/stats') ?>');
@@ -2196,50 +2154,6 @@
                             setTimeout(() => this.rateUpdated = false, 3000);
                         }
                     } catch(e) { console.log('BCV Error'); }
-                },
-
-                calcUsd() {
-                    if (this.divAmountBs && this.exchangeRate > 0) {
-                       this.divAmountUsd = (parseFloat(this.divAmountBs) / this.exchangeRate).toFixed(2);
-                    }
-                },
-
-                calculateImplicitRate() {
-                    if (this.divAmountBs > 0 && this.divAmountUsd > 0) {
-                        return (parseFloat(this.divAmountBs) / parseFloat(this.divAmountUsd)).toFixed(2) + ' Bs/$';
-                    }
-                    return '-';
-                },
-
-                async submitDivisas() {
-                    if(!this.divSource || !this.divDest) return this.showMsg('Seleccione Cuentas');
-                    
-                    let payload = {
-                        type: this.divisasMode,
-                        account_id: this.divSource,
-                        destination_account_id: this.divDest,
-                        owner: this.owner,
-                        category_id: this.selectedCategory // Default category
-                    };
-
-                    if (this.divisasMode === 'exchange') {
-                         if(!this.divAmountBs || !this.divAmountUsd) return this.showMsg('Ingrese Montos');
-                         payload.amount = parseFloat(this.divAmountBs);
-                         payload.amount_usd = parseFloat(this.divAmountUsd);
-                         payload.exchange_rate = (payload.amount / payload.amount_usd).toFixed(4); // Actual rate
-                    } else {
-                         if(!this.divAmountUsd) return this.showMsg('Ingrese Monto');
-                         payload.amount = 0;
-                         payload.amount_usd = parseFloat(this.divAmountUsd);
-                         payload.exchange_rate = this.exchangeRate;
-                    }
-
-                    await this.sendData(payload);
-                    this.showDivisasModal = false;
-                    this.divAmountBs = '';
-                    this.divAmountUsd = '';
-                    this.divSource = '';
-                    this.divDest = '';
                 },
 
                 showMsg(txt) {

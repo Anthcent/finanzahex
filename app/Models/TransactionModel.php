@@ -9,7 +9,7 @@ class TransactionModel extends Model
 {
     protected $table = 'transactions';
     protected $primaryKey = 'id';
-    protected $allowedFields = ['account_id', 'category_id', 'print_order_id', 'amount', 'amount_usd', 'exchange_rate', 'type', 'owner', 'description', 'created_at', 'updated_at'];
+    protected $allowedFields = ['account_id', 'category_id', 'print_order_id', 'currency_operation_id', 'amount', 'amount_usd', 'exchange_rate', 'type', 'owner', 'description', 'created_at', 'updated_at'];
     protected $useTimestamps = true;
 
     public function getStats()
