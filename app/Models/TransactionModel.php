@@ -14,32 +14,61 @@ class TransactionModel extends Model
     public function getStats()
     {
         $today = date('Y-m-d');
-        $month = date('Y-m');
+        $db = \Config\Database::connect();
 
         // Real Balance = Sum of all Account Balances
-        $db = \Config\Database::connect();
         $accountBalance = $db->table('accounts')->selectSum('balance')->get()->getRow()->balance ?? 0;
 
-        $todayExpense = $this->where('type', 'expense')
-                             ->where('created_at >=', $today . ' 00:00:00')
-                             ->where('created_at <', date('Y-m-d', strtotime($today . ' +1 day')) . ' 00:00:00')
-                             ->selectSum('amount')->first()['amount'] ?? 0;
+        // Today's expenses
+        $todayExpense = $db->table('transactions')
+            ->selectSum('amount')
+            ->where('type', 'expense')
+            ->where('created_at >=', $today . ' 00:00:00')
+            ->where('created_at <', date('Y-m-d', strtotime($today . ' +1 day')) . ' 00:00:00')
+            ->get()->getRow()->amount ?? 0;
 
-        $recent = $this->builder()
-            ->select('transactions.*, accounts.name as account_name, categories.name as category_name, categories.icon as category_icon')
+        // Recent transactions: join accounts, categories, and OCR invoices if available
+        $hasOcr = $db->tableExists('ocr_invoices');
+
+        $selectCols = 'transactions.id, transactions.amount, transactions.amount_usd, transactions.type,
+                       transactions.description, transactions.created_at, transactions.owner,
+                       accounts.name as account_name,
+                       categories.name as category_name, categories.icon as category_icon';
+
+        if ($hasOcr) {
+            $selectCols .= ', ocr_invoices.merchant as ocr_merchant, ocr_invoices.invoice_number as ocr_invoice_number';
+        }
+
+        $builder = $db->table('transactions')
+            ->select($selectCols)
             ->join('accounts', 'accounts.id = transactions.account_id', 'left')
-            ->join('categories', 'categories.id = transactions.category_id', 'left')
+            ->join('categories', 'categories.id = transactions.category_id', 'left');
+
+        if ($hasOcr) {
+            $builder->join('ocr_invoices', 'ocr_invoices.transaction_id = transactions.id', 'left');
+        }
+
+        $recent = $builder
             ->orderBy('transactions.created_at', 'DESC')
-            ->limit(5)
+            ->limit(8)
             ->get()->getResultArray();
 
+        // Enrich description: if OCR merchant available and description is empty, use merchant
+        foreach ($recent as &$row) {
+            if (empty($row['description']) && !empty($row['ocr_merchant'])) {
+                $row['description'] = $row['ocr_merchant'];
+            }
+        }
+        unset($row);
+
         return [
-            'balance' => (float)$accountBalance,
+            'balance'       => (float)$accountBalance,
             'today_expense' => (float)$todayExpense,
-            'recent' => $recent,
-            'monthly_profit' => 0 // Removed for now as it's ambiguous
+            'recent'        => $recent,
+            'monthly_profit'=> 0,
         ];
     }
+
     public function getFilteredRecords($filters = [])
     {
         $db = \Config\Database::connect();
