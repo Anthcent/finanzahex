@@ -724,10 +724,10 @@
                                            'text-amber-700': item.type === 'invoice',
                                            'text-slate-700': !['income','expense','savings','return','invoice'].includes(item.type)
                                        }"
-                                       x-text="(item.type === 'income' || item.type === 'return' ? '+ ' : (item.type === 'savings' ? '★ ' : '- ')) + formatMoney(item.amount)"></p>
+                                       x-text="(item.type === 'income' || item.type === 'return' ? '+ ' : (item.type === 'savings' ? '★ ' : '- ')) + formatMoney(item.display_amount_bs ?? item.amount)"></p>
                                     <p class="text-[9px] text-slate-400 font-medium"
-                                       x-show="item.amount_usd > 0"
-                                       x-text="'$ ' + parseFloat(item.amount_usd || 0).toFixed(2)"></p>
+                                       x-show="(item.display_amount_usd ?? item.amount_usd) > 0"
+                                       x-text="'$ ' + parseFloat(item.display_amount_usd ?? item.amount_usd ?? 0).toFixed(2)"></p>
                                 </div>
                             </div>
                         </template>

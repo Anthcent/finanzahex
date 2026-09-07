@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Libraries\TransactionValue;
 use CodeIgniter\Model;
 
 class TransactionModel extends Model
@@ -15,24 +16,35 @@ class TransactionModel extends Model
     {
         $today = date('Y-m-d');
         $db = \Config\Database::connect();
+        $exchangeRate = $this->currentExchangeRate($db);
 
-        // Real Balance = Sum of all Account Balances
-        $accountBalance = $db->table('accounts')->selectSum('balance')->get()->getRow()->balance ?? 0;
+        // Account balances are stored in each account's own currency.
+        $accountBalance = 0.0;
+        foreach ($db->table('accounts')->select('balance, currency')->get()->getResultArray() as $account) {
+            $balance = (float) ($account['balance'] ?? 0);
+            $accountBalance += strtoupper((string) ($account['currency'] ?? 'BS')) === 'USD'
+                ? $balance * $exchangeRate
+                : $balance;
+        }
 
-        // Today's expenses
-        $todayExpense = $db->table('transactions')
-            ->selectSum('amount')
+        // Today's expenses expressed in Bs, including USD-only payments.
+        $todayExpense = 0.0;
+        $todayExpenses = $db->table('transactions')
+            ->select('amount, amount_usd, exchange_rate')
             ->where('type', 'expense')
             ->where('created_at >=', $today . ' 00:00:00')
             ->where('created_at <', date('Y-m-d', strtotime($today . ' +1 day')) . ' 00:00:00')
-            ->get()->getRow()->amount ?? 0;
+            ->get()->getResultArray();
+        foreach ($todayExpenses as $expense) {
+            $todayExpense += TransactionValue::inBolivars($expense, $exchangeRate);
+        }
 
         // Recent transactions: join accounts, categories, and OCR invoices if available
         $hasOcr = $db->tableExists('ocr_invoices');
 
-        $selectCols = 'transactions.id, transactions.amount, transactions.amount_usd, transactions.type,
+        $selectCols = 'transactions.id, transactions.amount, transactions.amount_usd, transactions.exchange_rate, transactions.type,
                        transactions.description, transactions.created_at, transactions.owner,
-                       accounts.name as account_name,
+                       accounts.name as account_name, accounts.currency as account_currency,
                        categories.name as category_name, categories.icon as category_icon';
 
         if ($hasOcr) {
@@ -55,6 +67,7 @@ class TransactionModel extends Model
 
         // Enrich description: if OCR merchant available and description is empty, use merchant
         foreach ($recent as &$row) {
+            $row = TransactionValue::enrich($row, $exchangeRate);
             if (empty($row['description']) && !empty($row['ocr_merchant'])) {
                 $row['description'] = $row['ocr_merchant'];
             }
@@ -195,9 +208,11 @@ class TransactionModel extends Model
         }
 
         $records = $builder->get()->getResultArray();
+        $exchangeRate = $this->currentExchangeRate($db);
 
         // Add formatted date helpers for grouping
         foreach ($records as &$rec) {
+            $rec = TransactionValue::enrich($rec, $exchangeRate);
             $ts = !empty($rec['created_at']) ? strtotime($rec['created_at']) : time();
             $rec['date_ymd'] = date('Y-m-d', $ts);
             $rec['time_hi'] = date('H:i', $ts);
@@ -206,22 +221,36 @@ class TransactionModel extends Model
         }
         unset($rec);
 
+        if (in_array($sort, ['amount_desc', 'amount_asc'], true)) {
+            usort($records, static function (array $left, array $right) use ($sort): int {
+                $amountComparison = ((float) $left['display_amount_bs']) <=> ((float) $right['display_amount_bs']);
+                if ($amountComparison === 0) {
+                    return strcmp((string) $right['created_at'], (string) $left['created_at']);
+                }
+
+                return $sort === 'amount_desc' ? -$amountComparison : $amountComparison;
+            });
+        }
+
         return $records;
     }
 
     public function getMetricsData($startDate, $endDate)
     {
         $db = \Config\Database::connect();
+        $exchangeRate = $this->currentExchangeRate($db);
+        $amountBs = $this->normalizedAmountExpression('transactions.', $exchangeRate, 'bs');
+        $amountUsd = $this->normalizedAmountExpression('transactions.', $exchangeRate, 'usd');
 
         // 1. Totals in Bs and USD (including savings)
         $totals = $this->builder()
             ->select("
-                COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as income,
-                COALESCE(SUM(CASE WHEN type = 'income' THEN amount_usd ELSE 0 END), 0) as income_usd,
-                COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expense,
-                COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_usd ELSE 0 END), 0) as expense_usd,
-                COALESCE(SUM(CASE WHEN type = 'savings' THEN amount ELSE 0 END), 0) as savings,
-                COALESCE(SUM(CASE WHEN type = 'savings' THEN amount_usd ELSE 0 END), 0) as savings_usd,
+                COALESCE(SUM(CASE WHEN type = 'income' THEN {$amountBs} ELSE 0 END), 0) as income,
+                COALESCE(SUM(CASE WHEN type = 'income' THEN {$amountUsd} ELSE 0 END), 0) as income_usd,
+                COALESCE(SUM(CASE WHEN type = 'expense' THEN {$amountBs} ELSE 0 END), 0) as expense,
+                COALESCE(SUM(CASE WHEN type = 'expense' THEN {$amountUsd} ELSE 0 END), 0) as expense_usd,
+                COALESCE(SUM(CASE WHEN type = 'savings' THEN {$amountBs} ELSE 0 END), 0) as savings,
+                COALESCE(SUM(CASE WHEN type = 'savings' THEN {$amountUsd} ELSE 0 END), 0) as savings_usd,
                 COUNT(*) as total_transactions,
                 COALESCE(SUM(CASE WHEN type = 'income' THEN 1 ELSE 0 END), 0) as count_income,
                 COALESCE(SUM(CASE WHEN type = 'expense' THEN 1 ELSE 0 END), 0) as count_expense,
@@ -233,7 +262,7 @@ class TransactionModel extends Model
 
         // 2. Expenses by Category
         $byCategory = $this->builder()
-            ->select("categories.id, COALESCE(categories.name, 'Sin Categoría') as name, COALESCE(categories.icon, 'category') as icon, SUM(transactions.amount) as total, SUM(transactions.amount_usd) as total_usd, COUNT(*) as count", false)
+            ->select("categories.id, COALESCE(categories.name, 'Sin Categoría') as name, COALESCE(categories.icon, 'category') as icon, SUM({$amountBs}) as total, SUM({$amountUsd}) as total_usd, COUNT(*) as count", false)
             ->join('categories', 'categories.id = transactions.category_id', 'left')
             ->where('transactions.type', 'expense')
             ->where('transactions.created_at >=', $startDate . ' 00:00:00')
@@ -244,7 +273,7 @@ class TransactionModel extends Model
 
         // 3. Income by Category
         $incomeByCategory = $this->builder()
-            ->select("categories.id, COALESCE(categories.name, 'Sin Categoría') as name, COALESCE(categories.icon, 'category') as icon, SUM(transactions.amount) as total, SUM(transactions.amount_usd) as total_usd, COUNT(*) as count", false)
+            ->select("categories.id, COALESCE(categories.name, 'Sin Categoría') as name, COALESCE(categories.icon, 'category') as icon, SUM({$amountBs}) as total, SUM({$amountUsd}) as total_usd, COUNT(*) as count", false)
             ->join('categories', 'categories.id = transactions.category_id', 'left')
             ->where('transactions.type', 'income')
             ->where('transactions.created_at >=', $startDate . ' 00:00:00')
@@ -255,7 +284,7 @@ class TransactionModel extends Model
 
         // 4. Savings by Category
         $savingsByCategory = $this->builder()
-            ->select("categories.id, COALESCE(categories.name, 'Ahorro / Fondo') as name, COALESCE(categories.icon, 'savings') as icon, SUM(transactions.amount) as total, SUM(transactions.amount_usd) as total_usd, COUNT(*) as count", false)
+            ->select("categories.id, COALESCE(categories.name, 'Ahorro / Fondo') as name, COALESCE(categories.icon, 'savings') as icon, SUM({$amountBs}) as total, SUM({$amountUsd}) as total_usd, COUNT(*) as count", false)
             ->join('categories', 'categories.id = transactions.category_id', 'left')
             ->where('transactions.type', 'savings')
             ->where('transactions.created_at >=', $startDate . ' 00:00:00')
@@ -267,12 +296,12 @@ class TransactionModel extends Model
         // 5. Movements by Account
         $byAccount = $this->builder()
             ->select("accounts.id, COALESCE(accounts.name, 'Sin Cuenta') as name, accounts.currency, accounts.balance as current_balance,
-                      COALESCE(SUM(CASE WHEN transactions.type = 'income' THEN transactions.amount ELSE 0 END), 0) as income,
-                      COALESCE(SUM(CASE WHEN transactions.type = 'income' THEN transactions.amount_usd ELSE 0 END), 0) as income_usd,
-                      COALESCE(SUM(CASE WHEN transactions.type = 'expense' THEN transactions.amount ELSE 0 END), 0) as expense,
-                      COALESCE(SUM(CASE WHEN transactions.type = 'expense' THEN transactions.amount_usd ELSE 0 END), 0) as expense_usd,
-                      COALESCE(SUM(CASE WHEN transactions.type = 'savings' THEN transactions.amount ELSE 0 END), 0) as savings,
-                      COALESCE(SUM(CASE WHEN transactions.type = 'savings' THEN transactions.amount_usd ELSE 0 END), 0) as savings_usd,
+                      COALESCE(SUM(CASE WHEN transactions.type = 'income' THEN {$amountBs} ELSE 0 END), 0) as income,
+                      COALESCE(SUM(CASE WHEN transactions.type = 'income' THEN {$amountUsd} ELSE 0 END), 0) as income_usd,
+                      COALESCE(SUM(CASE WHEN transactions.type = 'expense' THEN {$amountBs} ELSE 0 END), 0) as expense,
+                      COALESCE(SUM(CASE WHEN transactions.type = 'expense' THEN {$amountUsd} ELSE 0 END), 0) as expense_usd,
+                      COALESCE(SUM(CASE WHEN transactions.type = 'savings' THEN {$amountBs} ELSE 0 END), 0) as savings,
+                      COALESCE(SUM(CASE WHEN transactions.type = 'savings' THEN {$amountUsd} ELSE 0 END), 0) as savings_usd,
                       COUNT(*) as count", false)
             ->join('accounts', 'accounts.id = transactions.account_id', 'left')
             ->where('transactions.created_at >=', $startDate . ' 00:00:00')
@@ -284,12 +313,12 @@ class TransactionModel extends Model
         // 6. Trends (Daily) with Income, Expense and Savings
         $dailyTrend = $this->builder()
             ->select("DATE(created_at) as date, 
-                      COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as income,
-                      COALESCE(SUM(CASE WHEN type = 'income' THEN amount_usd ELSE 0 END), 0) as income_usd,
-                      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expense,
-                      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_usd ELSE 0 END), 0) as expense_usd,
-                      COALESCE(SUM(CASE WHEN type = 'savings' THEN amount ELSE 0 END), 0) as savings,
-                      COALESCE(SUM(CASE WHEN type = 'savings' THEN amount_usd ELSE 0 END), 0) as savings_usd", false)
+                      COALESCE(SUM(CASE WHEN type = 'income' THEN {$amountBs} ELSE 0 END), 0) as income,
+                      COALESCE(SUM(CASE WHEN type = 'income' THEN {$amountUsd} ELSE 0 END), 0) as income_usd,
+                      COALESCE(SUM(CASE WHEN type = 'expense' THEN {$amountBs} ELSE 0 END), 0) as expense,
+                      COALESCE(SUM(CASE WHEN type = 'expense' THEN {$amountUsd} ELSE 0 END), 0) as expense_usd,
+                      COALESCE(SUM(CASE WHEN type = 'savings' THEN {$amountBs} ELSE 0 END), 0) as savings,
+                      COALESCE(SUM(CASE WHEN type = 'savings' THEN {$amountUsd} ELSE 0 END), 0) as savings_usd", false)
             ->where('created_at >=', $startDate . ' 00:00:00')
             ->where('created_at <=', $endDate . ' 23:59:59')
             ->groupBy('DATE(created_at)')
@@ -299,12 +328,12 @@ class TransactionModel extends Model
         // 7. Breakdown by Owner (Negocio vs Personal)
         $byOwner = $this->builder()
             ->select("COALESCE(owner, 'General') as owner,
-                      COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as income,
-                      COALESCE(SUM(CASE WHEN type = 'income' THEN amount_usd ELSE 0 END), 0) as income_usd,
-                      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expense,
-                      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_usd ELSE 0 END), 0) as expense_usd,
-                      COALESCE(SUM(CASE WHEN type = 'savings' THEN amount ELSE 0 END), 0) as savings,
-                      COALESCE(SUM(CASE WHEN type = 'savings' THEN amount_usd ELSE 0 END), 0) as savings_usd,
+                      COALESCE(SUM(CASE WHEN type = 'income' THEN {$amountBs} ELSE 0 END), 0) as income,
+                      COALESCE(SUM(CASE WHEN type = 'income' THEN {$amountUsd} ELSE 0 END), 0) as income_usd,
+                      COALESCE(SUM(CASE WHEN type = 'expense' THEN {$amountBs} ELSE 0 END), 0) as expense,
+                      COALESCE(SUM(CASE WHEN type = 'expense' THEN {$amountUsd} ELSE 0 END), 0) as expense_usd,
+                      COALESCE(SUM(CASE WHEN type = 'savings' THEN {$amountBs} ELSE 0 END), 0) as savings,
+                      COALESCE(SUM(CASE WHEN type = 'savings' THEN {$amountUsd} ELSE 0 END), 0) as savings_usd,
                       COUNT(*) as count", false)
             ->where('created_at >=', $startDate . ' 00:00:00')
             ->where('created_at <=', $endDate . ' 23:59:59')
@@ -397,9 +426,44 @@ class TransactionModel extends Model
             $builder->join('ocr_invoices', 'ocr_invoices.transaction_id = transactions.id', 'left');
         }
 
-        return $builder->where('transactions.created_at >=', $start . ' 00:00:00')
+        $records = $builder->where('transactions.created_at >=', $start . ' 00:00:00')
             ->where('transactions.created_at <=', $end . ' 23:59:59')
             ->orderBy('transactions.created_at', 'DESC')
             ->get()->getResultArray();
+
+        $exchangeRate = $this->currentExchangeRate($db);
+
+        return array_map(
+            static fn (array $record): array => TransactionValue::enrich($record, $exchangeRate),
+            $records
+        );
+    }
+
+    private function currentExchangeRate($db): float
+    {
+        if (!$db->tableExists('settings')) {
+            return 50.0;
+        }
+
+        $row = $db->table('settings')->select('value')->where('key', 'bcv_usd_rate')->get()->getRowArray();
+        $rate = (float) ($row['value'] ?? 0);
+
+        return $rate > 0 ? $rate : 50.0;
+    }
+
+    private function normalizedAmountExpression(string $prefix, float $fallbackRate, string $currency): string
+    {
+        $rate = number_format($fallbackRate > 0 ? $fallbackRate : 50.0, 6, '.', '');
+        $storedRate = "(CASE WHEN COALESCE({$prefix}exchange_rate, 0) > 0 THEN {$prefix}exchange_rate ELSE {$rate} END)";
+        $amountBs = "COALESCE({$prefix}amount, 0)";
+        $amountUsd = "COALESCE({$prefix}amount_usd, 0)";
+        $tolerance = "(CASE WHEN ({$storedRate} * 0.01) > 0.05 THEN ({$storedRate} * 0.01) ELSE 0.05 END)";
+        $equivalent = "({$amountBs} > 0 AND {$amountUsd} > 0 AND ABS({$amountBs} - ({$amountUsd} * {$storedRate})) <= {$tolerance})";
+
+        if ($currency === 'usd') {
+            return "(CASE WHEN {$equivalent} THEN {$amountUsd} ELSE {$amountUsd} + ({$amountBs} / {$storedRate}) END)";
+        }
+
+        return "(CASE WHEN {$equivalent} THEN {$amountBs} ELSE {$amountBs} + ({$amountUsd} * {$storedRate}) END)";
     }
 }

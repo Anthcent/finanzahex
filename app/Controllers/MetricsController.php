@@ -84,8 +84,8 @@ class MetricsController extends BaseController
                 $row['category_name'] ?? 'Sin Categoría',
                 $row['account_name'] ?? 'Sin Cuenta',
                 $typeLabel,
-                number_format((float) ($row['amount'] ?? 0), 2, ',', '.'),
-                number_format((float) ($row['amount_usd'] ?? 0), 2, '.', ''),
+                number_format((float) ($row['display_amount_bs'] ?? $row['amount'] ?? 0), 2, ',', '.'),
+                number_format((float) ($row['display_amount_usd'] ?? $row['amount_usd'] ?? 0), 2, '.', ''),
                 number_format((float) ($row['exchange_rate'] ?? 0), 2, ',', '.'),
                 $row['owner'] ?? 'General'
             ]);

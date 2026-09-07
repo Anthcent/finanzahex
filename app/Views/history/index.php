@@ -417,10 +417,10 @@
                                                           'text-emerald-700': item.type === 'income',
                                                           'text-blue-600': item.type === 'savings'
                                                       }"
-                                                      x-text="(item.type === 'expense' ? '-' : '+') + formatMoney(item.amount)"></span>
+                                                      x-text="(item.type === 'expense' ? '-' : '+') + formatMoney(item.display_amount_bs ?? item.amount)"></span>
                                                 
                                                 <div class="flex items-center justify-end gap-1 mt-0.5">
-                                                    <span x-show="item.amount_usd > 0" class="text-[11px] text-slate-400 font-bold" x-text="'≈ ' + formatUsd(item.amount_usd)"></span>
+                                                    <span x-show="(item.display_amount_usd ?? item.amount_usd) > 0" class="text-[11px] text-slate-400 font-bold" x-text="'≈ ' + formatUsd(item.display_amount_usd ?? item.amount_usd)"></span>
                                                     <span x-show="item.exchange_rate > 0" class="text-[9px] text-slate-400 font-mono bg-slate-100 px-1 rounded" x-text="'@' + parseFloat(item.exchange_rate).toFixed(2)"></span>
                                                 </div>
                                             </div>
@@ -667,8 +667,8 @@
                         <div class="flex items-baseline justify-between pt-1">
                             <span class="text-sm font-black text-slate-900 uppercase">Monto Total:</span>
                             <div class="text-right">
-                                <span class="text-lg font-black text-slate-900 tracking-tight" x-text="formatMoney(selectedItem?.amount || detailInvoice?.total_bs || 0)"></span>
-                                <div x-show="selectedItem?.amount_usd > 0 || detailInvoice?.total_usd > 0" class="text-xs font-bold text-slate-400" x-text="'≈ ' + formatUsd(selectedItem?.amount_usd || detailInvoice?.total_usd || 0)"></div>
+                                <span class="text-lg font-black text-slate-900 tracking-tight" x-text="formatMoney(selectedItem?.display_amount_bs ?? selectedItem?.amount ?? detailInvoice?.total_bs ?? 0)"></span>
+                                <div x-show="(selectedItem?.display_amount_usd ?? selectedItem?.amount_usd ?? detailInvoice?.total_usd ?? 0) > 0" class="text-xs font-bold text-slate-400" x-text="'≈ ' + formatUsd(selectedItem?.display_amount_usd ?? selectedItem?.amount_usd ?? detailInvoice?.total_usd ?? 0)"></div>
                             </div>
                         </div>
                     </div>
@@ -725,11 +725,11 @@
                                     </div>
                                     <div class="flex justify-between font-black text-xs pt-1 border-t border-slate-300">
                                         <span>TOTAL:</span>
-                                        <span x-text="formatMoney(selectedItem?.amount || detailInvoice?.total_bs || 0)"></span>
+                                        <span x-text="formatMoney(selectedItem?.display_amount_bs ?? selectedItem?.amount ?? detailInvoice?.total_bs ?? 0)"></span>
                                     </div>
-                                    <div class="flex justify-between text-slate-600" x-show="selectedItem?.amount_usd > 0 || detailInvoice?.total_usd > 0">
+                                    <div class="flex justify-between text-slate-600" x-show="(selectedItem?.display_amount_usd ?? selectedItem?.amount_usd ?? detailInvoice?.total_usd ?? 0) > 0">
                                         <span>TOTAL USD:</span>
-                                        <span x-text="formatUsd(selectedItem?.amount_usd || detailInvoice?.total_usd || 0)"></span>
+                                        <span x-text="formatUsd(selectedItem?.display_amount_usd ?? selectedItem?.amount_usd ?? detailInvoice?.total_usd ?? 0)"></span>
                                     </div>
                                 </div>
 
@@ -930,7 +930,7 @@
                             };
                         }
                         groups[key].items.push(item);
-                        const amt = parseFloat(item.amount || 0);
+                        const amt = parseFloat(item.display_amount_bs ?? item.amount ?? 0);
                         if (['income', 'return', 'exchange_in', 'transfer_in'].includes(item.type)) {
                             groups[key].incomeTotal += amt;
                         } else if (['expense', 'exchange_out', 'transfer_out'].includes(item.type)) {
@@ -1116,7 +1116,7 @@
                             t += qty.padEnd(5, ' ') + name + price.padStart(13, ' ') + '\n';
                         }
                     } else {
-                        t += '1x   ' + merchant.substring(0, 22).padEnd(22, ' ') + this.formatMoney(item.amount || 0).padStart(13, ' ') + '\n';
+                        t += '1x   ' + merchant.substring(0, 22).padEnd(22, ' ') + this.formatMoney(item.display_amount_bs ?? item.amount ?? 0).padStart(13, ' ') + '\n';
                     }
                     t += '----------------------------------------\n';
                     if (inv.subtotal > 0)        t += 'SUBTOTAL:        ' + this.formatMoney(inv.subtotal).padStart(23, ' ') + '\n';
@@ -1124,9 +1124,9 @@
                     if (inv.base_imponible > 0)  t += 'BASE IMPONIBLE:  ' + this.formatMoney(inv.base_imponible).padStart(23, ' ') + '\n';
                     if (inv.iva_amount > 0)      t += 'IVA (16%):       ' + this.formatMoney(inv.iva_amount).padStart(23, ' ') + '\n';
                     if (inv.igtf_amount > 0)     t += 'IGTF (3%):       ' + this.formatMoney(inv.igtf_amount).padStart(23, ' ') + '\n';
-                    t += 'TOTAL:           ' + this.formatMoney(item.amount || inv.total_bs || 0).padStart(23, ' ') + '\n';
-                    if (item.amount_usd > 0 || inv.total_usd > 0) {
-                        t += 'TOTAL USD:       ' + this.formatUsd(item.amount_usd || inv.total_usd || 0).padStart(23, ' ') + '\n';
+                    t += 'TOTAL:           ' + this.formatMoney(item.display_amount_bs ?? item.amount ?? inv.total_bs ?? 0).padStart(23, ' ') + '\n';
+                    if ((item.display_amount_usd ?? item.amount_usd ?? inv.total_usd ?? 0) > 0) {
+                        t += 'TOTAL USD:       ' + this.formatUsd(item.display_amount_usd ?? item.amount_usd ?? inv.total_usd ?? 0).padStart(23, ' ') + '\n';
                     }
                     if (inv.payment_method) {
                         t += 'PAGO:            ' + inv.payment_method.padStart(23, ' ') + '\n';
@@ -1164,8 +1164,8 @@
                         '"' + (r.account_name || '').replace(/"/g, '""') + '"',
                         '"' + (r.category_name || '').replace(/"/g, '""') + '"',
                         '"' + (r.description || '').replace(/"/g, '""') + '"',
-                        r.amount || 0,
-                        r.amount_usd || 0,
+                        r.display_amount_bs ?? r.amount ?? 0,
+                        r.display_amount_usd ?? r.amount_usd ?? 0,
                         r.exchange_rate || '',
                         r.has_invoice ? 'SI' : 'NO',
                         '"' + (r.invoice_merchant || '').replace(/"/g, '""') + '"',

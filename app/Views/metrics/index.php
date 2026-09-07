@@ -748,9 +748,9 @@
                                     <td class="p-4 text-right font-black whitespace-nowrap" 
                                         :class="row.type === 'income' ? 'text-emerald-700' : (row.type === 'savings' ? 'text-indigo-700' : 'text-rose-600')">
                                         <span x-text="row.type === 'income' ? '+' : (row.type === 'savings' ? '★' : '-')"></span>
-                                        <span x-text="formatBs(row.amount)"></span>
+                                        <span x-text="formatBs(row.display_amount_bs ?? row.amount)"></span>
                                     </td>
-                                    <td class="p-4 text-right font-black whitespace-nowrap text-slate-600" x-text="formatUsd(row.amount_usd)"></td>
+                                    <td class="p-4 text-right font-black whitespace-nowrap text-slate-600" x-text="formatUsd(row.display_amount_usd ?? row.amount_usd)"></td>
                                 </tr>
                             </template>
                             <tr x-show="filteredHistory.length === 0">
@@ -786,9 +786,9 @@
                             <div class="text-right shrink-0">
                                 <p class="text-xs font-black" :class="row.type === 'income' ? 'text-emerald-700' : (row.type === 'savings' ? 'text-indigo-700' : 'text-rose-600')">
                                     <span x-text="row.type === 'income' ? '+' : (row.type === 'savings' ? '★' : '-')"></span>
-                                    <span x-text="formatBs(row.amount)"></span>
+                                    <span x-text="formatBs(row.display_amount_bs ?? row.amount)"></span>
                                 </p>
-                                <p class="text-[10px] font-bold text-slate-400" x-text="formatUsd(row.amount_usd)"></p>
+                                <p class="text-[10px] font-bold text-slate-400" x-text="formatUsd(row.display_amount_usd ?? row.amount_usd)"></p>
                             </div>
                         </div>
                     </template>
@@ -1142,11 +1142,11 @@
                 },
 
                 get filteredTotalBs() {
-                    return this.filteredHistory.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+                    return this.filteredHistory.reduce((sum, item) => sum + parseFloat(item.display_amount_bs ?? item.amount ?? 0), 0);
                 },
 
                 get filteredTotalUsd() {
-                    return this.filteredHistory.reduce((sum, item) => sum + parseFloat(item.amount_usd || 0), 0);
+                    return this.filteredHistory.reduce((sum, item) => sum + parseFloat(item.display_amount_usd ?? item.amount_usd ?? 0), 0);
                 },
 
                 savingsRate() {

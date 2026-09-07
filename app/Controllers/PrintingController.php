@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Libraries\PrintingPaymentCalculator;
+use App\Libraries\TransactionValue;
 use App\Models\PrintProductModel;
 use App\Models\TransactionModel;
 use App\Models\AccountModel;
@@ -732,6 +733,16 @@ class PrintingController extends BaseController
                         ->orderBy('created_at', 'DESC')
                         ->limit(100)
                         ->get()->getResultArray();
+
+        $rateRow = $db->table('settings')->select('value')->where('key', 'bcv_usd_rate')->get()->getRowArray();
+        $exchangeRate = (float) ($rateRow['value'] ?? 50.0);
+        if ($exchangeRate <= 0) {
+            $exchangeRate = 50.0;
+        }
+        $movements = array_map(
+            static fn (array $movement): array => TransactionValue::enrich($movement, $exchangeRate),
+            $movements
+        );
                         
         return $this->response->setJSON(['status' => 'success', 'data' => $movements]);
     }

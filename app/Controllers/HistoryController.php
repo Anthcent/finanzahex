@@ -42,8 +42,8 @@ class HistoryController extends BaseController
 
         foreach ($records as $r) {
             $type = $r['type'] ?? '';
-            $amountBs = (float)($r['amount'] ?? 0);
-            $amountUsd = (float)($r['amount_usd'] ?? 0);
+            $amountBs = (float)($r['display_amount_bs'] ?? $r['amount'] ?? 0);
+            $amountUsd = (float)($r['display_amount_usd'] ?? $r['amount_usd'] ?? 0);
 
             if (in_array($type, ['income', 'return', 'exchange_in', 'transfer_in'])) {
                 $totalIncome += $amountBs;

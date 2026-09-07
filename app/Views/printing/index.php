@@ -1143,9 +1143,9 @@
 
                             <div class="flex items-center gap-3 shrink-0">
                                 <div class="text-right">
-                                    <p class="text-xs sm:text-sm font-black text-emerald-600" x-text="'+ Bs. ' + formatBs(m.amount)"></p>
-                                    <template x-if="parseFloat(m.amount_usd) > 0">
-                                        <p class="text-[10px] font-bold text-emerald-700/80" x-text="'+ $' + formatUsd(m.amount_usd)"></p>
+                                    <p class="text-xs sm:text-sm font-black text-emerald-600" x-text="'+ Bs. ' + formatBs(m.display_amount_bs ?? m.amount)"></p>
+                                    <template x-if="parseFloat(m.display_amount_usd ?? m.amount_usd) > 0">
+                                        <p class="text-[10px] font-bold text-emerald-700/80" x-text="'+ $' + formatUsd(m.display_amount_usd ?? m.amount_usd)"></p>
                                     </template>
                                 </div>
                                 <button type="button" @click="confirmTransDelete(m.id)" 
@@ -2880,8 +2880,8 @@
 
                 get movementMetrics() {
                     let list = this.filteredMovements;
-                    let totalBs = list.reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
-                    let totalUsd = list.reduce((sum, m) => sum + parseFloat(m.amount_usd || 0), 0);
+                    let totalBs = list.reduce((sum, m) => sum + parseFloat(m.display_amount_bs ?? m.amount ?? 0), 0);
+                    let totalUsd = list.reduce((sum, m) => sum + parseFloat(m.display_amount_usd ?? m.amount_usd ?? 0), 0);
                     return { totalBs, totalUsd, count: list.length };
                 },
 
