@@ -17,6 +17,7 @@ class DataManagerController extends BaseController
         'inventory' => ['label' => 'Movimientos de inventario', 'table' => 'inventory_movements', 'icon' => 'inventory_2'],
         'ai' => ['label' => 'Conversaciones IA', 'table' => 'ai_conversations', 'icon' => 'smart_toy'],
         'audit' => ['label' => 'Bitácora', 'table' => 'audit_logs', 'icon' => 'policy'],
+        'reconciliation' => ['label' => 'Importaciones y conciliación', 'table' => 'financial_import_batches', 'icon' => 'fact_check'],
     ];
 
     public function index()
@@ -123,6 +124,7 @@ class DataManagerController extends BaseController
                 $db->transBegin();
                 $this->deleteTables([
                     'transaction_items', 'sale_details', 'sale_payments', 'account_transfers',
+                    'financial_import_items', 'financial_import_batches',
                     'ocr_invoices', 'transactions', 'currency_operations', 'print_orders',
                     'sales', 'inventory_movements', 'ai_conversations', 'audit_logs',
                 ]);
@@ -178,6 +180,10 @@ class DataManagerController extends BaseController
                 $this->deleteTransactions($transactionIds);
                 foreach (['sale_details', 'sale_payments'] as $table) if ($db->tableExists($table)) $db->table($table)->whereIn('sale_id', $ids)->delete();
                 $db->table('sales')->whereIn('id', $ids)->delete();
+            } elseif ($group === 'reconciliation') {
+                $transactionIds = $db->table('financial_import_items')->select('transaction_id')->whereIn('batch_id', $ids)->get()->getResultArray();
+                $this->deleteTransactions(array_filter(array_column($transactionIds, 'transaction_id')));
+                $db->table('financial_import_batches')->whereIn('id', $ids)->delete();
             } else {
                 $table = self::GROUPS[$group]['table'];
                 if ($db->tableExists($table)) $db->table($table)->whereIn('id', $ids)->delete();
@@ -255,7 +261,7 @@ class DataManagerController extends BaseController
         $titleFields = [
             'transactions' => 'description', 'printing' => 'customer_name', 'ocr' => 'merchant',
             'sales' => 'customer', 'currency' => 'operation_type', 'inventory' => 'reference',
-            'ai' => 'title', 'audit' => 'user_note',
+            'ai' => 'title', 'audit' => 'user_note', 'reconciliation' => 'source_name',
         ];
         $dateFields = ['sales' => 'date', 'currency' => 'operation_date'];
         $amountFields = ['transactions' => 'amount', 'printing' => 'total_bs', 'ocr' => 'total_bs', 'sales' => 'amount', 'currency' => 'total_bs', 'inventory' => 'quantity'];
@@ -278,6 +284,7 @@ class DataManagerController extends BaseController
             'currency' => 'Operación en divisas',
             'inventory' => ucfirst((string) ($row['type'] ?? 'movimiento')),
             'audit' => (string) (($row['module'] ?? 'Sistema') . ' · ' . ($row['action'] ?? 'acción')),
+            'reconciliation' => ($row['import_type'] ?? '') === 'payment_capture' ? 'Conciliación de pago' : 'Estado bancario',
             default => 'Registro #' . $row['id'],
         };
     }
@@ -288,7 +295,8 @@ class DataManagerController extends BaseController
             'transactions' => ['description', 'owner'], 'printing' => ['customer_name', 'details'],
             'ocr' => ['merchant', 'rif', 'invoice_number'], 'sales' => ['customer', 'product', 'reference'],
             'currency' => ['reference', 'notes'], 'inventory' => ['reference', 'type'],
-            'ai' => ['title'], 'audit' => ['user_note', 'module', 'action'], default => [],
+            'ai' => ['title'], 'audit' => ['user_note', 'module', 'action'],
+            'reconciliation' => ['source_name', 'import_type', 'status'], default => [],
         };
     }
 

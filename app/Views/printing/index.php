@@ -325,6 +325,11 @@
 
         <!-- Debts Tab -->
         <div x-show="tab === 'debts'" class="space-y-4">
+            <a href="<?= base_url('reconciliation') ?>" class="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-600 text-white p-3.5 shadow-lg shadow-emerald-900/15 active:scale-[.99] transition-transform">
+                <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><span class="material-icons">fact_check</span></div>
+                <div class="min-w-0"><p class="text-xs font-black">Conciliar pago recibido</p><p class="text-[10px] text-emerald-100 truncate">Sube el comprobante y encuentra automáticamente la deuda</p></div>
+                <span class="material-icons ml-auto text-lg">arrow_forward</span>
+            </a>
             <!-- Metrics Cards Header -->
             <section class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
                 <div class="col-span-2 sm:col-span-1 bg-gradient-to-br from-rose-600 to-orange-500 text-white rounded-2xl p-3.5 shadow-sm">

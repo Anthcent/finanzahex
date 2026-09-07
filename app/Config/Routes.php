@@ -78,6 +78,15 @@ $routes->post('ocr/update-pending/(:num)', 'OcrController::updatePendingInvoice/
 $routes->post('ocr/cancel/(:num)', 'OcrController::cancelInvoice/$1');
 $routes->get('ocr/history', 'OcrController::history');
 
+// Payment reconciliation and bank statement imports
+$routes->get('reconciliation', 'ReconciliationController::index');
+$routes->post('reconciliation/scan', 'ReconciliationController::scan');
+$routes->get('reconciliation/batches', 'ReconciliationController::batches');
+$routes->get('reconciliation/items', 'ReconciliationController::items');
+$routes->post('reconciliation/item/(:num)', 'ReconciliationController::updateItem/$1');
+$routes->post('reconciliation/apply/(:num)', 'ReconciliationController::apply/$1');
+$routes->get('reconciliation/debts', 'ReconciliationController::debts');
+
 // Routes for Printing Module
 $routes->get('printing', 'PrintingController::index');
 $routes->get('printing/products', 'PrintingController::getProducts');

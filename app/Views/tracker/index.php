@@ -337,6 +337,12 @@
                                       </div>
                                       <span class="text-[11px] font-black text-slate-800 group-hover:text-emerald-950 text-center leading-tight">Escáner OCR</span>
                                   </a>
+                                  <a href="<?= base_url('reconciliation') ?>" class="p-2.5 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 shadow-xs flex flex-col items-center gap-1.5 transition-all active:scale-95 group">
+                                      <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs transition-transform group-hover:scale-105">
+                                          <span class="material-icons text-2xl">fact_check</span>
+                                      </div>
+                                      <span class="text-[11px] font-black text-slate-800 group-hover:text-emerald-950 text-center leading-tight">Conciliar pagos</span>
+                                  </a>
                               </div>
                           </div>
 
