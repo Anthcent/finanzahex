@@ -47,6 +47,7 @@ $routes->post('transaction/save', 'TransactionController::save');
 $routes->post('transaction/update/(:num)', 'TransactionController::update/$1');
 $routes->get('transaction/stats', 'TransactionController::stats');
 $routes->get('currency/get-rate', 'CurrencyController::getBCVRate');
+$routes->get('currency/get-rates', 'CurrencyController::getBCVRates');
 
 // Currency operations
 $routes->get('divisas', 'CurrencyOperationsController::index');

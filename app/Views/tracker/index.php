@@ -58,7 +58,8 @@
 
         <!-- Header Area (Executive Fintech Top Nav) -->
         <div class="flex-none pt-2.5 px-4 pb-2 z-50 relative lg:pt-6">
-            <div class="flex justify-between items-center mb-3 transition-all duration-300" :class="compactLevel > 0 ? 'mb-1.5' : 'mb-3'">
+            <div class="mb-2 transition-all duration-300" :class="compactLevel > 0 ? 'mb-1.5' : 'mb-2'">
+                <div class="flex justify-between items-center gap-2">
                 
                 <!-- Brand / Logo & Title -->
                 <div class="flex items-center gap-2.5 min-w-0" :class="compactLevel > 1 ? 'hidden' : 'flex'">
@@ -88,48 +89,6 @@
 
                 <!-- Controls & Actions Toolbar -->
                 <div class="flex items-center gap-1.5 shrink-0">
-                    
-                    <!-- Rate Badge Widget (Modern Interactive Pill) -->
-                    <div class="h-9 flex items-center bg-white/90 backdrop-blur-md border rounded-2xl px-2.5 py-1 shadow-xs transition-all"
-                         :class="manualRate ? 'border-amber-300 bg-amber-50/40 ring-1 ring-amber-400/20' : 'border-emerald-200/80 hover:border-emerald-300'">
-                        <div class="flex flex-col items-end leading-none">
-                            <div class="flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full" 
-                                      :class="manualRate ? 'bg-amber-500' : (rateUpdated ? 'bg-emerald-400 animate-ping' : 'bg-emerald-500')"></span>
-                                <span class="text-[7.5px] font-black uppercase tracking-wider transition-colors"
-                                      :class="manualRate ? 'text-amber-700' : (rateUpdated ? 'text-emerald-700 font-black' : 'text-slate-500')"
-                                      x-text="rateUpdated ? 'ACTUALIZADO' : (manualRate ? 'MANUAL' : 'TASA BCV')"></span>
-                            </div>
-                            <div class="flex items-baseline mt-0.5">
-                                <span class="text-[9px] font-black mr-0.5"
-                                      :class="manualRate ? 'text-amber-700' : 'text-slate-500'">Bs</span>
-                                <input type="number" step="0.01" x-model.number="exchangeRate" :disabled="!manualRate" 
-                                       class="bg-transparent font-mono font-black text-slate-800 text-right focus:outline-none p-0 border-none h-auto w-16 text-xs transition-colors"
-                                       :class="{'text-emerald-700': rateUpdated && !manualRate, 'text-amber-900 font-black': manualRate}"
-                                       placeholder="0.00">
-                            </div>
-                        </div>
-                        
-                        <!-- Rate Action Buttons -->
-                        <div class="flex items-center gap-0.5 pl-1.5 ml-1 border-l border-slate-100">
-                            <!-- Re-sync BCV (only shown if manual mode is active) -->
-                            <button type="button" @click="fetchRate(); manualRate = false; showMsg('Sincronizando tasa BCV...')" 
-                                    x-show="manualRate"
-                                    class="w-5 h-5 flex items-center justify-center rounded-lg bg-amber-100 hover:bg-emerald-100 text-amber-700 hover:text-emerald-700 transition-colors"
-                                    title="Volver a tasa automática oficial">
-                                <span class="material-icons text-[12px]">sync</span>
-                            </button>
-
-                            <!-- Edit / Save Toggle Button -->
-                            <button type="button" @click="toggleManualRate()" 
-                                    class="w-5 h-5 flex items-center justify-center rounded-lg transition-colors"
-                                    :class="manualRate ? 'bg-amber-500 text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700'"
-                                    :title="manualRate ? 'Fijar tasa manual' : 'Editar tasa manualmente'">
-                                <span class="material-icons text-[11px]" x-text="manualRate ? 'check' : 'edit'"></span>
-                            </button>
-                        </div>
-                    </div>
-                    
                     <!-- Shortcut: OCR Scanner -->
                     <a href="<?= base_url('ocr') ?>" 
                        class="w-9 h-9 flex items-center justify-center bg-white/90 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-2xl border border-slate-200/80 hover:border-emerald-300 transition-all shadow-xs active:scale-95 group shrink-0" 
@@ -149,6 +108,34 @@
                             class="w-9 h-9 flex items-center justify-center bg-white/90 hover:bg-slate-100 text-slate-700 rounded-2xl border border-slate-200/80 hover:border-slate-300 shadow-xs active:scale-95 transition-all shrink-0" 
                             title="Menú Principal">
                         <span class="material-icons text-xl">menu</span>
+                    </button>
+                </div>
+                </div>
+
+                <!-- Dedicated rate row: prevents header controls from overlapping -->
+                <div class="flex items-center gap-2 mt-2">
+                    <div class="h-9 min-w-0 flex-1 flex items-center justify-between bg-white/90 backdrop-blur-md border rounded-2xl px-3 py-1 shadow-xs transition-all"
+                         :class="manualRate ? 'border-amber-300 bg-amber-50/40 ring-1 ring-amber-400/20' : 'border-emerald-200/80 hover:border-emerald-300'">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-2 h-2 rounded-full shrink-0" :class="manualRate ? 'bg-amber-500' : (rateUpdated ? 'bg-emerald-400 animate-ping' : 'bg-emerald-500')"></span>
+                            <div class="leading-none min-w-0">
+                                <span class="text-[7.5px] font-black uppercase tracking-wider block" :class="manualRate ? 'text-amber-700' : 'text-slate-500'" x-text="rateUpdated ? 'ACTUALIZADO' : (manualRate ? 'TASA MANUAL USD' : 'DÓLAR BCV')"></span>
+                                <div class="flex items-baseline mt-0.5">
+                                    <span class="text-[9px] font-black mr-1 text-slate-500">Bs</span>
+                                    <input type="number" step="0.01" x-model.number="exchangeRate" :disabled="!manualRate"
+                                           class="bg-transparent font-mono font-black text-slate-800 focus:outline-none p-0 border-none h-auto w-24 text-sm transition-colors"
+                                           :class="{'text-emerald-700': rateUpdated && !manualRate, 'text-amber-900': manualRate}" placeholder="0.00">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 pl-2 border-l border-slate-100">
+                            <button type="button" @click="fetchRate(); manualRate = false; showMsg('Sincronizando tasa BCV...')" x-show="manualRate" class="w-6 h-6 flex items-center justify-center rounded-lg bg-amber-100 text-amber-700" title="Volver a tasa BCV"><span class="material-icons text-[13px]">sync</span></button>
+                            <button type="button" @click="toggleManualRate()" class="w-6 h-6 flex items-center justify-center rounded-lg transition-colors" :class="manualRate ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500'" :title="manualRate ? 'Guardar tasa' : 'Editar tasa'"><span class="material-icons text-[12px]" x-text="manualRate ? 'check' : 'edit'"></span></button>
+                        </div>
+                    </div>
+                    <button type="button" @click="openCurrencyCalculator()" class="h-9 px-3 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 text-white border border-indigo-500 shadow-md shadow-indigo-900/20 flex items-center gap-1.5 shrink-0 active:scale-95 transition-all" title="Calculadora USD, EUR y Bs">
+                        <span class="material-icons text-base">calculate</span>
+                        <span class="text-[10px] font-black hidden min-[340px]:inline">Calcular</span>
                     </button>
                 </div>
             </div>
@@ -1237,6 +1224,51 @@
             </div>
         </div>
 
+        <!-- Homepage-only BCV price calculator -->
+        <div x-show="showCurrencyCalculator" class="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4" x-cloak>
+            <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" @click="showCurrencyCalculator = false"></div>
+            <div class="relative z-10 w-full max-w-sm max-h-[92vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border border-slate-200">
+                <div class="sticky top-0 z-10 px-4 py-3.5 bg-white/95 backdrop-blur border-b border-slate-100 flex items-center justify-between rounded-t-3xl">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 text-white flex items-center justify-center shadow-md"><span class="material-icons text-lg">calculate</span></div>
+                        <div><h2 class="text-sm font-black text-slate-900 leading-tight">Calculadora BCV</h2><p class="text-[9px] font-bold text-slate-400">USD · EUR · Bolívares</p></div>
+                    </div>
+                    <button type="button" @click="showCurrencyCalculator = false" class="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center active:scale-95"><span class="material-icons text-base">close</span></button>
+                </div>
+
+                <div class="p-4 space-y-4">
+                    <section class="rounded-2xl bg-slate-50 border border-slate-200 p-3">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <div><span class="block text-[9px] font-black uppercase tracking-wider text-slate-500">Tasas utilizadas</span><span class="text-[8px] font-semibold text-slate-400" x-text="calculatorRateSource"></span></div>
+                            <button type="button" @click="fetchCalculatorRates()" :disabled="calculatorLoading" class="h-7 px-2 rounded-lg bg-white border border-slate-200 text-indigo-700 text-[9px] font-black flex items-center gap-1 disabled:opacity-50"><span class="material-icons text-xs" :class="calculatorLoading ? 'animate-spin' : ''">sync</span>Actualizar</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="rounded-xl bg-white border border-emerald-200 px-2.5 py-2"><span class="text-[8px] font-black text-emerald-700 block">1 USD EN BS</span><input x-model.number="calculatorUsdRate" type="number" min="0" step="0.0001" class="w-full bg-transparent outline-none font-mono font-black text-sm text-slate-900 mt-0.5"></label>
+                            <label class="rounded-xl bg-white border border-blue-200 px-2.5 py-2"><span class="text-[8px] font-black text-blue-700 block">1 EUR EN BS</span><input x-model.number="calculatorEurRate" type="number" min="0" step="0.0001" class="w-full bg-transparent outline-none font-mono font-black text-sm text-slate-900 mt-0.5"></label>
+                        </div>
+                        <p class="mt-2 text-[8px] leading-relaxed text-slate-400">Estas tasas son editables solo para este cálculo y no modifican la tasa usada por el resto de la aplicación.</p>
+                    </section>
+
+                    <section>
+                        <div class="mb-2"><span class="block text-[10px] font-black uppercase tracking-wider text-slate-700">Comparar precios</span><span class="text-[9px] font-medium text-slate-400">Introduce ambos precios para ver su diferencia en bolívares.</span></div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3"><span class="text-[9px] font-black text-emerald-700">PRECIO USD</span><div class="mt-1 flex items-center gap-1"><span class="font-black text-emerald-700">$</span><input x-model.number="calculatorUsdValue" type="number" min="0" step="0.01" class="w-full bg-transparent outline-none text-xl font-black text-slate-900" placeholder="21"></div><span class="mt-1 block text-[10px] font-black text-emerald-800" x-text="formatMoney(calculatorUsdBs)"></span></label>
+                            <label class="rounded-2xl border border-blue-200 bg-blue-50/60 p-3"><span class="text-[9px] font-black text-blue-700">PRECIO EUR</span><div class="mt-1 flex items-center gap-1"><span class="font-black text-blue-700">€</span><input x-model.number="calculatorEurValue" type="number" min="0" step="0.01" class="w-full bg-transparent outline-none text-xl font-black text-slate-900" placeholder="22"></div><span class="mt-1 block text-[10px] font-black text-blue-800" x-text="formatMoney(calculatorEurBs)"></span></label>
+                        </div>
+                        <div class="mt-2 rounded-2xl p-3 flex items-center justify-between gap-3 border" :class="comparisonDifference === 0 ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200'">
+                            <div class="flex items-center gap-2 min-w-0"><span class="material-icons text-lg text-amber-600">difference</span><div class="min-w-0"><span class="block text-[9px] font-black uppercase tracking-wider text-slate-500">Diferencia</span><span class="block text-[9px] font-bold text-slate-600 truncate" x-text="comparisonMessage"></span></div></div>
+                            <strong class="font-mono text-sm text-slate-900 whitespace-nowrap" x-text="formatMoney(Math.abs(comparisonDifference))"></strong>
+                        </div>
+                    </section>
+
+                    <section class="rounded-2xl border border-violet-200 bg-violet-50/50 p-3">
+                        <label><span class="text-[9px] font-black uppercase tracking-wider text-violet-700">Convertir bolívares</span><div class="mt-1.5 flex items-center gap-2 rounded-xl bg-white border border-violet-200 px-3 py-2"><span class="text-xs font-black text-violet-700">Bs</span><input x-model.number="calculatorBsValue" type="number" min="0" step="0.01" class="w-full bg-transparent outline-none text-lg font-black text-slate-900" placeholder="0,00"></div></label>
+                        <div class="grid grid-cols-2 gap-2 mt-2 text-center"><div class="rounded-xl bg-white p-2 border border-slate-100"><span class="block text-[8px] font-black text-slate-400">EQUIVALE EN USD</span><strong class="text-xs text-emerald-700" x-text="'$ ' + calculatorBsToUsd.toFixed(2)"></strong></div><div class="rounded-xl bg-white p-2 border border-slate-100"><span class="block text-[8px] font-black text-slate-400">EQUIVALE EN EUR</span><strong class="text-xs text-blue-700" x-text="'€ ' + calculatorBsToEur.toFixed(2)"></strong></div></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
         <?php /* El flujo de divisas ahora vive en /divisas; se conserva temporalmente este marcado fuera del render para facilitar despliegues con vistas cacheadas. */ if (false): ?>
         <!-- Divisas Modal (retirado) -->
         <div x-show="showDivisasModal" class="fixed inset-0 z-[90] flex items-center justify-center px-4" x-cloak>
@@ -1498,6 +1530,14 @@
 
                 // Refinement
                 showConfirmModal: false,
+                showCurrencyCalculator: false,
+                calculatorLoading: false,
+                calculatorUsdRate: 0,
+                calculatorEurRate: 0,
+                calculatorUsdValue: 21,
+                calculatorEurValue: 22,
+                calculatorBsValue: '',
+                calculatorRateSource: 'Tasas de referencia BCV',
                 customDate: null,
 
                 dateTimer: null,
@@ -1854,6 +1894,33 @@
                     }
                 },
 
+                get calculatorUsdBs() {
+                    return (parseFloat(this.calculatorUsdValue) || 0) * (parseFloat(this.calculatorUsdRate) || 0);
+                },
+
+                get calculatorEurBs() {
+                    return (parseFloat(this.calculatorEurValue) || 0) * (parseFloat(this.calculatorEurRate) || 0);
+                },
+
+                get comparisonDifference() {
+                    return this.calculatorEurBs - this.calculatorUsdBs;
+                },
+
+                get comparisonMessage() {
+                    if (Math.abs(this.comparisonDifference) < 0.01) return 'Ambos precios cuestan lo mismo';
+                    return this.comparisonDifference > 0 ? 'El precio en euros es mayor' : 'El precio en dólares es mayor';
+                },
+
+                get calculatorBsToUsd() {
+                    const rate = parseFloat(this.calculatorUsdRate) || 0;
+                    return rate > 0 ? (parseFloat(this.calculatorBsValue) || 0) / rate : 0;
+                },
+
+                get calculatorBsToEur() {
+                    const rate = parseFloat(this.calculatorEurRate) || 0;
+                    return rate > 0 ? (parseFloat(this.calculatorBsValue) || 0) / rate : 0;
+                },
+
                 press(key) {
                     if (this.amount === '0') this.amount = '';
                     this.amount += key;
@@ -2132,6 +2199,32 @@
                     } catch(e) { console.log('BCV Error'); }
                 },
 
+                openCurrencyCalculator() {
+                    this.calculatorUsdRate = parseFloat(this.exchangeRate) || 0;
+                    this.showCurrencyCalculator = true;
+                    this.fetchCalculatorRates();
+                },
+
+                async fetchCalculatorRates() {
+                    if (this.calculatorLoading) return;
+                    this.calculatorLoading = true;
+                    try {
+                        const response = await fetch('<?= base_url('currency/get-rates') ?>');
+                        const data = await response.json();
+                        if (data.rates) {
+                            if (parseFloat(data.rates.USD) > 0) this.calculatorUsdRate = parseFloat(data.rates.USD);
+                            if (parseFloat(data.rates.EUR) > 0) this.calculatorEurRate = parseFloat(data.rates.EUR);
+                        }
+                        this.calculatorRateSource = data.source || 'Tasas editables para este cálculo';
+                        if (!response.ok || data.status !== 'success') this.showMsg(data.message || 'No se pudieron actualizar ambas tasas');
+                    } catch (e) {
+                        this.calculatorRateSource = 'Sin conexión · introduce las tasas manualmente';
+                        this.showMsg('No se pudieron actualizar las tasas BCV');
+                    } finally {
+                        this.calculatorLoading = false;
+                    }
+                },
+
                 showMsg(txt) {
                     this.message = txt;
                     setTimeout(() => this.message = '', 2000);
@@ -2176,6 +2269,10 @@
 
                     // Clear / Esc / Backspace
                     if (e.key === 'Escape') {
+                        if (this.showCurrencyCalculator) {
+                            this.showCurrencyCalculator = false;
+                            return;
+                        }
                         if (this.showQuickOwnerPicker) {
                             this.showQuickOwnerPicker = false;
                             return;
